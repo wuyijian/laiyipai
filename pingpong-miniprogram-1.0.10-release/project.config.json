@@ -1,0 +1,145 @@
+{
+  "description": "来一拍－基于球馆与地域的乒乓球约球小程序",
+  "packOptions": {
+    "ignore": [
+      {
+        "value": ".tmp-automator",
+        "type": "folder"
+      },
+      {
+        "value": ".tmp-wx-sdk-compat",
+        "type": "folder"
+      },
+      {
+        "value": "designs-v4",
+        "type": "folder"
+      },
+      {
+        "value": "designs-v5-no-rating",
+        "type": "folder"
+      },
+      {
+        "value": "tests",
+        "type": "folder"
+      },
+      {
+        "value": "database",
+        "type": "folder"
+      },
+      {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": "scripts",
+        "type": "folder"
+      },
+      {
+        "value": "build",
+        "type": "folder"
+      },
+      {
+        "value": "release-assets",
+        "type": "folder"
+      },
+      {
+        "value": "README.md",
+        "type": "file"
+      },
+      {
+        "value": "package.json",
+        "type": "file"
+      },
+      {
+        "value": "laiyipai-designs-v4.zip",
+        "type": "file"
+      },
+      {
+        "value": "laiyipai-designs-v5-no-rating.zip",
+        "type": "file"
+      },
+      {
+        "value": "demo-preview.png",
+        "type": "file"
+      },
+      {
+        "value": "design-v2-voice-rating.png",
+        "type": "file"
+      },
+      {
+        "value": "design-v3-laiyipai.png",
+        "type": "file"
+      }
+    ],
+    "include": [
+      {
+        "value": "pages/venue-create",
+        "type": "folder"
+      },
+      {
+        "value": "pages/login",
+        "type": "folder"
+      },
+      {
+        "value": "pages/admin-venue-review",
+        "type": "folder"
+      },
+      {
+        "value": "pages/admin-coach-review",
+        "type": "folder"
+      },
+      {
+        "value": "pages/admin-catalog",
+        "type": "folder"
+      },
+      {
+        "value": "pages/match-edit",
+        "type": "folder"
+      },
+      {
+        "value": "custom-tab-bar",
+        "type": "folder"
+      }
+    ]
+  },
+  "setting": {
+    "bundle": false,
+    "userConfirmedBundleSwitch": false,
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "compileHotReLoad": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.17.2",
+  "appid": "wxdbcd8fd8a8014055",
+  "projectname": "laiyipai-pingpong",
+  "miniprogramRoot": "./",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "simulatorType": "wechat",
+  "condition": {},
+  "simulatorPluginLibVersion": {},
+  "isGameTourist": false,
+  "editorSetting": {},
+  "cloudfunctionTemplateRoot": "cloudfunctionTemplate/"
+}

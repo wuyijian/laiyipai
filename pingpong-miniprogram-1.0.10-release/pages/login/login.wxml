@@ -1,0 +1,23 @@
+<view class="ui-screen">
+  <view class="login-page">
+    <view class="login-intro">
+      <view class="login-brand">来一拍 <text>杭州</text></view>
+      <view class="login-title"><view>约好时间，</view><view>球台见。</view></view>
+      <view class="login-copy"><view>登录后再完成发布、加入或预约。</view><view>浏览无需登录，不获取手机号或微信头像，登录后使用稳定的系统头像。</view></view>
+    </view>
+    <view class="login-bottom">
+      <view class="login-detail"><text>无需手机号</text><text>系统头像，无需授权微信头像</text></view>
+      <view wx:if="{{errorMessage}}" class="login-error" role="alert">{{errorMessage}}</view>
+      <button wx:if="{{complete}}" class="primary-button login-button" bindtap="returnToOrigin">登录成功，返回继续</button>
+      <button wx:else class="primary-button login-button" bindtap="login" loading="{{loading}}" disabled="{{loading}}">{{loading ? '正在登录…' : '同意并登录'}}</button>
+      <view class="login-agreement">
+        <checkbox-group bindchange="changeAgreement" aria-label="同意用户协议与隐私保护指引">
+          <label><checkbox value="agree" checked="{{agreed}}" disabled="{{loading}}" color="#0f5c45" /><text>我已阅读并同意</text></label>
+        </checkbox-group>
+        <button bindtap="openTerms" disabled="{{loading}}">《用户协议》</button>
+        <button bindtap="openPrivacy" disabled="{{loading}}">《隐私保护指引》</button>
+      </view>
+      <button wx:if="{{!complete}}" class="login-later" bindtap="returnToOrigin" disabled="{{loading}}">先逛逛</button>
+    </view>
+  </view>
+</view>

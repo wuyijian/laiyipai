@@ -1,0 +1,27 @@
+.ui-screen .player-page { padding-top: 30rpx; }
+.ui-screen .player-loading { padding-top: 22rpx; }
+.ui-screen .player-loading-head { display: flex; align-items: center; gap: 22rpx; padding: 16rpx 0 30rpx; }
+.ui-screen .avatar-skeleton { flex: 0 0 104rpx; width: 104rpx; height: 104rpx; border-radius: 50%; }
+.ui-screen .loading-copy { min-width: 0; flex: 1; }
+.ui-screen .title-skeleton { width: 230rpx; height: 38rpx; }
+.ui-screen .location-skeleton { width: 300rpx; height: 24rpx; margin-top: 16rpx; }
+.ui-screen .section-skeleton { height: 300rpx; margin-top: 20rpx; }
+.ui-screen .player-header { display: flex; align-items: center; gap: 22rpx; padding: 16rpx 0 30rpx; text-align: left; }
+.ui-screen .player-avatar { display: flex; flex: 0 0 104rpx; width: 104rpx; height: 104rpx; align-items: center; justify-content: center; border-radius: 50%; background: #e9ebee; }
+.ui-screen .avatar-empty { color: var(--text-secondary); font-size: 24rpx; font-weight: 600; }
+.ui-screen .player-identity { min-width: 0; flex: 1; }
+.ui-screen .player-name { overflow: hidden; font-size: 34rpx; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .player-location { margin-top: 8rpx; color: var(--text-secondary); font-size: 24rpx; }
+.ui-screen .player-scope { margin-top: 7rpx; color: var(--text-tertiary); font-size: 21rpx; }
+.ui-screen .player-section { background: #fff; padding: 28rpx 0; border-top: 1rpx solid var(--line); border-radius: 0; margin-top: 0; }
+.ui-screen .player-section .section-title { border-bottom: 2rpx solid var(--line); border: 0; padding-bottom: 10rpx; font-size: 30rpx; }
+.ui-screen .data-row { display: flex; justify-content: space-between; gap: 30rpx; padding: 22rpx 0; border-bottom: 2rpx solid var(--line); color: var(--text-secondary); font-size: 25rpx; }
+.ui-screen .data-row text:last-child { color: var(--text); text-align: right; }
+.ui-screen .data-block { padding: 22rpx 0; border-bottom: 2rpx solid var(--line); color: var(--text-secondary); font-size: 25rpx; }
+.ui-screen .data-block > view { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 14rpx; }
+.ui-screen .not-set { display: block; margin-top: 12rpx; color: var(--text-tertiary); }
+.ui-screen .data-note { padding-top: 16rpx; font-size: 22rpx; line-height: 1.5; color: var(--text-secondary); }
+.ui-screen .player-note { color: var(--text-secondary); line-height: 1.6; margin: 0; padding-top: 20rpx; border-top: 1rpx solid var(--line); font-size: 22rpx; }
+.ui-screen .safety-button { width: 100%; min-height: 80rpx; margin-top: 10rpx; color: var(--text-secondary); font-size: 24rpx; display: flex; margin-left: 0; margin-right: 0; align-items: center; justify-content: center; line-height: 1.4; }
+
+.ui-screen .data-row, .ui-screen .data-block { border-bottom-width: 1rpx; font-size: 26rpx; }

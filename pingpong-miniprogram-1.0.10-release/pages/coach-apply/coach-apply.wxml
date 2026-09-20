@@ -1,0 +1,121 @@
+<view class="ui-screen">
+<view class="page-shell coach-apply-page safe-bottom">
+  <view wx:if="{{state === 'loading'}}" class="apply-loading" aria-label="正在加载教练认证状态">
+    <view class="skeleton loading-title"></view>
+    <view class="skeleton loading-copy"></view>
+    <view class="skeleton loading-panel"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel apply-error">
+    <view class="status-title">认证状态暂时无法加载</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button class="status-action" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="apply-header">
+      <view class="apply-eyebrow">教练身份</view>
+      <view class="apply-title">{{status === 'reviewing' ? '资料已提交' : status === 'approved' ? '教练身份已认证' : '申请教练认证'}}</view>
+      <view class="apply-copy">{{status === 'reviewing' ? '运营正在核验资料，结果会在这里更新。' : status === 'approved' ? '你的教学资料已经通过运营核验。' : '填写必要信息即可，运营会人工核验；无需上传证件图片。'}}</view>
+    </view>
+
+    <view wx:if="{{status === 'reviewing' || status === 'approved'}}" class="application-summary">
+      <view class="summary-status status-{{status}}">
+        <view class="summary-status-mark" aria-hidden="true"></view>
+        <view class="summary-status-copy">
+          <text class="summary-status-title">{{status === 'reviewing' ? '审核中' : '已认证'}}</text>
+          <text class="summary-status-note">{{status === 'reviewing' ? '无需重复提交，运营需要时会电话联系' : '认证状态由平台运营核验'}}</text>
+        </view>
+      </view>
+
+      <view class="summary-list">
+        <view class="summary-row"><text>姓名</text><text>{{application.realName}}</text></view>
+        <view class="summary-row"><text>手机号</text><text>{{application.mobileMasked}}</text></view>
+        <view class="summary-row"><text>经验</text><text>{{application.experienceText}}</text></view>
+        <view class="summary-row"><text>授课球馆</text><text>{{application.venueName}}</text></view>
+        <view class="summary-row summary-row-stack"><text>擅长方向</text><text>{{application.specialtyText}}</text></view>
+      </view>
+
+      <view class="summary-footnote">手机号只用于认证核验，不会展示给其他球友。</view>
+    </view>
+
+    <block wx:else>
+      <view wx:if="{{status === 'rejected'}}" class="rejected-notice" aria-live="polite">
+        <view class="rejected-title">需要修改资料</view>
+        <view class="rejected-copy">{{application.reviewReason || '本次申请未通过，请核对资料后重新提交。'}}</view>
+      </view>
+
+      <view class="form-section first-section">
+        <view class="form-section-title">基本信息</view>
+        <view class="form-section-copy">真实姓名用于认证并在通过后展示；手机号仅用于运营核验</view>
+
+        <view class="form-field">
+          <view class="field-label">真实姓名</view>
+          <input class="field-input" value="{{form.realName}}" maxlength="20" placeholder="请输入真实姓名" placeholder-class="input-placeholder" data-field="realName" bindinput="changeText" disabled="{{submitting}}" />
+        </view>
+
+        <view class="form-field">
+          <view class="field-label">手机号</view>
+          <input class="field-input" value="{{form.mobile}}" type="number" maxlength="11" placeholder="用于运营联系核验" placeholder-class="input-placeholder" bindinput="changeMobile" disabled="{{submitting}}" />
+        </view>
+
+        <view class="form-field">
+          <view class="field-label">教学或系统训练年限</view>
+          <view class="experience-input-wrap">
+            <input class="field-input experience-input" value="{{form.experienceYears}}" type="number" maxlength="2" placeholder="不足一年可填 0" placeholder-class="input-placeholder" bindinput="changeExperience" disabled="{{submitting}}" />
+            <text>年</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-section">
+        <view class="form-section-title">教学信息</view>
+        <view class="form-section-copy">选择最有把握的方向，最多 6 项</view>
+
+        <view class="form-field">
+          <view class="field-label">擅长方向</view>
+          <view class="specialty-options">
+            <button wx:for="{{specialtyOptions}}" wx:key="value" class="specialty-option {{item.selected ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="toggleSpecialty" disabled="{{submitting}}" hover-class="specialty-option-press">{{item.value}}</button>
+          </view>
+        </view>
+
+        <view class="form-field">
+          <view class="field-label">常驻或可授课球馆</view>
+          <input class="field-input" value="{{form.venueName}}" maxlength="50" placeholder="填写球馆名称即可" placeholder-class="input-placeholder" data-field="venueName" bindinput="changeText" disabled="{{submitting}}" />
+        </view>
+
+        <view class="form-field">
+          <view class="field-label">资历说明</view>
+          <textarea class="field-textarea qualification-textarea" value="{{form.qualification}}" maxlength="300" placeholder="例如：教练证书名称、带课经历、专业队经历或比赛成绩" placeholder-class="input-placeholder" data-field="qualification" bindinput="changeText" disabled="{{submitting}}" cursor-spacing="24" />
+          <view class="field-count">{{form.qualification.length}} / 300</view>
+        </view>
+
+        <view class="form-field">
+          <view class="field-label">教学简介 <text>选填</text></view>
+          <textarea class="field-textarea" value="{{form.introduction}}" maxlength="500" placeholder="简要说明适合的学员和上课方式" placeholder-class="input-placeholder" data-field="introduction" bindinput="changeText" disabled="{{submitting}}" cursor-spacing="24" />
+          <view class="field-count">{{form.introduction.length}} / 500</view>
+        </view>
+      </view>
+
+      <view class="verification-note">
+        <view class="verification-line" aria-hidden="true"></view>
+        <view>不上传证件图片。认证通过后，姓名、擅长方向、教学经验、资历说明和简介会展示给球友；手机号仅用于运营联系核验，不会公开。</view>
+      </view>
+
+      <checkbox-group class="terms-group" bindchange="changeTerms">
+        <label class="terms-confirm {{submitting ? 'is-disabled' : ''}}">
+          <checkbox value="accepted" checked="{{termsAccepted}}" disabled="{{submitting}}" color="#17211d" />
+          <text>我确认资料真实并同意平台认证核验；通过后按上述范围展示教学资料</text>
+        </label>
+      </checkbox-group>
+
+      <view wx:if="{{submitError}}" class="inline-error">{{submitError}}</view>
+
+      <view class="submit-area">
+        <button class="submit-button" bindtap="submitApplication" loading="{{submitting}}" disabled="{{submitting}}" hover-class="submit-button-press">{{submitting ? '正在提交' : status === 'rejected' ? '修改后重新提交' : '提交认证申请'}}</button>
+        <view class="submit-note">提交即确认以上内容真实、可供运营核验</view>
+      </view>
+    </block>
+  </block>
+</view>
+</view>

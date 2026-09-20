@@ -1,0 +1,21 @@
+{
+  "desc": "仅开放球馆、球局与约球首页索引",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "pages/home/home"
+    },
+    {
+      "action": "allow",
+      "page": "pages/venue-detail/venue-detail"
+    },
+    {
+      "action": "allow",
+      "page": "pages/match-detail/match-detail"
+    },
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}

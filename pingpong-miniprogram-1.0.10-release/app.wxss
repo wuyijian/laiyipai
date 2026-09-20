@@ -1,0 +1,273 @@
+page {
+  --brand: #0f5c45;
+  --brand-pressed: #0a4635;
+  --brand-strong: #103d31;
+  --brand-soft: #e8f2ed;
+  --brand-faint: #f3f7f4;
+  --sport-accent: #d8f36a;
+  --text: #151a17;
+  --text-secondary: #646c67;
+  --text-tertiary: #77817b;
+  --line: #e3e7e3;
+  --line-strong: #d5dbd6;
+  --surface: #ffffff;
+  --surface-muted: #f3f5f3;
+  --background: #ffffff;
+  --success: #177245;
+  --danger: #b42318;
+  min-height: 100%;
+  background: var(--background);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: normal;
+}
+
+button::after {
+  border: 0;
+}
+
+view.ui-screen button {
+  width: auto;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+button:active {
+  opacity: .72;
+}
+
+.safe-bottom {
+  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.page-shell {
+  min-height: 100vh;
+  padding: 0 32rpx 56rpx;
+}
+
+.surface {
+  background: var(--surface);
+}
+
+.ui-screen .primary-button,
+.ui-screen .secondary-button,
+.ui-screen .danger-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 92rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-left: 0;
+  margin-right: 0;
+  text-align: center;
+}
+
+.primary-button {
+  background: var(--brand);
+  color: #fff;
+}
+
+.primary-button[disabled] {
+  background: #aab9b1;
+  color: rgba(255, 255, 255, .88);
+}
+
+.secondary-button {
+  border: 2rpx solid var(--line);
+  background: #fff;
+  color: var(--text);
+}
+
+.danger-button {
+  background: #fff1f0;
+  color: var(--danger);
+}
+
+.ui-screen .text-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 80rpx;
+  color: var(--brand);
+  font-size: 28rpx;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  letter-spacing: -.6rpx;
+}
+
+.section-caption {
+  margin-top: 8rpx;
+  color: var(--text-secondary);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.eyebrow {
+  color: var(--text-tertiary);
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.status-panel {
+  padding: 88rpx 40rpx;
+  text-align: center;
+}
+
+.status-title {
+  color: var(--text);
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.status-copy {
+  max-width: 560rpx;
+  margin: 14rpx auto 0;
+  color: var(--text-secondary);
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.ui-screen .status-action {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 208rpx;
+  min-height: 84rpx;
+  margin-top: 34rpx;
+  padding: 0 34rpx;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  background: #fff;
+  color: var(--text);
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.inline-error {
+  margin: 20rpx 0;
+  padding: 22rpx 24rpx;
+  border-radius: 14rpx;
+  background: #fff1f0;
+  color: var(--danger);
+  font-size: 25rpx;
+  line-height: 1.5;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48rpx;
+  padding: 0 18rpx;
+  border-radius: 10rpx;
+  background: var(--surface-muted);
+  color: #56605a;
+  font-size: 23rpx;
+  white-space: nowrap;
+}
+
+.pill.brand {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.pill.success {
+  background: #eaf7f0;
+  color: var(--success);
+}
+
+.sheet-mask {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(12, 15, 20, .46);
+}
+
+.sheet {
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx 28rpx 0 0;
+  background: #fff;
+}
+
+.sheet-handle {
+  width: 72rpx;
+  height: 8rpx;
+  margin: 0 auto 30rpx;
+  border-radius: 999rpx;
+  background: #d8dade;
+}
+
+.sheet-title {
+  font-size: 34rpx;
+  font-weight: 650;
+}
+
+/* Shared page heading and touch feedback. Component widths are scoped locally
+   to avoid style-v2 native button defaults changing the layout. */
+.screen-heading { padding: 26rpx 0 28rpx; }
+.screen-title { color: var(--text); font-size: 44rpx; font-weight: 650; letter-spacing: -1rpx; line-height: 1.25; }
+.screen-subtitle { margin-top: 10rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.5; }
+.tap-feedback { opacity: .72; }
+input, textarea { color: var(--text); caret-color: var(--brand); }
+
+.sheet-copy {
+  margin-top: 12rpx;
+  color: var(--text-secondary);
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.skeleton {
+  overflow: hidden;
+  border-radius: 12rpx;
+  background: #e9ebee;
+  animation: skeleton-pulse 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes skeleton-pulse {
+  from { opacity: .58; }
+  to { opacity: 1; }
+}

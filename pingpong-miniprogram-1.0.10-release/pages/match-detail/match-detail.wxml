@@ -1,0 +1,143 @@
+<view class="ui-screen">
+<view class="detail-page" aria-hidden="{{joinSheet || resultSheet}}">
+  <view wx:if="{{state === 'loading'}}" class="detail-loading">
+    <view class="skeleton hero-skeleton"></view>
+    <view class="skeleton block-skeleton"></view>
+    <view class="skeleton block-skeleton"></view>
+  </view>
+  <view wx:elif="{{state === 'error'}}" class="status-panel">
+    <view class="status-title">{{notFound ? '球局已下架或不存在' : '暂时无法载入球局'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button wx:if="{{!notFound}}" class="status-action" bindtap="loadMatch">重新加载</button>
+    <button wx:else class="status-action" bindtap="goHome">返回首页</button>
+  </view>
+  <block wx:else>
+    <view class="detail-hero">
+      <view class="hero-topline">
+        <view class="status-tag status-{{match.status}}"><view class="status-dot"></view>{{match.statusLabel}}</view>
+        <view class="hero-actions"><button wx:if="{{match.canEdit}}" class="share-button" bindtap="editMatch" hover-class="soft-press">编辑</button><button wx:if="{{match.shareable}}" class="share-button" open-type="share" hover-class="soft-press">邀请球友<text class="share-arrow">↗</text></button></view>
+      </view>
+      <view class="detail-title">{{match.title}}</view>
+      <view class="intent-tags"><text>{{match.practiceIntentLabel}}</text><text>{{match.expectedBallAge}}</text></view>
+      <view class="schedule-block">
+        <view class="schedule-date">{{match.dateLabel}}</view>
+        <view class="schedule-time"><text>{{match.startTime}}</text><text class="time-dash">—</text><text>{{match.endTime}}</text></view>
+        <view wx:if="{{match.durationLabel}}" class="schedule-duration">一起打 {{match.durationLabel}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{match.statusTitle}}" class="membership-notice tone-{{match.statusTone}}">
+      <view class="membership-title">{{match.statusTitle}}</view>
+      <view class="membership-copy">{{match.statusCopy}}</view>
+      <view wx:if="{{match.hasReservation}}" class="membership-actions">
+        <button bindtap="goOrders" hover-class="soft-press">{{match.isHost && match.capacity > 1 ? '查看加入申请' : match.isHost ? '预约与管理' : '查看预约 / 取消'}}<text>›</text></button>
+      </view>
+    </view>
+
+    <button wx:if="{{canChat}}" class="communication-card" bindtap="goChat" hover-class="communication-card-press" aria-label="打开球局沟通，确认球台、集合位置和时间">
+      <view class="communication-icon" aria-hidden="true"><view></view><text>•••</text></view>
+      <view class="communication-copy">
+        <view class="communication-title">球局沟通</view>
+        <view class="communication-caption">确认球台、集合位置和时间</view>
+      </view>
+      <view class="communication-action">打开对话 <text>›</text></view>
+    </button>
+
+    <view class="detail-section venue-section">
+      <view class="section-heading"><text>在哪打</text></view>
+      <view class="venue-main-row">
+        <view class="venue-main" role="button" aria-label="查看球馆：{{match.venueName}}" bindtap="openVenue" hover-class="soft-press">
+          <venue-avatar src="{{match.shareImageUrl || ''}}" seed="{{match.venueId || match.venueName}}" size="80" label="{{match.venueName}}的球馆头像" />
+          <view class="venue-copy">
+            <view class="venue-name">{{match.venueName}}</view>
+            <button wx:if="{{match.venueLocationText || match.hasLocation}}" class="venue-address" catchtap="openMap" hover-class="soft-press" aria-label="{{match.hasLocation ? '导航到' : '复制地址：'}}{{match.venueName}}">
+              <text>{{match.venueLocationText || '查看地图位置'}}</text><text class="venue-address-action">{{match.hasLocation ? '地图 ↗' : '复制 ⧉'}}</text>
+            </button>
+            <view wx:if="{{match.venueActivityTags.length}}" class="venue-activity-tags"><text wx:for="{{match.venueActivityTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text></view>
+          </view>
+          <text class="row-chevron" aria-hidden="true">›</text>
+        </view>
+        <button class="venue-mark {{match.venueFavorited ? 'is-marked' : ''}}" bindtap="toggleFavorite" disabled="{{favoriteSaving}}" hover-class="soft-press" aria-label="{{favoriteStatus === 'login' ? '登录后标记球馆' : favoriteStatus === 'unknown' ? '球馆标记状态待确认，点击重新查询' : match.venueFavorited ? '取消标记球馆' : '标记球馆'}}">
+          <view class="bookmark-icon" aria-hidden="true"></view>
+          <text>{{favoriteStatus === 'login' ? '登录后标记' : favoriteSaving ? '稍候' : favoriteStatus === 'unknown' ? '查询' : match.venueFavorited ? '已标记' : '标记'}}</text>
+        </button>
+      </view>
+      <view class="court-note"><view class="court-note-dot {{match.courtStatus === 'booked' ? 'booked' : ''}}"></view><view><text class="court-note-title">{{match.courtStatusText}}</text><text class="court-note-caption">{{match.courtStatus === 'booked' ? '发起人填写，球台请到馆前确认' : '加入后，和发起人确认订台安排'}}</text></view></view>
+    </view>
+
+    <view class="detail-section players-section">
+      <view class="section-heading"><text>本局成员</text><view class="seat-count"><text>{{match.participantCount}}</text> / {{match.capacity}} 人</view></view>
+      <view class="player-grid">
+        <view wx:for="{{match.seatSlots}}" wx:key="key" class="player-slot">
+          <view wx:if="{{item.empty}}" class="empty-slot"><view class="empty-avatar"><text>+</text></view><view class="slot-name">空位</view></view>
+          <view wx:elif="{{item.private}}" class="empty-slot"><view class="private-avatar">✓</view><view class="slot-name">已加入</view></view>
+          <view wx:else class="player-slot-button" role="button" data-id="{{item.playerId}}" bindtap="openPlayer" hover-class="soft-press" aria-label="查看球友：{{item.displayName}}">
+            <view class="slot-avatar"><player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="94" label="{{item.displayName}}的头像" /><text wx:if="{{item.host}}" class="host-badge">发起人</text></view>
+            <view class="slot-name">{{item.displayName}}</view>
+            <view class="slot-age">{{item.ballAge === '未填写' || item.ballAge === '未填写球龄' ? '球龄未填写' : item.ballAge}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="seats-caption">{{match.capacity === 1 ? '这是一场单人练习' : !match.shareable ? '球局已停止接受加入' : match.seats ? '还有 ' + match.seats + ' 个空位 · ' + match.joinModeText : '当前满员，可提交候补'}}</view>
+      <view wx:if="{{match.host.skills.length || match.host.ratingText}}" class="host-brief">
+        <view class="host-brief-label">发起人打法 · {{match.host.displayName}}</view>
+        <view wx:if="{{match.host.skills.length}}" class="host-skills"><text wx:for="{{match.host.skills}}" wx:key="*this">{{item}}</text></view>
+        <view wx:if="{{match.host.ratingText}}" class="host-rating">{{match.host.ratingText}} · 本人填写</view>
+      </view>
+    </view>
+
+    <view class="detail-section arrangement-section">
+      <view class="section-heading"><text>怎么打</text></view>
+      <view class="fact-row"><text>练球方式</text><text>{{match.practiceIntentLabel}}</text></view>
+      <view class="fact-row"><text>加入方式</text><text>{{match.joinModeText}}</text></view>
+      <view class="fact-row"><text>预计每人</text><text>{{match.feeText}}{{match.feePerPerson > 0 ? ' · 到店支付' : ''}}</text></view>
+      <view class="court-booking-note">{{match.courtBookingNotice}}</view>
+    </view>
+    <view class="detail-footnote">如不能到场，请尽早在预约中取消。平台不代收费用。</view>
+    <button wx:if="{{!match.isHost}}" class="report-link" bindtap="openMoreActions" hover-class="soft-press">举报或屏蔽</button>
+
+    <view class="detail-bottom">
+      <view class="bottom-main">
+        <view class="price-copy"><text class="price-value">{{match.feeText}}</text><text class="price-caption">{{match.feePerPerson > 0 ? '预计费用 · 到店支付' : '本场无参与费用'}}</text></view>
+        <button class="join-button" bindtap="primaryAction" disabled="{{match.actionDisabled || submitting}}" loading="{{submitting}}" hover-class="primary-press">{{match.actionText}}</button>
+      </view>
+      <view class="bottom-hint">{{match.actionHint}}</view>
+    </view>
+  </block>
+</view>
+
+<view wx:if="{{joinSheet}}" class="sheet-mask" catchtap="closeJoin">
+  <view class="sheet join-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="{{match.joinSheetTitle}}">
+    <view class="sheet-handle"></view>
+    <view class="sheet-head"><view class="sheet-title">{{match.joinSheetTitle}}</view><button class="sheet-close" bindtap="closeJoin" disabled="{{submitting}}" aria-label="关闭">×</button></view>
+    <view class="sheet-copy">{{match.joinSheetCopy}}</view>
+    <view class="join-summary">
+      <view class="summary-date">{{match.dateLabel}}</view>
+      <view class="summary-time">{{match.startTime}} — {{match.endTime}}</view>
+      <view class="summary-venue">{{match.venueName}}</view>
+      <view class="summary-facts"><text>{{match.participantCount}} / {{match.capacity}} 人</text><text>{{match.seats > 0 ? match.joinModeText : '候补申请'}}</text></view>
+      <view class="summary-footer"><text>{{match.courtStatusText}}</text><text>{{match.feeText}}</text></view>
+    </view>
+    <view class="join-court-notice">{{match.courtBookingNotice}}</view>
+    <view wx:if="{{joinError}}" class="inline-error" aria-live="polite">{{joinError}}</view>
+    <view class="submit-agreement"><text>提交即表示同意</text><button bindtap="openTerms">《用户协议》</button></view>
+    <button class="primary-button confirm-join" bindtap="confirmJoin" loading="{{submitting}}" disabled="{{submitting}}" hover-class="primary-press">{{match.joinSubmitText}}</button>
+    <button class="text-button sheet-back" bindtap="closeJoin" disabled="{{submitting}}">再看看</button>
+  </view>
+</view>
+
+<view wx:if="{{resultSheet}}" class="sheet-mask" catchtap="closeResult">
+  <view class="sheet result-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="{{resultTitle}}">
+    <view class="sheet-handle"></view>
+    <view class="result-symbol {{resultToneClass}}">{{resultToneClass === 'success' ? '✓' : '…'}}</view>
+    <view class="result-label">{{resultTone}}</view>
+    <view class="sheet-title">{{resultTitle}}</view>
+    <view class="result-schedule">{{match.dateLabel}} · {{match.startTime}}</view>
+    <view class="result-venue">{{match.venueName}}</view>
+    <view class="sheet-copy">{{resultCopy}}</view>
+    <button wx:if="{{resultCanChat}}" class="primary-button confirm-join" bindtap="goChat" hover-class="primary-press">{{resultActionText}}</button>
+    <button wx:else class="primary-button confirm-join" bindtap="goOrders" hover-class="primary-press">{{resultActionText}}</button>
+    <button class="text-button sheet-back" bindtap="closeResult">完成</button>
+  </view>
+</view>
+</view>

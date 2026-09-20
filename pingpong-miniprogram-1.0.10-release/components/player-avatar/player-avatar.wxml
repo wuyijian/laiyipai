@@ -1,0 +1,14 @@
+<view class="avatar" style="width: {{size}}rpx; height: {{size}}rpx; background: {{palette.background}};" role="img" aria-label="{{label}}">
+  <image wx:if="{{src && !imageFailed}}" class="avatar-image" src="{{src}}" mode="aspectFill" binderror="onImageError" />
+  <view wx:else class="avatar-art" aria-hidden="true">
+    <view class="orbit" style="border-color: {{palette.accent}};"></view>
+    <view class="racket" style="transform: rotate({{palette.angle}}deg);">
+      <view class="handle" style="background: {{palette.blade}};"></view>
+      <view class="blade" style="background: {{palette.blade}};">
+        <view class="blade-stripe" style="background: {{palette.accent}};"></view>
+        <view class="blade-dot"></view>
+      </view>
+    </view>
+    <view class="ball" style="left: {{palette.ballLeft}};"></view>
+  </view>
+</view>

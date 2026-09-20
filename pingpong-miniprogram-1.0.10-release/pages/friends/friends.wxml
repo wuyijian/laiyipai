@@ -1,0 +1,40 @@
+<view class="ui-screen">
+  <view class="page-shell friends-page safe-bottom">
+    <view class="friends-hero">
+      <view class="friends-title">球友</view>
+      <view class="friends-copy">确认参加同一场球局后自动记录，不需要发送好友申请。</view>
+    </view>
+
+    <view wx:if="{{state === 'loading'}}" class="friends-loading" aria-label="正在加载球友">
+      <view class="skeleton friend-skeleton" wx:for="{{[1,2,3]}}" wx:key="*this"></view>
+    </view>
+    <view wx:elif="{{state === 'error'}}" class="status-panel friends-status">
+      <view class="status-title">暂时无法载入球友</view>
+      <view class="status-copy">{{errorMessage}}</view>
+      <button class="status-action" bindtap="retry">重新加载</button>
+    </view>
+    <block wx:else>
+      <view wx:if="{{errorMessage}}" class="friends-notice" role="alert">
+        <text>{{errorMessage}}</text><button bindtap="retry">重试</button>
+      </view>
+      <view wx:if="{{items.length}}" class="friend-list">
+        <button wx:for="{{items}}" wx:key="playerId" class="friend-row" data-id="{{item.playerId}}" bindtap="openPlayer" hover-class="friend-row-press" hover-stay-time="80">
+          <player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="88" label="{{item.displayName}}的头像" />
+          <view class="friend-body">
+            <view class="friend-name-row"><text class="friend-name">{{item.displayName}}</text><text class="friend-relation">{{item.relationshipText}}</text></view>
+            <text wx:if="{{item.metaText}}" class="friend-meta">{{item.metaText}}</text>
+            <view wx:if="{{item.skills.length}}" class="friend-skills"><text wx:for="{{item.skills}}" wx:key="*this" class="friend-skill">{{item}}</text></view>
+          </view>
+          <text class="friend-chevron" aria-hidden="true">›</text>
+        </button>
+      </view>
+      <view wx:else class="status-panel friends-empty">
+        <view class="empty-mark"><view></view><view></view></view>
+        <view class="status-title">还没有同场球友</view>
+        <view class="status-copy">加入或发起一场球局，确认同行后会自动出现在这里。</view>
+        <button class="status-action" bindtap="goHome">去找球局</button>
+      </view>
+      <view wx:if="{{hasMore || loadingMore}}" class="friends-more"><button bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '加载中' : '查看更多球友'}}</button></view>
+    </block>
+  </view>
+</view>

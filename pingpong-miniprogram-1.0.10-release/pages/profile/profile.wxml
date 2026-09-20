@@ -1,0 +1,332 @@
+<view class="ui-screen">
+<view class="page-shell profile-page safe-bottom" aria-hidden="{{editVisible}}">
+  <view wx:if="{{state === 'loading'}}" class="profile-loading">
+    <view class="loading-hero">
+      <view class="skeleton avatar-skeleton"></view>
+      <view class="loading-copy">
+        <view class="skeleton name-skeleton"></view>
+        <view class="skeleton location-skeleton"></view>
+      </view>
+    </view>
+    <view class="skeleton panel-skeleton"></view>
+    <view class="skeleton list-skeleton"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel profile-status">
+    <view class="status-title">{{loginRequired ? '登录后，约球更方便' : '暂时无法载入资料'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button class="status-action" bindtap="loadProfile" hover-class="profile-primary-press" hover-stay-time="80">{{loginRequired ? '微信登录' : '重新加载'}}</button>
+  </view>
+
+  <block wx:else>
+    <view class="profile-hero">
+      <view class="profile-header">
+        <view class="avatar-wrap" aria-label="我的系统头像">
+          <player-avatar seed="{{profile.playerId || profile.nickname}}" size="98" label="我的系统头像" />
+        </view>
+        <view class="profile-identity">
+          <view class="profile-name">{{profile.nickname}}</view>
+          <view class="profile-location">微信已登录 · {{profile.locationText}}</view>
+        </view>
+        <button class="edit-button" bindtap="openEdit" hover-class="profile-ghost-press" hover-stay-time="80">编辑</button>
+      </view>
+    </view>
+
+    <view wx:if="{{!profile.complete}}" class="complete-card">
+      <view class="complete-copy-wrap">
+        <view class="complete-title">完善运动档案</view>
+        <view class="complete-copy">填写球龄和技术，让约球信息更完整</view>
+      </view>
+      <button class="complete-action" bindtap="openEdit" hover-class="profile-primary-press" hover-stay-time="80">去填写</button>
+    </view>
+
+    <view class="profile-section play-profile">
+      <view class="profile-section-head">
+        <view>
+          <view class="section-name">约球档案</view>
+          <view class="section-subtitle">帮助球友快速判断是否合拍</view>
+        </view>
+      </view>
+
+      <view class="profile-facts">
+        <view class="fact-item">
+          <text class="fact-label">球龄</text>
+          <text class="fact-value">{{profile.ballAgeText}}</text>
+        </view>
+        <view class="fact-divider"></view>
+        <view class="fact-item">
+          <text class="fact-label">参考积分</text>
+          <text class="fact-value">{{profile.ratingText === '未填写' ? '选填' : profile.ratingText}}</text>
+        </view>
+      </view>
+
+      <view class="skills-block">
+        <view class="skills-label">擅长技术</view>
+        <view wx:if="{{profile.skills.length}}" class="skills-list">
+          <text wx:for="{{profile.skills}}" wx:key="*this" class="skill-pill">{{item}}</text>
+        </view>
+        <view wx:else class="not-set">暂未填写</view>
+      </view>
+
+      <view class="data-note">资料由本人填写，仅作约球参考，不影响加入球局</view>
+    </view>
+
+    <view class="message-center" aria-label="球局消息">
+      <view class="message-entry-row" role="button" bindtap="openMessages" hover-class="profile-row-press" hover-stay-time="80">
+        <view class="message-entry-mark" aria-hidden="true">
+          <view class="message-entry-bubble"></view>
+          <text wx:if="{{messageUnreadCount}}" class="message-entry-count">{{messageBadgeText}}</text>
+        </view>
+        <view class="message-entry-copy">
+          <view class="message-entry-title-row">
+            <text class="message-entry-title">球局消息</text>
+            <text wx:if="{{messageUnreadCount}}" class="message-entry-unread">{{messageBadgeText}} 条未读</text>
+          </view>
+          <text class="message-entry-subtitle">{{messageUnreadCount ? '及时确认时间、球馆和球台安排' : '有新消息会在“我的”显示提醒'}}</text>
+        </view>
+        <text class="row-chevron" aria-hidden="true">›</text>
+      </view>
+
+      <view wx:if="{{messageConversations.length}}" class="message-conversation-list">
+        <view
+          wx:for="{{messageConversations}}"
+          wx:key="matchId"
+          class="message-conversation-row"
+          role="button"
+          aria-label="{{item.title}}，{{item.unreadCount}}条未读，{{item.previewText}}"
+          data-id="{{item.matchId}}"
+          bindtap="openMessageConversation"
+          hover-class="profile-row-press"
+          hover-stay-time="80"
+        >
+          <view class="conversation-unread-dot" aria-hidden="true"></view>
+          <view class="conversation-copy">
+            <view class="conversation-title-row">
+              <text class="conversation-title">{{item.title}}</text>
+              <text class="conversation-count">{{item.unreadCount}}</text>
+            </view>
+            <text class="conversation-schedule">{{item.scheduleText}}</text>
+            <text class="conversation-preview">{{item.previewText}}</text>
+          </view>
+          <text class="row-chevron" aria-hidden="true">›</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="friends-entry-row" role="button" aria-label="查看同场球友" bindtap="openFriends" hover-class="profile-row-press" hover-stay-time="80">
+      <view class="friends-entry-mark" aria-hidden="true"><view></view><view></view></view>
+      <view class="friends-entry-copy">
+        <text class="friends-entry-title">同场球友</text>
+        <text class="friends-entry-subtitle">一起打过球的球友会自动出现在这里</text>
+      </view>
+      <text class="row-chevron" aria-hidden="true">›</text>
+    </view>
+
+    <view class="profile-section venues-section">
+      <view class="profile-section-head">
+        <view>
+          <view class="section-name">常去球馆</view>
+          <view wx:if="{{venuesState === 'error' && !savedVenues.length}}" class="section-subtitle">标记记录暂未同步</view>
+          <view wx:elif="{{venuesState === 'error'}}" class="section-subtitle">{{savedVenuesTotal}} 家已标记 · 待更新</view>
+          <view wx:elif="{{venuesState === 'loading' && savedVenues.length}}" class="section-subtitle">{{savedVenuesTotal}} 家已标记 · 更新中</view>
+          <view wx:elif="{{venuesState === 'loading'}}" class="section-subtitle">正在同步标记…</view>
+          <view wx:else class="section-subtitle">{{savedVenuesTotal}} 家已标记</view>
+        </view>
+        <button class="section-action section-action-quiet" bindtap="goHome" hover-class="profile-soft-press">找球馆</button>
+      </view>
+
+      <view wx:if="{{savedVenues.length}}" class="venue-list">
+        <view wx:for="{{savedVenues}}" wx:key="id" class="saved-venue-row {{item.unavailable ? 'unavailable' : ''}}">
+          <button class="saved-venue" data-id="{{item.id}}" bindtap="openVenue" hover-class="profile-row-press" hover-stay-time="80">
+            <venue-avatar src="{{item.imageUrls[0] || ''}}" seed="{{item.id || item.name}}" size="72" label="{{item.name}}的球馆头像" />
+            <view class="venue-copy">
+              <text class="venue-name">{{item.name}}</text>
+              <text wx:if="{{item.unavailable}}" class="venue-district">资料已不可用，可取消标记</text>
+              <block wx:else>
+                <text wx:if="{{item.locationText}}" class="venue-district">{{item.locationText}}</text>
+                <view wx:if="{{item.activityTags.length}}" class="saved-venue-tags">
+                  <text wx:for="{{item.activityTags}}" wx:for-item="tag" wx:key="*this" class="venue-tag">{{tag}}</text>
+                </view>
+              </block>
+            </view>
+            <text wx:if="{{!item.unavailable}}" class="row-chevron" aria-hidden="true">›</text>
+          </button>
+          <button
+            class="venue-more {{unmarkingVenueId ? 'is-disabled' : ''}}"
+            aria-label="管理球馆：{{item.name}}"
+            data-id="{{item.id}}"
+            bindtap="manageVenue"
+            loading="{{unmarkingVenueId === item.id}}"
+            disabled="{{unmarkingVenueId}}"
+            hover-class="profile-text-press"
+            hover-stay-time="80"
+          >{{unmarkingVenueId === item.id ? '' : '···'}}</button>
+        </view>
+        <button wx:if="{{savedVenuesHasMore}}" class="venue-load-more" bindtap="loadMoreVenues" loading="{{loadingMoreVenues}}" disabled="{{loadingMoreVenues}}" hover-class="profile-soft-press" hover-stay-time="80">{{loadingMoreVenues ? '加载中' : '查看更多球馆'}}</button>
+      </view>
+      <view wx:if="{{venuesState === 'error'}}" class="module-notice venue-notice" aria-live="polite">
+        <text class="module-notice-copy">{{savedVenues.length ? '部分球馆信息暂未更新' : '标记记录暂未同步'}}</text>
+        <button class="module-retry" bindtap="retrySavedVenues" hover-class="profile-text-press" hover-stay-time="80">重试</button>
+      </view>
+      <view wx:elif="{{venuesState === 'loading' && !savedVenues.length}}" class="module-loading venue-loading">正在加载常去球馆…</view>
+      <view wx:elif="{{venuesState === 'ready' && !savedVenues.length}}" class="section-empty venue-empty">
+        <view class="empty-title">暂无常去球馆</view>
+        <view class="empty-copy">标记后会显示在这里</view>
+      </view>
+    </view>
+
+    <view wx:if="{{venueSubmissionsState !== 'unavailable'}}" class="profile-section venue-submissions-section">
+      <view class="profile-section-head">
+        <view>
+          <view class="section-name">历史球馆记录</view>
+          <view wx:if="{{venueSubmissionsState === 'error' && venueSubmissions.length}}" class="section-subtitle">显示上次结果 · 待更新</view>
+          <view wx:elif="{{venueSubmissionsState === 'loading' && venueSubmissions.length}}" class="section-subtitle">显示上次结果 · 更新中</view>
+          <view wx:else class="section-subtitle">保留升级前提交的处理状态</view>
+        </view>
+        <button class="section-action section-action-quiet" bindtap="openVenueCreate" hover-class="profile-soft-press">录入球馆</button>
+      </view>
+
+      <view wx:if="{{venueSubmissions.length}}" class="venue-submission-list">
+        <view
+          wx:for="{{venueSubmissions}}"
+          wx:key="id"
+          class="venue-submission-row"
+          role="button"
+          aria-label="{{item.name}}，{{item.statusLabel}}，{{item.statusCopy}}"
+          data-id="{{item.id}}"
+          bindtap="openVenueSubmission"
+          hover-class="profile-row-press"
+          hover-stay-time="80"
+        >
+          <venue-avatar seed="{{item.venueId || item.id || item.name}}" size="68" label="{{item.name}}的球馆头像" />
+          <view class="venue-submission-copy">
+            <view class="venue-submission-title-row">
+              <text class="venue-submission-name">{{item.name}}</text>
+              <text class="venue-submission-status status-{{item.status}}">{{item.statusLabel}}</text>
+            </view>
+            <text class="venue-submission-caption">{{item.statusCopy}}</text>
+          </view>
+          <text class="row-chevron" aria-hidden="true">›</text>
+        </view>
+      </view>
+      <view wx:if="{{venueSubmissionsState === 'error'}}" class="module-notice venue-notice" aria-live="polite">
+        <text class="module-notice-copy">{{venueSubmissions.length ? '更新失败，当前显示上次结果' : '历史记录暂未同步'}}</text>
+        <button class="module-retry" bindtap="loadVenueSubmissions" hover-class="profile-text-press" hover-stay-time="80">重试</button>
+      </view>
+      <view wx:elif="{{venueSubmissionsState === 'loading' && !venueSubmissions.length}}" class="module-loading venue-loading">正在查询历史记录…</view>
+      <view wx:elif="{{venueSubmissionsState === 'ready' && !venueSubmissions.length}}" class="section-empty venue-submission-empty">
+        <view class="empty-title">暂无历史记录</view>
+        <view class="empty-copy">现在录入球馆，保存后即可用于约球</view>
+      </view>
+    </view>
+
+    <view wx:if="{{isAdmin}}" class="admin-review-row" role="button" aria-label="历史球馆审核，处理升级前的待审记录" bindtap="openAdminVenueReview" hover-class="profile-row-press" hover-stay-time="80">
+      <view class="admin-review-mark">运营</view>
+      <view class="admin-review-copy">
+        <text class="admin-review-title">历史球馆审核</text>
+        <text class="admin-review-subtitle">处理升级前尚未完成的记录</text>
+      </view>
+      <text class="row-chevron" aria-hidden="true">›</text>
+    </view>
+
+    <view wx:if="{{canReviewCoaches}}" class="admin-review-row" role="button" aria-label="教练认证审核，核验待审教练资料" bindtap="openAdminCoachReview" hover-class="profile-row-press" hover-stay-time="80">
+      <view class="admin-review-mark">运营</view>
+      <view class="admin-review-copy">
+        <text class="admin-review-title">教练认证审核</text>
+        <text class="admin-review-subtitle">核验申请资料并关联授课球馆</text>
+      </view>
+      <text class="row-chevron" aria-hidden="true">›</text>
+    </view>
+
+    <view wx:if="{{canManageCatalog}}" class="admin-review-row" role="button" aria-label="球馆与教练管理，可删除公开记录" bindtap="openAdminCatalog" hover-class="profile-row-press" hover-stay-time="80">
+      <view class="admin-review-mark">管理</view>
+      <view class="admin-review-copy">
+        <text class="admin-review-title">球馆与教练管理</text>
+        <text class="admin-review-subtitle">下架错误、重复或不再使用的记录</text>
+      </view>
+      <text class="row-chevron" aria-hidden="true">›</text>
+    </view>
+
+    <view class="coach-identity-row coach-status-{{coachApplication.status}}" role="button" aria-label="教练身份，{{coachApplication.statusLabel || '查看认证状态'}}" bindtap="openCoachApplication" hover-class="profile-row-press" hover-stay-time="80">
+      <view class="coach-identity-accent" aria-hidden="true"></view>
+      <view class="coach-identity-copy">
+        <text class="coach-identity-title">{{coachApplicationState === 'loading' ? '教练身份' : coachApplicationState === 'error' ? '教练身份' : coachApplication.title}}</text>
+        <text class="coach-identity-subtitle">{{coachApplicationState === 'loading' ? '正在查询认证状态' : coachApplicationState === 'error' ? '状态暂未同步，进入后可重试' : coachApplication.copy}}</text>
+      </view>
+      <text wx:if="{{coachApplicationState === 'ready'}}" class="coach-identity-state">{{coachApplication.statusLabel}}</text>
+      <text wx:elif="{{coachApplicationState === 'error'}}" class="coach-identity-state">查看</text>
+      <text class="row-chevron" aria-hidden="true">›</text>
+    </view>
+
+    <view class="settings-row" role="button" aria-label="设置与隐私，账号、权限与帮助" bindtap="openSettings" hover-class="profile-row-press" hover-stay-time="80">
+      <view class="settings-copy-wrap">
+        <text class="settings-title">设置与隐私</text>
+        <text class="settings-copy">账号、权限与帮助</text>
+      </view>
+      <text class="row-chevron" aria-hidden="true">›</text>
+    </view>
+  </block>
+</view>
+
+<view wx:if="{{editVisible}}" class="sheet-mask" catchtap="closeEdit">
+  <view class="sheet edit-sheet" aria-role="dialog" aria-label="编辑个人资料" catchtap="noop">
+    <view class="sheet-handle"></view>
+    <view class="edit-sheet-head">
+      <view>
+        <view class="sheet-title">编辑资料</view>
+        <view class="sheet-copy">只填你愿意展示的信息，球龄、技术和积分都是选填。</view>
+      </view>
+      <button class="sheet-close {{saving ? 'is-disabled' : ''}}" bindtap="closeEdit" disabled="{{saving}}" aria-label="关闭编辑" hover-class="profile-soft-press" hover-stay-time="80">×</button>
+    </view>
+
+    <view class="edit-group">
+      <view class="edit-group-title">基本资料</view>
+      <view class="edit-field">
+        <text class="edit-label">昵称</text>
+        <input class="edit-input {{saving ? 'is-disabled' : ''}}" type="nickname" aria-label="昵称" value="{{editProfile.nickname}}" maxlength="20" placeholder="请输入昵称" disabled="{{saving}}" bindinput="changeNickname" />
+      </view>
+      <view class="edit-field">
+        <text class="edit-label">所在地区</text>
+        <input class="edit-input {{saving ? 'is-disabled' : ''}}" aria-label="所在地区" value="{{editProfile.district}}" maxlength="20" placeholder="例如：西湖区" disabled="{{saving}}" bindinput="changeDistrict" />
+      </view>
+    </view>
+
+    <view class="edit-group">
+      <view class="edit-group-title">打球信息</view>
+      <view class="edit-field">
+        <text class="edit-label">球龄</text>
+        <picker mode="selector" aria-label="球龄" range="{{ballAgeOptions}}" value="{{editBallAgeIndex}}" disabled="{{saving}}" bindchange="changeEditBallAge">
+          <view class="edit-select {{saving ? 'is-disabled' : ''}}"><text>{{ballAgeOptions[editBallAgeIndex]}}</text><text class="row-chevron" aria-hidden="true">›</text></view>
+        </picker>
+      </view>
+      <view class="edit-field">
+        <text class="edit-label">擅长技术 <text class="optional">最多 6 项</text></text>
+        <view wx:if="{{editProfile.skills.length}}" class="edit-skills">
+          <button wx:for="{{editProfile.skills}}" wx:key="*this" class="skill-chip {{saving ? 'is-disabled' : ''}}" aria-label="移除擅长技术：{{item}}" data-value="{{item}}" bindtap="removeSkill" disabled="{{saving}}" hover-class="profile-soft-press" hover-stay-time="80">{{item}} <text class="skill-remove" aria-hidden="true">×</text></button>
+        </view>
+        <view class="skill-input-row">
+          <input class="skill-entry {{saving ? 'is-disabled' : ''}}" aria-label="新增擅长技术" value="{{newSkill}}" maxlength="16" placeholder="例如：反手拧拉" confirm-type="done" disabled="{{saving}}" bindinput="changeNewSkill" bindconfirm="addSkill" />
+          <button class="skill-add {{saving ? 'is-disabled' : ''}}" bindtap="addSkill" disabled="{{saving}}" hover-class="profile-primary-press" hover-stay-time="80">添加</button>
+        </view>
+      </view>
+    </view>
+
+    <view class="edit-group">
+      <view class="edit-group-title">参考积分 <text class="optional">选填</text></view>
+      <view class="edit-field first-edit-field">
+        <text class="edit-label">积分平台</text>
+        <picker mode="selector" aria-label="积分平台" range="{{ratingPlatforms}}" value="{{ratingPlatformIndex}}" disabled="{{saving}}" bindchange="changeRatingPlatform">
+          <view class="edit-select {{saving ? 'is-disabled' : ''}}"><text>{{ratingPlatforms[ratingPlatformIndex]}}</text><text class="row-chevron" aria-hidden="true">›</text></view>
+        </picker>
+        <input wx:if="{{editProfile.ratingPlatform !== '未填写'}}" class="rating-input {{saving ? 'is-disabled' : ''}}" type="number" aria-label="第三方积分" value="{{editProfile.ratingValue}}" maxlength="4" placeholder="请输入积分" disabled="{{saving}}" bindinput="changeRatingValue" />
+      </view>
+    </view>
+
+    <view class="edit-actions">
+      <view wx:if="{{editError}}" class="inline-error">{{editError}}</view>
+      <button class="primary-button save-profile {{saving || !editDirty ? 'is-disabled' : ''}}" bindtap="saveProfile" loading="{{saving}}" disabled="{{saving || !editDirty}}" hover-class="profile-primary-press" hover-stay-time="80">{{saving ? '保存中' : editDirty ? '保存修改' : '暂无修改'}}</button>
+      <button class="text-button cancel-edit {{saving ? 'is-disabled' : ''}}" bindtap="closeEdit" disabled="{{saving}}" hover-class="profile-text-press" hover-stay-time="80">取消</button>
+    </view>
+  </view>
+</view>
+</view>

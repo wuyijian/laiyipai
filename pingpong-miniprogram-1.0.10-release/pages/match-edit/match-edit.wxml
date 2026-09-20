@@ -1,0 +1,41 @@
+<view class="ui-screen">
+  <view class="edit-page safe-bottom">
+    <view wx:if="{{state === 'loading'}}" class="edit-state"><view class="skeleton state-skeleton"></view><view class="skeleton card-skeleton"></view></view>
+    <view wx:elif="{{state === 'error'}}" class="edit-state"><view class="state-title">球局资料没有加载出来</view><view class="state-copy">{{errorMessage}}</view><button bindtap="load">重新加载</button></view>
+    <block wx:else>
+      <view class="edit-heading"><view class="edit-title">编辑球局</view><view class="edit-copy">保存后立即生效；时间或球馆变化时，已加入成员需要重新确认。</view></view>
+      <view class="edit-card">
+        <view class="section-label">时间</view>
+        <view class="schedule-row"><picker mode="date" value="{{date}}" start="{{minimumDate}}" bindchange="changeDate"><view><text>日期</text><text>{{date}}</text></view></picker><picker mode="time" value="{{startTime}}" bindchange="changeStart"><view><text>开始</text><text>{{startTime}}</text></view></picker><picker mode="time" value="{{endTime}}" bindchange="changeEnd"><view><text>结束</text><text>{{endTime}}</text></view></picker></view>
+      </view>
+      <view class="edit-card">
+        <view class="section-label">球馆与球台</view>
+        <view wx:if="{{selectedVenueUnavailable}}" class="venue-warning">当前球馆已下架。你仍可修改其他信息，也可以在下方更换球馆。</view>
+        <view class="venue-search-row">
+          <input value="{{venueSearch}}" confirm-type="search" placeholder="搜索球馆名称或地址" bindinput="inputVenueSearch" bindconfirm="searchVenues" disabled="{{saving}}"/>
+          <button class="venue-search-action" bindtap="searchVenues" loading="{{venueSearching}}" disabled="{{venueSearching || saving}}">搜索</button>
+        </view>
+        <view wx:if="{{venueSearch && venues.length}}" class="venue-result-list"><button wx:for="{{visibleVenues}}" wx:key="id" class="venue-result-row {{item.id === venueId ? 'selected' : ''}} {{item.unavailable ? 'unavailable' : ''}}" data-id="{{item.id}}" bindtap="selectVenueResult"><view><text class="venue-result-name">{{item.name}}</text><text wx:if="{{item.locationText}}" class="venue-result-address">{{item.locationText}}</text></view><text>{{item.unavailable ? '已下架' : item.id === venueId ? '已选' : '选择'}}</text></button><text wx:if="{{!venueSearched}}" class="venue-result-hint">点“搜索”可查询全部球馆</text></view>
+        <picker wx:elif="{{venueNames.length}}" mode="selector" range="{{venueNames}}" value="{{venueIndex}}" bindchange="changeVenue"><view class="select-row"><text>球馆</text><text>{{venueNames[venueIndex] || '请选择'}} ›</text></view></picker>
+        <view wx:elif="{{venueSearchError}}" class="venue-search-empty">{{venueSearchError}}</view>
+        <view wx:elif="{{venueSearched}}" class="venue-search-empty">全库都没有找到“{{venueSearch}}”</view>
+        <view wx:else class="venue-search-empty">当前列表没有匹配球馆，点击“搜索”查询全库</view>
+        <view wx:if="{{courtResetNotice}}" class="court-reset-notice">{{courtResetNotice}}</view>
+        <view class="segment-row"><button class="segment {{courtStatus === 'unbooked' ? 'active' : ''}}" data-value="unbooked" bindtap="selectCourtStatus">还没订台</button><button class="segment {{courtStatus === 'booked' ? 'active' : ''}}" data-value="booked" bindtap="selectCourtStatus" disabled="{{arrangementChanged}}">已订好</button></view>
+      </view>
+      <view class="edit-card">
+        <view class="section-label">人数与练法</view>
+        <view class="capacity-head"><text>球局总人数</text><text>{{capacity}} 人</text></view>
+        <slider min="{{participantCount}}" max="8" step="1" value="{{capacity}}" block-size="18" activeColor="#0f5c45" bindchange="changeCapacity" />
+        <view class="intent-row"><button wx:for="{{intents}}" wx:key="value" class="segment {{practiceIntent === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="selectIntent">{{item.value}}</button></view>
+        <picker mode="selector" range="{{ballAges}}" value="{{ballAgeIndex}}" bindchange="changeBallAge"><view class="select-row"><text>适合球龄</text><text>{{expectedBallAge}} ›</text></view></picker>
+        <view wx:if="{{capacity > 1}}" class="segment-row"><button class="segment {{joinMode === 'direct' ? 'active' : ''}}" data-value="direct" bindtap="selectJoinMode">直接加入</button><button class="segment {{joinMode === 'confirm' ? 'active' : ''}}" data-value="confirm" bindtap="selectJoinMode">先问问我</button></view>
+      </view>
+      <view class="edit-card">
+        <view class="field"><text>人均费用</text><view class="inline-input"><text>¥</text><input type="number" value="{{feePerPerson}}" placeholder="0" bindinput="changeNumeric" /></view></view>
+      </view>
+      <view wx:if="{{saveError}}" class="save-error">{{saveError}}</view>
+      <view class="save-dock"><button bindtap="save" loading="{{saving}}" disabled="{{saving || !dirty}}">{{saving ? '保存中' : dirty ? '保存修改' : '暂无修改'}}</button></view>
+    </block>
+  </view>
+</view>

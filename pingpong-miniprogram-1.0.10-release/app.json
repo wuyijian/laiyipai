@@ -1,0 +1,62 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/publish/publish",
+    "pages/orders/orders",
+    "pages/profile/profile",
+    "pages/admin-venue-review/admin-venue-review",
+    "pages/admin-coach-review/admin-coach-review",
+    "pages/admin-catalog/admin-catalog",
+    "pages/venue-detail/venue-detail",
+    "pages/venue-create/venue-create",
+    "pages/match-detail/match-detail",
+    "pages/match-edit/match-edit",
+    "pages/chat/chat",
+    "pages/coach-detail/coach-detail",
+    "pages/coach-apply/coach-apply",
+    "pages/player-detail/player-detail",
+    "pages/friends/friends",
+    "pages/settings/settings",
+    "pages/login/login"
+  ],
+  "usingComponents": {
+    "player-avatar": "/components/player-avatar/player-avatar",
+    "venue-avatar": "/components/venue-avatar/venue-avatar"
+  },
+  "window": {
+    "navigationBarTitleText": "来一拍",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#ffffff",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#7b837e",
+    "selectedColor": "#0f5c45",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/publish/publish",
+        "text": "发起"
+      },
+      {
+        "pagePath": "pages/orders/orders",
+        "text": "预约"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "__usePrivacyCheck__": true,
+  "lazyCodeLoading": "requiredComponents",
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

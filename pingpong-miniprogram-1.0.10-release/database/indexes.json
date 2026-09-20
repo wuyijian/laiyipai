@@ -1,0 +1,128 @@
+{
+  "$note": "此文件是索引清单，不是自动导入格式；请按 database/README.md 在云开发控制台逐项建立。",
+  "collections": {
+    "users": [
+      { "name": "public_id_unique", "unique": true, "fields": [{ "field": "publicId", "order": "asc" }] },
+      { "name": "public_id_status", "fields": [{ "field": "publicId", "order": "asc" }, { "field": "status", "order": "asc" }] },
+      { "name": "status_avatar", "fields": [{ "field": "status", "order": "asc" }, { "field": "profile.avatarFileId", "order": "asc" }] }
+    ],
+    "venues": [
+      { "name": "city_name_key", "unique": true, "fields": [{ "field": "city", "order": "asc" }, { "field": "nameKey", "order": "asc" }] },
+      { "name": "city_name", "fields": [{ "field": "city", "order": "asc" }, { "field": "name", "order": "asc" }] },
+      { "name": "active_verified_city_featured_name", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "city", "order": "asc" }, { "field": "featuredRank", "order": "asc" }, { "field": "name", "order": "asc" }] },
+      { "name": "active_verified_city_district_featured_name", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "featuredRank", "order": "asc" }, { "field": "name", "order": "asc" }] },
+      { "name": "active_verified_cover", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "coverFileIds", "order": "asc" }] },
+      { "name": "active_verified_photos", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "photoFileIds", "order": "asc" }] },
+      { "name": "location_2dsphere", "type": "2dsphere", "fields": [{ "field": "location", "order": "2dsphere" }] },
+      { "name": "active_verified_location", "type": "2dsphere", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "location", "order": "2dsphere" }] }
+    ],
+    "venue_submissions": [
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "status_submitted", "fields": [{ "field": "status", "order": "asc" }, { "field": "submittedAt", "order": "asc" }] },
+      { "name": "target_status_submitted", "fields": [{ "field": "targetVenueId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "submittedAt", "order": "asc" }] },
+      { "name": "reviewer_updated", "fields": [{ "field": "reviewedBy", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] }
+    ],
+    "matches": [
+      { "name": "city_status_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "startAt", "order": "asc" }] },
+      { "name": "city_district_status_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "startAt", "order": "asc" }] },
+      { "name": "venue_status_start", "fields": [{ "field": "venueId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "startAt", "order": "asc" }] },
+      { "name": "venue_status_date_start", "fields": [{ "field": "venueId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "date", "order": "asc" }, { "field": "startAt", "order": "asc" }] },
+      { "name": "venue_status_ball_age_start", "fields": [{ "field": "venueId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "expectedBallAge", "order": "asc" }, { "field": "startAt", "order": "asc" }] },
+      { "name": "venue_status_date_ball_age_start", "fields": [{ "field": "venueId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "date", "order": "asc" }, { "field": "expectedBallAge", "order": "asc" }, { "field": "startAt", "order": "asc" }] },
+      { "name": "host_status_start", "fields": [{ "field": "hostId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+      ,{ "name": "city_status_date_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "date", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+      ,{ "name": "city_status_ball_age_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "expectedBallAge", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+      ,{ "name": "city_status_date_ball_age_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "date", "order": "asc" }, { "field": "expectedBallAge", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+      ,{ "name": "city_district_status_date_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "date", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+      ,{ "name": "city_district_status_ball_age_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "expectedBallAge", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+      ,{ "name": "city_district_status_date_ball_age_start", "fields": [{ "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "date", "order": "asc" }, { "field": "expectedBallAge", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+    ],
+    "match_members": [
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "match_status_created", "fields": [{ "field": "matchId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "createdAt", "order": "asc" }] }
+    ],
+    "player_friends": [
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "friend_updated", "fields": [{ "field": "friendId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] }
+    ],
+    "player_updates": [
+      { "name": "active_end", "fields": [{ "field": "active", "order": "asc" }, { "field": "endAt", "order": "asc" }] },
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "active_created", "fields": [{ "field": "active", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "user_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "active", "order": "asc" }, { "field": "createdAt", "order": "desc" }] }
+    ],
+    "player_update_comments": [
+      { "name": "update_deleted_created", "fields": [{ "field": "updateId", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "asc" }] },
+      { "name": "user_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "owner_created", "fields": [{ "field": "updateOwnerId", "order": "asc" }, { "field": "createdAt", "order": "desc" }] }
+    ],
+    "coaches": [
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "active_verified_city_featured", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "city", "order": "asc" }, { "field": "featuredRank", "order": "asc" }] },
+      { "name": "active_verified_city_district_featured", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "featuredRank", "order": "asc" }] },
+      { "name": "active_verified_city_venue_featured", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "city", "order": "asc" }, { "field": "venueIds", "order": "asc" }, { "field": "featuredRank", "order": "asc" }] },
+      { "name": "active_verified_city_district_venue_featured", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "city", "order": "asc" }, { "field": "district", "order": "asc" }, { "field": "venueIds", "order": "asc" }, { "field": "featuredRank", "order": "asc" }] },
+      { "name": "venue_ids", "fields": [{ "field": "venueIds", "order": "asc" }] },
+      { "name": "active_verified_avatar", "fields": [{ "field": "active", "order": "asc" }, { "field": "verificationStatus", "order": "asc" }, { "field": "avatarFileId", "order": "asc" }] }
+    ],
+    "coach_slots": [
+      { "name": "coach_status_start", "fields": [{ "field": "coachId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "startAt", "order": "asc" }] }
+    ],
+    "coach_bookings": [
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] }
+    ],
+    "coach_applications": [
+      { "name": "status_submitted", "fields": [{ "field": "status", "order": "asc" }, { "field": "submittedAt", "order": "asc" }] },
+      { "name": "user_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "reviewer_updated", "fields": [{ "field": "reviewedBy", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] }
+    ],
+    "venue_favorites": [
+      { "name": "user_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "createdAt", "order": "desc" }] }
+    ],
+    "match_messages": [
+      { "name": "match_deleted_created", "fields": [{ "field": "matchId", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "sender", "fields": [{ "field": "senderId", "order": "asc" }] }
+    ],
+    "message_inboxes": [
+      { "name": "user_unread_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "unread", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] }
+    ],
+    "user_videos": [
+      { "name": "user_deleted_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "moderation_trace_status", "fields": [{ "field": "moderationTraceId", "order": "asc" }, { "field": "status", "order": "asc" }] },
+      { "name": "public_file", "fields": [{ "field": "status", "order": "asc" }, { "field": "visibility", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "fileId", "order": "asc" }] },
+      { "name": "owner_file", "fields": [{ "field": "userId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "fileId", "order": "asc" }] },
+      { "name": "public_owner_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "visibility", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "review_queue", "fields": [{ "field": "status", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "asc" }] }
+    ],
+    "user_media": [
+      { "name": "venue_photo_owner_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "venueId", "order": "asc" }, { "field": "purpose", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "venue_photo_review_queue", "fields": [{ "field": "purpose", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "asc" }] },
+      { "name": "user_purpose_deleted_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "purpose", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "moderation_trace_status", "fields": [{ "field": "moderationTraceId", "order": "asc" }, { "field": "status", "order": "asc" }] },
+      { "name": "owner_file", "fields": [{ "field": "userId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "fileId", "order": "asc" }] },
+      { "name": "owner_purpose_status_deleted", "fields": [{ "field": "userId", "order": "asc" }, { "field": "purpose", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "deleted", "order": "asc" }] }
+    ],
+    "upload_tickets": [
+      { "name": "expires_asc", "fields": [{ "field": "expiresAt", "order": "asc" }] }
+    ],
+    "user_blocks": [
+      { "name": "user_active", "fields": [{ "field": "userId", "order": "asc" }, { "field": "active", "order": "asc" }] },
+      { "name": "user_active_updated", "fields": [{ "field": "userId", "order": "asc" }, { "field": "active", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "target_active", "fields": [{ "field": "targetUserId", "order": "asc" }, { "field": "active", "order": "asc" }] }
+    ],
+    "reports": [
+      { "name": "status_created", "fields": [{ "field": "status", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "target", "fields": [{ "field": "targetType", "order": "asc" }, { "field": "targetId", "order": "asc" }] }
+    ],
+    "account_deletion_jobs": [
+      { "name": "status_requested", "fields": [{ "field": "status", "order": "asc" }, { "field": "requestedAt", "order": "asc" }] }
+    ],
+    "rate_limits": [
+      { "name": "expires_asc", "fields": [{ "field": "expiresAt", "order": "asc" }] }
+    ],
+    "audit_logs": [
+      { "name": "actor_created", "fields": [{ "field": "actorId", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
+      { "name": "resource_created", "fields": [{ "field": "resourceType", "order": "asc" }, { "field": "resourceId", "order": "asc" }, { "field": "createdAt", "order": "desc" }] }
+    ]
+  }
+}

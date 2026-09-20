@@ -1,0 +1,42 @@
+@import "../admin-venue-review/admin-venue-review.wxss";
+
+.ui-screen .coach-submit-time { margin-top: 8rpx; color: var(--text-tertiary); font-size: 19rpx; }
+.ui-screen .coach-review-sheet { max-height: 94vh; }
+.ui-screen .sheet-caption { margin-top: 8rpx; color: var(--text-secondary); font-size: 21rpx; }
+.ui-screen .coach-detail-facts { margin-top: 24rpx; }
+.ui-screen .coach-copy-section { padding-bottom: 22rpx; }
+.ui-screen .detail-paragraph { margin-top: 12rpx; color: var(--text); font-size: 23rpx; line-height: 1.7; overflow-wrap: anywhere; }
+.ui-screen .privacy-note { margin-top: 22rpx; padding: 17rpx 19rpx; border-radius: 13rpx; background: #f5f7f3; color: var(--text-secondary); font-size: 20rpx; line-height: 1.55; }
+.ui-screen .approval-panel { margin-top: 24rpx; padding: 23rpx 21rpx; border: 1rpx solid #dfe6df; border-radius: 18rpx; background: #fbfcfa; }
+.ui-screen .approval-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.ui-screen .approval-title { color: var(--text); font-size: 25rpx; font-weight: 650; }
+.ui-screen .approval-copy { margin-top: 8rpx; color: var(--text-secondary); font-size: 20rpx; line-height: 1.55; }
+.ui-screen .approval-heading > text { flex: none; padding: 7rpx 12rpx; border-radius: 999rpx; background: var(--brand-faint); color: var(--brand); font-size: 19rpx; }
+.ui-screen .approval-field { margin-top: 24rpx; }
+.ui-screen .approval-label { margin-bottom: 11rpx; color: var(--text); font-size: 22rpx; font-weight: 600; }
+.ui-screen .approval-label text { color: var(--text-tertiary); font-size: 19rpx; font-weight: 400; }
+.ui-screen .venue-state { min-height: 74rpx; box-sizing: border-box; padding: 18rpx; border-radius: 13rpx; background: var(--surface-muted); color: var(--text-secondary); font-size: 21rpx; line-height: 1.55; }
+.ui-screen .venue-state-error { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; background: #fff6f2; color: #8f4b41; }
+.ui-screen .venue-state-error text { flex: 1; }
+.ui-screen .venue-state-error button { width: auto; min-height: 52rpx; margin: 0; padding: 0 14rpx; border-radius: 10rpx; background: #fff; color: #8f4b41; font-size: 20rpx; line-height: 52rpx; }
+.ui-screen .venue-state-empty { background: #fbf5e9; color: #786945; }
+.ui-screen .venue-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; }
+.ui-screen .venue-option { display: flex; min-width: 0; min-height: 78rpx; box-sizing: border-box; margin: 0; padding: 13rpx 15rpx; align-items: flex-start; justify-content: center; flex-direction: column; border: 1rpx solid var(--line); border-radius: 13rpx; background: #fff; color: var(--text); line-height: 1.2; text-align: left; }
+.ui-screen .venue-option.selected { border-color: var(--brand); background: var(--brand-faint); color: var(--brand); box-shadow: inset 0 0 0 1rpx var(--brand); }
+.ui-screen .venue-option-name { width: 100%; overflow: hidden; font-size: 21rpx; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .venue-option-meta { width: 100%; margin-top: 7rpx; overflow: hidden; color: var(--text-secondary); font-size: 18rpx; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .venue-create-link { width: auto; min-height: 48rpx; margin: 12rpx 0 0 auto; padding: 0; background: transparent; color: var(--brand); font-size: 20rpx; line-height: 48rpx; }
+.ui-screen .venue-create-link::after { display: none; }
+.ui-screen .approval-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 12rpx; }
+.ui-screen .compact-field { min-width: 0; }
+.ui-screen .approval-input { display: flex; width: 100%; height: 76rpx; box-sizing: border-box; margin: 0; padding: 0 16rpx; align-items: center; border: 1rpx solid var(--line); border-radius: 13rpx; background: #fff; color: var(--text); font-size: 22rpx; }
+.ui-screen .approval-picker { justify-content: space-between; }
+.ui-screen .approval-picker text:last-child { color: var(--text-tertiary); font-size: 30rpx; }
+.ui-screen .approval-placeholder { color: var(--text-tertiary); }
+.ui-screen .reference-field { margin-top: 18rpx; }
+.ui-screen .reference-note { margin-top: 9rpx; color: var(--text-tertiary); font-size: 19rpx; line-height: 1.5; }
+.ui-screen .approval-error { margin-top: 16rpx; color: var(--danger); font-size: 21rpx; line-height: 1.5; }
+
+@media (max-width: 330px) {
+  .ui-screen .venue-options, .ui-screen .approval-grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,12 @@
+node_modules/
+**/node_modules/
+.tmp-*/
+*.log
+project.private.config.json
+build/
+release-assets/
+designs-v4/
+designs-v5-no-rating/
+*.zip
+demo-preview.png
+design-v*-*.png

@@ -1,0 +1,144 @@
+<view class="ui-screen">
+  <view class="admin-review-page" aria-hidden="{{detailVisible}}">
+    <view class="review-heading">
+      <view>
+        <view class="review-eyebrow">运营工作台</view>
+        <view class="review-title">历史球馆审核</view>
+        <view class="review-subtitle">处理升级前尚未完成的提交；新录入球馆已无需审核。</view>
+      </view>
+      <view wx:if="{{state === 'ready'}}" class="queue-count"><text>{{items.length}}{{hasMore ? '+' : ''}}</text><text>待处理</text></view>
+    </view>
+
+    <view wx:if="{{state === 'loading'}}" class="review-loading" aria-live="polite">
+      <view wx:for="{{skeletonRows}}" wx:key="*this" class="review-skeleton-row">
+        <view class="skeleton review-skeleton-avatar"></view>
+        <view class="review-skeleton-copy">
+          <view class="skeleton review-skeleton-title"></view>
+          <view class="skeleton review-skeleton-line"></view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:elif="{{state === 'forbidden'}}" class="review-status">
+      <view class="status-mark">锁</view>
+      <view class="status-title">没有审核权限</view>
+      <view class="status-copy">管理员名单由云端配置；隐藏入口不是权限校验，所有审核操作仍会由云函数再次验证。</view>
+      <button class="status-action" bindtap="retryLoad" hover-class="review-press">重新校验</button>
+    </view>
+
+    <view wx:elif="{{state === 'error'}}" class="review-status">
+      <view class="status-mark muted-mark">·</view>
+      <view class="status-title">{{loginRequired ? '请先登录' : '待审列表暂时没加载出来'}}</view>
+      <view class="status-copy">{{errorMessage}}</view>
+      <button class="status-action" bindtap="retryLoad" hover-class="review-press">{{loginRequired ? '微信登录' : '重新加载'}}</button>
+    </view>
+
+    <block wx:elif="{{state === 'ready'}}">
+      <view wx:if="{{syncError}}" class="sync-notice" aria-live="polite">
+        <text>刷新失败，当前显示上次结果</text>
+        <button bindtap="retryLoad" hover-class="review-press">重试</button>
+      </view>
+
+      <view wx:if="{{items.length}}" class="review-list">
+        <view
+          wx:for="{{items}}"
+          wx:key="id"
+          class="review-row"
+          role="button"
+          aria-label="{{item.ariaLabel}}"
+          data-id="{{item.id}}"
+          bindtap="openSubmission"
+          hover-class="review-row-press"
+          hover-stay-time="80"
+        >
+          <venue-avatar seed="{{item.id || item.name}}" size="72" label="{{item.name}}的球馆头像" />
+          <view class="review-row-copy">
+            <view class="review-row-title">{{item.name}}</view>
+            <view class="review-row-meta">{{item.submitterName}} · {{item.submittedText}}</view>
+            <view wx:if="{{item.activityTags.length}}" class="review-row-tags">
+              <text wx:for="{{item.activityTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+            </view>
+          </view>
+          <text class="review-chevron" aria-hidden="true">›</text>
+        </view>
+        <button wx:if="{{hasMore}}" class="load-more" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}" hover-class="review-press">{{loadingMore ? '加载中' : '继续加载'}}</button>
+      </view>
+
+      <view wx:else class="review-status empty-status">
+        <view class="empty-check">✓</view>
+        <view class="status-title">历史待审已清空</view>
+        <view class="status-copy">新录入球馆会直接加入球馆库，不再进入此队列。</view>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{detailVisible}}" class="review-sheet-mask" catchtap="closeDetail">
+    <view class="review-sheet" aria-role="dialog" aria-label="审核球馆：{{selectedSubmission.name}}" catchtap="noop">
+      <view class="sheet-handle"></view>
+      <view class="sheet-head">
+        <view>
+          <view class="sheet-kicker">历史待审球馆</view>
+          <view class="sheet-name">{{selectedSubmission.name}}</view>
+        </view>
+        <button class="sheet-close" aria-label="关闭" bindtap="closeDetail" disabled="{{reviewing || statusChecking}}" hover-class="review-press">×</button>
+      </view>
+
+      <view class="detail-facts">
+        <view class="detail-fact">
+          <text>提交人</text>
+          <text>{{selectedSubmission.submitterName}}</text>
+        </view>
+        <view class="detail-fact">
+          <text>提交时间</text>
+          <text>{{selectedSubmission.submittedText}}</text>
+        </view>
+        <view class="detail-fact">
+          <text>所在城市</text>
+          <text>{{selectedSubmission.city}}</text>
+        </view>
+      </view>
+
+      <view class="detail-section">
+        <view class="detail-label">适合活动</view>
+        <view wx:if="{{selectedSubmission.activityTags.length}}" class="detail-tags">
+          <text wx:for="{{selectedSubmission.activityTags}}" wx:key="*this">{{item}}</text>
+        </view>
+        <view wx:else class="detail-empty">用户未填写</view>
+      </view>
+
+      <view class="review-principle">
+        <view class="principle-dot"></view>
+        <view>请核对名称是否完整、是否确为乒乓球场馆。没有足够依据时请驳回并写明修改建议。</view>
+      </view>
+
+      <view wx:if="{{detailError}}" class="detail-message {{outcomeUnknown || conflictPending ? 'is-warning' : ''}}" aria-role="alert">{{detailError}}</view>
+
+      <view wx:if="{{reviewMode === 'reject' && !outcomeUnknown && !conflictPending}}" class="reject-panel">
+        <label for="reject-reason" class="reject-label">驳回原因</label>
+        <textarea id="reject-reason" class="reject-input" value="{{rejectionReason}}" maxlength="{{maxReasonLength}}" auto-height placeholder="例如：名称过于简略，请填写地图上的完整名称" placeholder-class="reject-placeholder" disabled="{{reviewing}}" bindinput="changeRejectionReason" />
+        <view class="reject-meta">
+          <text class="reason-error">{{reasonError}}</text>
+          <text>{{rejectionReason.length}}/{{maxReasonLength}}</text>
+        </view>
+        <view class="reject-actions">
+          <button class="secondary-action" bindtap="cancelReject" disabled="{{reviewing}}" hover-class="review-press">取消</button>
+          <button class="danger-action" bindtap="rejectSubmission" loading="{{reviewing}}" disabled="{{reviewing}}" hover-class="review-press">确认驳回</button>
+        </view>
+      </view>
+
+      <view wx:elif="{{outcomeUnknown}}" class="unknown-actions">
+        <button class="secondary-action wide-action" bindtap="syncSelectedStatus" loading="{{statusChecking}}" disabled="{{reviewing || statusChecking}}" hover-class="review-press">{{statusChecking ? '正在同步' : '先同步状态'}}</button>
+        <button class="primary-action wide-action" bindtap="retryUnknownReview" loading="{{reviewing}}" disabled="{{reviewing || statusChecking}}" hover-class="review-press">{{reviewing ? '正在重试' : '重试原操作'}}</button>
+      </view>
+
+      <view wx:elif="{{conflictPending}}" class="unknown-actions single-action">
+        <button class="primary-action wide-action" bindtap="syncSelectedStatus" loading="{{statusChecking}}" disabled="{{statusChecking}}" hover-class="review-press">{{statusChecking ? '正在刷新' : '刷新最新状态'}}</button>
+      </view>
+
+      <view wx:else class="review-actions">
+        <button class="secondary-action" bindtap="beginReject" disabled="{{reviewing}}" hover-class="review-press">驳回</button>
+        <button class="primary-action" bindtap="approveSubmission" loading="{{reviewing}}" disabled="{{reviewing}}" hover-class="review-press">{{reviewing ? '提交中' : '通过审核'}}</button>
+      </view>
+    </view>
+  </view>
+</view>

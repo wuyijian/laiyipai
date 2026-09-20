@@ -1,0 +1,128 @@
+<view class="ui-screen">
+<view class="chat-page {{keyboardHeight > 0 ? 'keyboard-open' : ''}}" style="bottom: {{keyboardHeight}}px;" aria-hidden="{{!!sheet}}">
+  <view wx:if="{{state === 'loading'}}" class="chat-loading">
+    <view class="skeleton chat-head-skeleton"></view>
+    <view class="skeleton message-skeleton"></view>
+    <view class="skeleton message-skeleton right"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel">
+    <view class="status-title">{{forbidden ? '这个对话暂不可用' : '暂时无法载入对话'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button wx:if="{{!forbidden}}" class="status-action" bindtap="loadChat">重新加载</button>
+    <button wx:else class="status-action" bindtap="goOrders">返回预约</button>
+  </view>
+
+  <block wx:else>
+    <view class="chat-header">
+      <view class="summary-row">
+        <view class="summary-main" bindtap="openMatch" role="button" aria-label="查看球局详情">
+          <view class="summary-date">{{match.dateLabel}}<text class="summary-state">{{match.statusLabel}}</text></view>
+          <view class="summary-time">{{match.startTime}}<text class="time-separator">—</text>{{match.endTime}}</view>
+          <view class="summary-venue">{{match.venueName}}<text class="venue-chevron">›</text></view>
+          <button wx:if="{{match.venueLocationText || match.address || match.hasLocation}}" class="summary-location" catchtap="openMap" hover-class="soft-press" aria-label="{{match.hasLocation ? '导航到' : '复制地址：'}}{{match.venueName}}">
+            <text>{{match.venueLocationText || match.address || '查看地图位置'}}</text><text class="summary-location-action">{{match.hasLocation ? '地图 ↗' : '复制 ⧉'}}</text>
+          </button>
+        </view>
+        <button class="arrangement-button" bindtap="openArrangement" hover-class="soft-press">本局安排</button>
+      </view>
+      <view wx:if="{{!keyboardHeight}}" class="conversation-context">
+        <text class="context-dot"></text><text>{{match.participantCount}} 人参加 · 仅本局成员可见</text>
+        <text class="context-confirm">{{match.confirmedCount}} 人确认时间</text>
+      </view>
+      <view wx:if="{{match.needsConfirmation}}" class="confirmation-banner">
+        <view class="confirmation-copy"><text class="confirmation-title">{{match.scheduleChanged ? '开球时间有调整' : '这个时间能来吗？'}}</text><text class="confirmation-caption">{{match.scheduleChanged ? '请核对上方新时间，再确认参加' : '确认后，其他成员会看到你的状态'}}</text></view>
+        <button class="confirmation-button" bindtap="confirmSchedule" loading="{{actionBusy}}" disabled="{{actionBusy}}">确认能来</button>
+      </view>
+    </view>
+
+    <view wx:if="{{syncError}}" class="sync-notice"><text class="sync-copy">{{syncError}}</text><button class="sync-retry" bindtap="refreshMessages">重试</button></view>
+
+    <view class="conversation-body">
+      <scroll-view class="message-list" scroll-y="true" scroll-into-view="{{scrollIntoView}}" enhanced="true" show-scrollbar="false" bindscroll="onMessageScroll" bindscrolltolower="onReachBottom" lower-threshold="70">
+        <view class="message-content">
+          <button wx:if="{{nextCursor}}" class="history-button" bindtap="loadOlderMessages" loading="{{loadingOlder}}" disabled="{{loadingOlder}}">{{loadingOlder ? '正在载入' : '查看更早消息'}}</button>
+          <view wx:elif="{{messages.length}}" class="conversation-start">沟通好安排，球馆见</view>
+          <view wx:if="{{!messages.length}}" class="conversation-empty">
+            <view class="empty-chat-art"><view class="empty-chat-back"></view><view class="empty-chat-front"><text>···</text></view></view>
+            <view class="empty-title">{{match.courtStatus === 'booked' ? '先确认在哪张球台见' : '先确认球台怎么安排'}}</view>
+            <text class="empty-copy">发一句集合说明就好，不用加好友。\n消息仅在这场球局内交流。</text>
+            <button class="empty-prompt" data-index="0" bindtap="useQuickReply">{{match.courtStatus === 'booked' ? '问一下球台' : '确认订台'}}<text>↗</text></button>
+          </view>
+          <view wx:for="{{messages}}" wx:key="id" id="{{item.domId}}" class="message-item">
+            <view wx:if="{{item.showTime}}" class="message-timestamp">{{item.timeLabel}}</view>
+            <view wx:if="{{item.type === 'system'}}" class="system-message">{{item.text}}</view>
+            <view wx:else class="message-row {{item.mine ? 'mine' : 'theirs'}}">
+              <view class="message-avatar"><player-avatar src="{{item.avatarUrl}}" seed="{{item.avatarSeed}}" size="60" label="{{item.senderName}}的头像" /></view>
+              <view class="message-stack">
+                <view wx:if="{{!item.mine}}" class="sender-name">{{item.senderName}}<text wx:if="{{item.isHost}}" class="sender-host">发起人</text></view>
+                <view class="bubble"><text user-select="true">{{item.text}}</text></view>
+              </view>
+            </view>
+          </view>
+          <view class="message-end"></view>
+        </view>
+      </scroll-view>
+      <button wx:if="{{newMessageCount}}" class="new-message-button" bindtap="scrollToLatest">{{newMessageCount}} 条新消息 ↓</button>
+    </view>
+
+    <view class="composer">
+      <scroll-view wx:if="{{!keyboardHeight}}" class="quick-replies" scroll-x="true" show-scrollbar="false">
+        <view class="quick-reply-track"><button wx:for="{{quickReplies}}" wx:key="*this" size="mini" class="quick-reply" data-index="{{index}}" bindtap="useQuickReply" disabled="{{sending}}">{{item}}</button></view>
+      </scroll-view>
+      <view wx:if="{{sendError}}" class="send-error">{{sendError}}</view>
+      <view class="composer-row">
+        <input class="message-input" value="{{inputValue}}" focus="{{inputFocus}}" maxlength="500" confirm-type="send" adjust-position="{{false}}" hold-keyboard="{{true}}" placeholder="说一下时间、球台或集合安排" placeholder-class="input-placeholder" bindinput="changeInput" bindconfirm="sendMessage" bindkeyboardheightchange="onKeyboardHeightChange" bindblur="blurInput" />
+        <button class="send-button" bindtap="sendMessage" loading="{{sending}}" disabled="{{sending || !canSend}}" hover-class="send-press">{{sendError ? '重试' : '发送'}}</button>
+      </view>
+      <view wx:if="{{!keyboardHeight}}" class="composer-caption">短句只会填入输入框，不会自动发送</view>
+    </view>
+  </block>
+</view>
+
+<view wx:if="{{sheet}}" class="sheet-mask" catchtap="closeSheet">
+  <view class="sheet chat-sheet" catchtap="noop" role="dialog" aria-modal="true" aria-label="{{sheet === 'arrangement' ? '本局安排' : sheet === 'reschedule' ? '调整时间' : '取消预约'}}">
+    <view class="sheet-handle"></view>
+    <view class="sheet-heading"><view class="sheet-title">{{sheet === 'arrangement' ? '本局安排' : sheet === 'reschedule' ? (match.isHost ? '调整球局时间' : '商量换个时间') : (match.isHost ? '取消球局' : '退出这场球局')}}</view><button class="close-button" bindtap="closeSheet" disabled="{{actionBusy}}" aria-label="关闭">×</button></view>
+
+    <block wx:if="{{sheet === 'arrangement'}}">
+      <view class="arrangement-summary">
+        <view class="arrangement-date">{{match.dateLabel}}</view><view class="arrangement-time">{{match.startTime}} — {{match.endTime}}</view>
+        <view class="arrangement-venue">{{match.venueName}}</view>
+        <view class="arrangement-facts">{{match.participantCount}} 人 · {{match.courtStatusText}} · {{match.feeText}}</view>
+      </view>
+      <button wx:if="{{match.venueLocationText || match.address || match.hasLocation}}" class="address-row" bindtap="openMap"><text class="address-text">{{match.venueLocationText || match.address || '查看地图位置'}}</text><text class="address-action">{{match.hasLocation ? '导航 ↗' : '复制'}}</text></button>
+      <view class="arrangement-note">{{match.canArrange ? match.confirmedCount + ' / ' + match.participantCount + ' 人已确认当前时间' : '球局已开始或结束，不能再改期或取消。'}}</view>
+      <button wx:if="{{match.needsConfirmation}}" class="primary-button sheet-submit" bindtap="confirmSchedule" disabled="{{actionBusy}}" loading="{{actionBusy}}">确认这个时间能来</button>
+      <button wx:if="{{match.canArrange}}" class="sheet-option" bindtap="openReschedule"><view><view class="option-title">{{match.isHost ? '调整时间' : '商量换个时间'}}</view><view class="option-caption">{{match.isHost ? '修改后，成员需要重新确认' : '先发到对话里，原安排不会自动改变'}}</view></view><text class="option-chevron">›</text></button>
+      <button class="sheet-option" bindtap="openMatch"><view class="option-title">查看球局详情</view><text class="option-chevron">›</text></button>
+      <button wx:if="{{match.canArrange}}" class="sheet-option danger-option" bindtap="openCancel"><view class="option-title">{{match.isHost ? '取消整场球局' : '退出这场球局'}}</view><text class="option-chevron">›</text></button>
+      <text class="sheet-footnote">加入球局不等于预订球台，请和发起人确认。\n对话在球局结束 24 小时后关闭。</text>
+    </block>
+
+    <block wx:elif="{{sheet === 'reschedule'}}">
+      <view class="sheet-copy">{{match.isHost ? '提交后会更新本局时间，成员需要重新确认。' : '这是一条改期提议。只有发起人修改安排后，新时间才会生效。'}}</view>
+      <view class="schedule-grid">
+        <picker mode="date" value="{{rescheduleDate}}" start="{{minimumDate}}" bindchange="changeRescheduleDate"><view class="schedule-picker"><text class="picker-label">日期</text><text>{{rescheduleDate}}</text><text class="picker-arrow">›</text></view></picker>
+        <view class="time-picker-row">
+          <picker class="time-picker" mode="time" value="{{rescheduleStartTime}}" bindchange="changeRescheduleStartTime"><view class="schedule-picker"><text class="picker-label">开始</text><text>{{rescheduleStartTime}}</text><text class="picker-arrow">›</text></view></picker>
+          <picker class="time-picker" mode="time" value="{{rescheduleEndTime}}" bindchange="changeRescheduleEndTime"><view class="schedule-picker"><text class="picker-label">结束</text><text>{{rescheduleEndTime}}</text><text class="picker-arrow">›</text></view></picker>
+        </view>
+      </view>
+      <view wx:if="{{sheetError}}" class="inline-error">{{sheetError}}</view>
+      <button class="primary-button sheet-submit" bindtap="submitReschedule" loading="{{actionBusy}}" disabled="{{actionBusy}}">{{match.isHost ? '更新本局时间' : '发送改期提议'}}</button>
+      <button class="text-button sheet-back" bindtap="closeSheet" disabled="{{actionBusy}}">保持原安排</button>
+    </block>
+
+    <block wx:else>
+      <view class="sheet-copy">{{match.cancelPolicyText}}</view>
+      <view class="cancel-recap">{{match.dateLabel}} {{match.startTime}}<text class="cancel-venue">{{match.venueName}}</text></view>
+      <view class="cancel-label">取消原因</view>
+      <picker mode="selector" range="{{cancelReasons}}" value="{{cancelReasonIndex}}" bindchange="changeCancelReason"><view class="cancel-picker"><text>{{cancelReasons[cancelReasonIndex]}}</text><text class="picker-arrow">›</text></view></picker>
+      <view wx:if="{{sheetError}}" class="inline-error">{{sheetError}}</view>
+      <button class="danger-button sheet-submit" bindtap="confirmCancel" loading="{{actionBusy}}" disabled="{{actionBusy}}">{{match.isHost ? '确认取消整场球局' : '确认退出'}}</button>
+      <button class="text-button sheet-back" bindtap="closeSheet" disabled="{{actionBusy}}">我再想想</button>
+    </block>
+  </view>
+</view>
+</view>

@@ -1,0 +1,78 @@
+<view class="ui-screen">
+<view class="page-shell coach-detail-page safe-bottom" aria-hidden="{{bookingSheet}}">
+  <view wx:if="{{state === 'loading'}}" class="coach-loading">
+    <view class="skeleton coach-hero-skeleton"></view>
+    <view class="skeleton coach-panel-skeleton"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel">
+    <view class="status-title">{{notFound ? '教练资料不存在' : '暂时无法载入'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button wx:if="{{!notFound}}" class="status-action" bindtap="loadCoach">重新加载</button>
+    <button wx:else class="status-action" bindtap="goHome">返回首页</button>
+  </view>
+
+  <block wx:else>
+    <view class="coach-profile">
+      <view class="coach-profile-top">
+      <view class="coach-photo"><player-avatar src="{{coach.avatarUrl}}" seed="{{coach.id}}" size="104" label="{{coach.displayName}}的头像" /></view>
+      <view class="coach-profile-copy">
+      <view class="coach-name-row"><text>{{coach.displayName}}</text><text wx:if="{{coach.verified}}">身份已认证</text></view>
+      <view class="coach-specialties">{{coach.specialtyText}}</view>
+      <button wx:if="{{coach.venueId}}" class="coach-venue" bindtap="openVenue" hover-class="soft-press" aria-label="查看上课球馆：{{coach.venueName}}"><text>{{coach.venueName}}</text><text>查看球馆 ›</text></button>
+      <view wx:else class="coach-venue coach-venue-static">{{coach.venueName}}</view>
+      </view>
+      </view>
+      <view class="coach-intro" wx:if="{{coach.bio}}">{{coach.bio}}</view>
+      <view class="coach-facts">
+        <view><text>{{coach.completedSessions}}</text><text>完成课次</text></view>
+        <view><text>{{coach.experienceYearsText}}</text><text>执教经验</text></view>
+        <view><text>{{coach.priceText}}</text><text>课时费</text></view>
+      </view>
+    </view>
+
+    <view class="slot-section">
+      <view class="section-title">选择时段</view>
+      <view class="section-caption">{{slots.length ? '选择日期，再选择开课时间' : '教练暂未开放预约'}}</view>
+      <scroll-view wx:if="{{slots.length}}" class="slot-date-scroll" scroll-x="true" show-scrollbar="false">
+        <view class="slot-date-track">
+          <button wx:for="{{dateOptions}}" wx:key="value" class="slot-date {{selectedDate === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="selectDate"><text>{{item.weekday}}</text><text>{{item.label}}</text></button>
+        </view>
+      </scroll-view>
+      <view wx:if="{{visibleSlots.length}}" class="slot-grid">
+        <button wx:for="{{visibleSlots}}" wx:key="id" class="slot-button {{selectedSlotId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="selectSlot"><text>{{item.timeText}}</text><text>{{item.durationText}}</text></button>
+      </view>
+      <view wx:else class="slot-empty">{{slots.length ? '当天暂无可约时段，试试其他日期' : '新时段开放后会在这里展示'}}</view>
+    </view>
+
+    <view class="booking-notice">
+      <view><text>费用</text><text>{{selectedSlot ? selectedSlot.priceText : coach.priceText}} · 到店支付</text></view>
+      <view><text>场地费</text><text>{{coach.courtFeeNotice}}</text></view>
+      <view><text>取消规则</text><text>{{coach.cancelPolicyText}}</text></view>
+    </view>
+
+    <view class="coach-bottom safe-bottom">
+      <view><text>{{selectedSlot ? selectedSlot.priceText : coach.priceText}}</text><text>{{selectedSlot ? selectedSlot.scheduleText : '请先选择时段'}}</text></view>
+      <button bindtap="openBooking" disabled="{{!selectedSlot || booking}}">{{selectedSlot ? '确认时段' : slots.length ? '请先选时段' : '暂无可约时段'}}</button>
+    </view>
+  </block>
+</view>
+
+<view wx:if="{{bookingSheet}}" class="sheet-mask" catchtap="closeBooking">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-handle"></view>
+    <view class="sheet-title">确认教练预约</view>
+    <view class="sheet-copy">预约成功不代表已付款，课时费和场地费按下方说明到店结算。</view>
+    <view class="booking-summary">
+      <view><text>教练</text><text>{{coach.displayName}}</text></view>
+      <view><text>时间</text><text>{{selectedSlot.scheduleText}}</text></view>
+      <view><text>球馆</text><text>{{coach.venueName}}</text></view>
+      <view><text>课时费</text><text>{{selectedSlot.priceText}}</text></view>
+    </view>
+    <view wx:if="{{bookingError}}" class="inline-error">{{bookingError}}</view>
+    <view class="submit-agreement">提交即表示你已阅读并同意<button bindtap="openTerms">《用户协议》</button></view>
+    <button class="primary-button booking-submit" bindtap="confirmBooking" loading="{{booking}}" disabled="{{booking}}">确认提交</button>
+    <button class="text-button" bindtap="closeBooking">取消</button>
+  </view>
+</view>
+</view>

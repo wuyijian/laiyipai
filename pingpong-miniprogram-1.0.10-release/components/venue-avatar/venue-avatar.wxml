@@ -1,0 +1,12 @@
+<view class="venue-avatar" style="width: {{size}}rpx; height: {{size}}rpx; background: {{palette.background}};" role="img" aria-label="{{label}}">
+  <image wx:if="{{src && !imageFailed}}" class="venue-image" src="{{src}}" mode="aspectFill" binderror="onImageError" />
+  <view wx:else class="venue-art" aria-hidden="true">
+    <view class="accent-disc" style="background: {{palette.accent}}; left: {{palette.accentLeft}}%;"></view>
+    <view class="court" style="background: {{palette.court}}; transform: rotate({{palette.angle}}deg);">
+      <view class="court-boundary"></view>
+      <view class="court-center"></view>
+      <view class="court-net"></view>
+    </view>
+    <view class="ball" style="left: {{palette.ballLeft}}%; top: {{palette.ballTop}}%;"></view>
+  </view>
+</view>

@@ -1,0 +1,44 @@
+<view class="ui-screen">
+<view class="page-shell player-page safe-bottom">
+  <view wx:if="{{state === 'loading'}}" class="player-loading">
+    <view class="player-loading-head">
+      <view class="skeleton avatar-skeleton"></view>
+      <view class="loading-copy"><view class="skeleton title-skeleton"></view><view class="skeleton location-skeleton"></view></view>
+    </view>
+    <view class="skeleton section-skeleton"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel">
+    <view class="status-title">{{notFound ? '球友资料不可见' : '暂时无法载入资料'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button wx:if="{{!notFound}}" class="status-action" bindtap="loadPlayer">重新加载</button>
+    <button wx:else class="status-action" bindtap="goBack">返回</button>
+  </view>
+
+  <block wx:else>
+    <view class="player-header">
+      <view class="player-avatar"><player-avatar src="{{player.avatarUrl}}" seed="{{player.playerId || player.displayName}}" size="104" label="{{player.displayName}}的头像" /></view>
+      <view class="player-identity">
+        <view class="player-name">{{player.displayName}}</view>
+        <view class="player-location">{{player.locationText}}</view>
+        <view class="player-scope">仅展示约球相关资料</view>
+      </view>
+    </view>
+
+    <view class="player-section">
+      <view class="section-title">约球参考</view>
+      <view class="data-row"><text>球龄</text><text>{{player.ballAgeText}}</text></view>
+      <view class="data-block">
+        <text>擅长技术</text>
+        <view wx:if="{{player.skills.length}}"><text wx:for="{{player.skills}}" wx:key="*this" class="pill">{{item}}</text></view>
+        <text wx:else class="not-set">未填写</text>
+      </view>
+      <view class="data-row"><text>第三方积分</text><text>{{player.ratingText || '未填写'}}</text></view>
+      <view wx:if="{{player.ratingText}}" class="data-note">积分由本人填写，平台暂未核验。</view>
+    </view>
+
+    <view class="player-note">这些资料只用于判断是否适合一起练球。无需加好友，加入同一球局后再沟通时间和地点。</view>
+    <button wx:if="{{!isSelf}}" class="safety-button" bindtap="openSafety">举报或屏蔽</button>
+  </block>
+</view>
+</view>

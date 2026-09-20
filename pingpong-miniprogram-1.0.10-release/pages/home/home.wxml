@@ -1,0 +1,185 @@
+<view class="ui-screen">
+<view class="page-shell home-page safe-bottom">
+  <view class="home-topbar">
+    <picker class="location-picker" mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict">
+      <view class="location-control">
+        <view class="location-dot"></view>
+        <text class="city-name">杭州</text>
+        <text wx:if="{{districtLabel}}" class="district-name">· {{districtLabel}}</text>
+        <text wx:else class="district-name">· 全市</text>
+        <text class="location-chevron">⌄</text>
+      </view>
+    </picker>
+    <view class="home-top-actions">
+      <button class="home-refresh" bindtap="refreshHome" disabled="{{manualRefreshing}}" aria-label="刷新当前列表" hover-class="tap-feedback">
+        <view class="refresh-icon {{manualRefreshing ? 'is-refreshing' : ''}}"></view>
+        <text>{{manualRefreshing ? '刷新中' : '刷新'}}</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="home-hero">
+    <view class="hero-copy">
+      <view class="hero-title">找一场好球</view>
+      <view class="hero-subtitle">约好时间，球台见</view>
+    </view>
+    <button class="publish-quick" bindtap="openPublish" hover-class="publish-quick-press">
+      <text class="publish-plus">＋</text>
+      <text>发球局</text>
+    </button>
+  </view>
+
+  <view wx:if="{{refreshError}}" class="refresh-feedback failed" role="alert">
+    <text>{{refreshError}}</text><button bindtap="refreshHome">重试</button>
+  </view>
+  <view wx:elif="{{refreshNotice}}" class="refresh-feedback" aria-live="polite">{{refreshNotice}}</view>
+
+  <view class="match-tools">
+    <view class="tool-heading">
+      <text class="tool-title">哪天有空</text>
+      <text wx:if="{{refreshing}}" class="refresh-copy">正在更新</text>
+    </view>
+    <scroll-view class="date-scroll" scroll-x="true" show-scrollbar="false" enhanced="true">
+      <view class="date-track">
+        <view wx:for="{{dateOptions}}" wx:key="value" class="date-item {{selectedDate === item.value ? 'active' : ''}}" role="button" aria-label="筛选日期：{{item.weekday}} {{item.label}}" data-value="{{item.value}}" bindtap="selectDate" hover-class="date-item-press" hover-stay-time="80">
+          <text class="date-weekday">{{item.weekday}}</text>
+          <text class="date-label">{{item.label}}</text>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="filter-row">
+      <picker mode="selector" range="{{ballAgeOptions}}" value="{{ballAgeIndex}}" bindchange="changeBallAge">
+        <view class="filter-button">
+          <text>{{ballAgeOptions[ballAgeIndex]}}</text>
+          <text class="filter-chevron">⌄</text>
+        </view>
+      </picker>
+      <button class="friend-filter {{friendsOnly ? 'active' : ''}}" bindtap="toggleFriendsOnly" aria-pressed="{{friendsOnly}}" hover-class="filter-press" hover-stay-time="80">
+        <view class="friend-filter-mark"><view></view><view></view></view>
+        <text>{{friendsOnly ? '只看球友局' : '球友局'}}</text>
+      </button>
+    </view>
+  </view>
+
+  <view wx:if="{{state === 'loading'}}" class="loading-list" aria-label="正在加载">
+    <view class="loading-caption" aria-live="polite">{{loadingStage === 'session' ? '正在连接服务…' : '正在查找球局…'}}</view>
+    <view wx:if="{{loadingSlow}}" class="loading-explanation">网络有些慢，正在等待公开内容。你也可以点右上角刷新。</view>
+    <view class="skeleton skeleton-title"></view>
+    <view wx:for="{{[1,2,3]}}" wx:key="*this" class="skeleton skeleton-card"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel home-status">
+    <view class="status-title">{{loginRequired ? '登录来一拍' : '暂时无法载入'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button class="status-action" bindtap="retry">{{loginRequired ? '微信登录' : '重新加载'}}</button>
+    <button wx:if="{{friendsOnly && !loginRequired}}" class="empty-publish-link" bindtap="expandMatchSearch">查看全部球局</button>
+  </view>
+
+  <block wx:else>
+      <view class="section-head-row matches-head">
+        <view>
+          <view class="section-title">{{friendsOnly ? '球友正在参与' : '开放球局'}}</view>
+        </view>
+        <text wx:if="{{state === 'ready'}}" class="result-count match-result-count">{{matches.length ? matches.length + ' 场' : matchesHasMore ? '还有更多' : '0 场'}}</text>
+      </view>
+
+      <view wx:if="{{matches.length}}" class="match-list">
+        <view wx:for="{{matches}}" wx:key="id" class="match-card" role="button" aria-label="{{item.dateLabel}} {{item.startTime}}到{{item.endTime}}，{{item.title}}，{{item.seatText}}" data-id="{{item.id}}" bindtap="openMatch" hover-class="match-card-press" hover-stay-time="80">
+          <view class="match-card-head">
+            <view class="match-schedule">
+              <text class="match-date">{{item.dateLabel}}</text>
+              <text class="match-time">{{item.startTime}}—{{item.endTime}}</text>
+            </view>
+            <text class="seat-status {{item.full ? 'full' : ''}}">{{item.seatText}}</text>
+          </view>
+          <view class="match-title">{{item.title}}</view>
+          <view class="match-venue-row">
+            <text class="match-venue">{{item.venueName}}</text>
+            <text class="court-status">{{item.courtStatusText}}</text>
+          </view>
+          <button wx:if="{{item.venueLocationText || item.hasLocation}}" class="match-location" data-id="{{item.id}}" catchtap="openMatchMap" hover-class="soft-press" aria-label="{{item.hasLocation ? '导航到' : '复制地址：'}}{{item.venueName}}">
+            <text>{{item.venueLocationText || '查看地图位置'}}</text><text class="match-location-action">{{item.hasLocation ? '地图 ↗' : '复制 ⧉'}}</text>
+          </button>
+          <view class="match-tags">
+            <text class="pill brand">{{item.expectedBallAge}}</text>
+            <text class="pill">{{item.practiceIntentLabel}}</text>
+          </view>
+          <view class="match-footer">
+            <text class="join-mode">{{item.joinModeText}}</text>
+            <view class="match-commitment">
+              <text class="match-fee">{{item.feeText}}</text>
+              <text class="card-chevron">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{matchesHasMore || paginationError}}" class="pagination-area">
+        <view wx:if="{{paginationError}}" class="pagination-error">
+          <text>{{paginationError}}</text>
+          <button bindtap="retryPagination" disabled="{{loadingMore}}">重试加载</button>
+        </view>
+        <button wx:else class="pagination-more" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在加载' : '加载更多球局'}}</button>
+      </view>
+
+      <view wx:if="{{!matches.length && !matchesHasMore && !paginationError}}" class="status-panel empty-panel">
+        <view class="status-title">{{friendsOnly ? '暂时没有球友局' : selectedDate ? '这天还没有合适的球局' : '暂时没有合适的球局'}}</view>
+        <view class="status-copy">{{friendsOnly ? '可以先看看所有球局；确认同场后，你们会自动成为球友。' : selectedDate || ballAgeIndex ? '试试其他日期或球龄要求，先看看同地区的球局。' : districtIndex ? '可以看看杭州其他地区，也可以在常去球馆发起一场。' : '选好时间和球馆，发起一场邀请球友加入。'}}</view>
+        <button wx:if="{{friendsOnly || selectedDate || ballAgeIndex || districtIndex}}" class="status-action" bindtap="expandMatchSearch" hover-class="button-press">{{friendsOnly ? '查看所有球局' : selectedDate || ballAgeIndex ? '放宽日期和球龄' : '查看杭州其他球局'}}</button>
+        <button class="{{friendsOnly || selectedDate || ballAgeIndex || districtIndex ? 'empty-publish-link' : 'status-action'}}" bindtap="openPublish" hover-class="button-press">发起一场球</button>
+      </view>
+
+      <view wx:if="{{venueLoadFailed}}" class="venue-load-error">
+        <text>球馆资料暂时未更新</text>
+        <button bindtap="retry">重试</button>
+      </view>
+
+      <view wx:if="{{venuesLoading && !venues.length}}" class="section-caption">正在加载球馆…</view>
+      <view id="home-venues" class="venue-section">
+        <view class="section-head-row">
+          <view>
+            <view class="section-title">杭州球馆</view>
+            <view class="section-caption">{{loggedIn ? '已标记的优先显示，发球更快' : '可直接浏览，登录后可标记常去球馆'}}</view>
+          </view>
+          <button class="venue-create-button" bindtap="openVenueCreate" hover-class="text-button-press">＋ 录入球馆</button>
+        </view>
+        <scroll-view wx:if="{{venues.length}}" class="venue-scroll" scroll-x="true" show-scrollbar="false" enhanced="true">
+          <view class="venue-track">
+            <view wx:for="{{venues}}" wx:key="id" class="venue-card-wrap">
+              <view class="venue-card" role="button" aria-label="查看球馆：{{item.name}}" data-id="{{item.id}}" bindtap="openVenue" hover-class="venue-card-press" hover-stay-time="80">
+                <venue-avatar src="{{item.coverUrl}}" seed="{{item.id || item.name}}" size="72" label="{{item.name}}的球馆头像" />
+                <view class="venue-card-body">
+                  <view class="venue-name">{{item.name}}</view>
+                  <view wx:if="{{item.distanceText || item.locationText || item.hasLocation}}" class="venue-meta-row">
+                    <view class="venue-meta">
+                      <text wx:if="{{item.distanceText}}" class="venue-distance">{{item.distanceText}}</text><text wx:if="{{item.locationText}}">{{item.distanceText ? ' · ' : ''}}{{item.locationText}}</text>
+                    </view>
+                    <view wx:if="{{item.locationText || item.hasLocation}}" class="venue-map-shortcut" role="button" aria-label="{{item.hasLocation ? '导航到' : '复制地址：'}}{{item.name}}" data-id="{{item.id}}" catchtap="openVenueMap" hover-class="venue-map-press">{{item.hasLocation ? '导航' : '复制'}} <text>{{item.hasLocation ? '↗' : '⧉'}}</text></view>
+                  </view>
+                  <view wx:if="{{item.activityTags.length}}" class="venue-activity-tags">
+                    <text wx:for="{{item.activityTags}}" wx:for-item="tag" wx:key="*this" class="venue-activity-tag">{{tag}}</text>
+                  </view>
+                  <view wx:if="{{item.verified && !item.nameOnly}}" class="venue-verified">资料已核验</view>
+                </view>
+                <text class="venue-chevron">›</text>
+              </view>
+              <view class="venue-card-actions">
+                <view
+                  class="venue-mark-button {{item.favorited ? 'active' : ''}} {{favoriteSavingById[item.id] ? 'saving' : ''}}"
+                  role="button"
+                  aria-label="{{!loggedIn ? '登录后标记球馆：' : item.favoriteKnown === false ? '重试查询标记状态：' : item.favorited ? '取消标记球馆：' : '标记球馆：'}}{{item.name}}"
+                  aria-disabled="{{favoriteSavingById[item.id] ? 'true' : 'false'}}"
+                  data-id="{{item.id}}"
+                  bindtap="toggleVenueFavorite"
+                  hover-class="venue-mark-press"
+                  hover-stay-time="80"
+                >{{!loggedIn ? '登录后标记' : favoriteSavingById[item.id] ? (item.favoriteKnown === false ? '查询中' : '保存中') : item.favoriteKnown === false ? '状态待确认' : item.favorited ? '已标记' : '＋ 标记'}}</view>
+                <view class="venue-quick-publish" role="button" aria-label="在{{item.name}}发起球局" data-id="{{item.id}}" bindtap="openPublish" hover-class="venue-publish-press">在这里发球</view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+  </block>
+</view>
+</view>

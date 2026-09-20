@@ -1,0 +1,116 @@
+<view class="ui-screen">
+  <view class="venue-entry-page">
+    <view class="entry-heading">
+      <view class="entry-eyebrow">杭州球馆库</view>
+      <view class="entry-title">{{editingRejected ? '修改早期提交' : savedVenue ? (reused ? '找到已有球馆' : '球馆已添加') : submission ? '历史审核进度' : '录入新球馆'}}</view>
+      <view class="entry-subtitle">{{editingRejected ? '名称保持不变，可调整适合活动' : savedVenue ? '这家球馆现在可以直接用于约球' : submission ? '这里保留升级前提交的处理状态' : '填写名称并保存，马上就能用于发布球局'}}</view>
+    </view>
+
+    <view wx:if="{{submissionLoading}}" class="entry-state-card entry-loading" aria-live="polite">
+      <view class="entry-loading-line wide"></view>
+      <view class="entry-loading-line"></view>
+      <text>正在查询审核进度…</text>
+    </view>
+
+    <view wx:elif="{{submissionLoadError}}" class="entry-state-card entry-load-error">
+      <view class="entry-state-title">审核进度暂时没加载出来</view>
+      <view class="entry-state-copy">{{submissionLoadError}}</view>
+      <button class="entry-secondary" bindtap="loadSubmission" hover-class="entry-press">重新加载</button>
+    </view>
+
+    <view wx:elif="{{savedVenue}}" class="entry-result entry-result-existing" aria-live="polite">
+      <view class="result-topline">
+        <view class="result-mark existing-mark">✓</view>
+        <text class="result-status approved">已公开</text>
+      </view>
+      <venue-avatar seed="{{savedVenue.id}}" size="92" label="{{savedVenue.name}}的球馆头像" />
+      <view class="entry-result-title">{{reused ? '已有这家球馆' : '球馆已可使用'}}</view>
+      <view class="entry-result-name">{{savedVenue.name}}</view>
+      <view class="entry-result-copy">{{reused ? '直接选用已有记录，球友看到的是同一家球馆。' : '已加入球馆库，可以直接用于发布球局。'}}</view>
+    </view>
+
+    <view wx:elif="{{submission && !editingRejected}}" class="entry-result result-{{submission.status}}" aria-live="polite">
+      <view class="result-topline">
+        <view class="result-mark {{submission.status}}">{{submission.status === 'approved' ? '✓' : submission.status === 'rejected' ? '!' : '·'}}</view>
+        <text class="result-status {{submission.status}}">{{submission.statusLabel}}</text>
+      </view>
+      <view class="entry-result-title">{{submission.title}}</view>
+      <view class="entry-result-name">{{submission.name}}</view>
+      <view class="entry-result-copy">{{submission.copy}}</view>
+      <view wx:if="{{submission.activityTags.length}}" class="result-tags">
+        <text wx:for="{{submission.activityTags}}" wx:key="*this">{{item}}</text>
+      </view>
+      <view wx:if="{{submission.status === 'reviewing'}}" class="review-note">
+        <text class="review-note-title">早期提交记录</text>
+        <text>这条记录仍按原流程处理；现在新录入的球馆保存后即可使用。</text>
+      </view>
+      <view wx:if="{{submission.status === 'rejected'}}" class="rejection-note">
+        <text class="review-note-title">未通过原因</text>
+        <text>{{submission.rejectionReason || '球馆信息暂时无法确认，请检查名称后重新提交。'}}</text>
+      </view>
+    </view>
+
+    <block wx:else>
+      <view wx:if="{{editingRejected}}" class="edit-review-note">
+        <text class="edit-review-title">正在修改「{{submission.name}}」</text>
+        <text>球馆名称不可在原申请中更改；如名称有误，请改为提交一个新球馆。</text>
+      </view>
+
+      <view class="entry-city"><text>所在城市</text><text>杭州</text></view>
+      <view class="entry-field">
+        <label for="venue-name" class="entry-label">球馆名称</label>
+        <input id="venue-name" class="entry-input {{editingRejected ? 'is-readonly' : ''}}" value="{{name}}" maxlength="60" placeholder="例如：桂语朝阳乒乓球室" placeholder-class="entry-placeholder" bindinput="changeName" bindblur="searchExisting" bindconfirm="searchExisting" confirm-type="done" disabled="{{saving || outcomeUnknown || editingRejected}}" />
+        <view class="entry-helper">{{editingRejected ? '名称需修改时，请直接录入一个新球馆' : '请填写门头或地图上的完整名称，方便球友识别'}}</view>
+      </view>
+
+      <view wx:if="{{searchState === 'loading'}}" class="entry-search-note">正在查找已有球馆…</view>
+      <view wx:elif="{{searchState === 'error'}}" class="entry-search-note">暂未查到已有记录，提交时还会再次检查。</view>
+      <view wx:if="{{suggestions.length}}" class="entry-suggestions">
+        <view class="entry-suggestions-head">
+          <view>
+            <view class="entry-suggestions-title">可能已经有这家球馆</view>
+            <view class="entry-suggestions-copy">直接选用，避免重复录入</view>
+          </view>
+        </view>
+        <button wx:for="{{suggestions}}" wx:key="id" class="entry-suggestion" data-id="{{item.id}}" bindtap="useExisting" disabled="{{saving || outcomeUnknown}}" hover-class="entry-press">
+          <venue-avatar seed="{{item.id || item.name}}" size="58" label="{{item.name}}的球馆头像" />
+          <view class="entry-suggestion-name">{{item.name}}</view>
+          <text class="entry-suggestion-action">{{fromPublish ? '直接选用' : '查看'}} ›</text>
+        </button>
+      </view>
+
+      <view class="entry-field entry-activities">
+        <view class="entry-label">适合做什么<text class="entry-optional">选填 · 可多选</text></view>
+        <view class="entry-tags">
+          <button wx:for="{{tags}}" wx:key="label" class="entry-tag {{item.selected ? 'selected' : ''}}" data-value="{{item.label}}" bindtap="toggleTag" aria-pressed="{{item.selected}}" disabled="{{saving || outcomeUnknown}}" hover-class="entry-press">{{item.label}}</button>
+        </view>
+      </view>
+
+      <view class="entry-notice">
+        <view class="notice-dot"></view>
+        <view>
+          <view class="notice-title">保存后立即加入球馆库</view>
+          <view class="notice-copy">名称会公开给其他球友，请确认准确，并且不要填写私人住址。</view>
+        </view>
+      </view>
+    </block>
+
+    <view class="entry-dock">
+      <view wx:if="{{errorMessage}}" class="entry-error" aria-role="alert">{{errorMessage}}</view>
+      <block wx:if="{{savedVenue}}">
+        <button class="entry-submit" bindtap="continueWithVenue" disabled="{{saving}}" hover-class="entry-press">{{fromPublish ? '选用并返回发布' : fromCoachReview ? '选用并返回审核' : '查看球馆'}}</button>
+      </block>
+      <block wx:elif="{{submission && !editingRejected}}">
+        <button wx:if="{{submission.status === 'approved'}}" class="entry-submit" bindtap="useApprovedVenue" loading="{{saving}}" disabled="{{saving}}" hover-class="entry-press">{{fromPublish ? '选用并返回发布' : fromCoachReview ? '选用并返回审核' : '查看球馆'}}</button>
+        <button wx:elif="{{submission.status === 'rejected'}}" class="entry-submit" bindtap="editRejected" hover-class="entry-press">修改后重新提交</button>
+        <button wx:else class="entry-secondary entry-secondary-full" bindtap="leaveResult" hover-class="entry-press">完成</button>
+      </block>
+      <block wx:elif="{{!submissionLoading && !submissionLoadError}}">
+        <button class="entry-submit" bindtap="save" loading="{{saving}}" disabled="{{saving || !name}}" hover-class="entry-press">{{saving ? '正在保存' : outcomeUnknown ? '重试保存' : editingRejected ? '保存并公开' : fromPublish ? '保存并用于本次球局' : fromCoachReview ? '保存并关联授课球馆' : '保存球馆'}}</button>
+        <button wx:if="{{editingRejected}}" class="entry-text-action" bindtap="startNewSubmission" disabled="{{saving || outcomeUnknown}}" hover-class="entry-press">名称不对？直接录入新球馆</button>
+        <button wx:if="{{editingRejected}}" class="entry-text-action muted" bindtap="cancelEditRejected" disabled="{{saving || outcomeUnknown}}" hover-class="entry-press">取消修改</button>
+      </block>
+      <view class="entry-footnote">不获取定位 · 不代订球台</view>
+    </view>
+  </view>
+</view>

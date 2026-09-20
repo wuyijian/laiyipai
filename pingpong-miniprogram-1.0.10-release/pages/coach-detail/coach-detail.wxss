@@ -1,0 +1,54 @@
+.ui-screen .coach-detail-page { padding-bottom: calc(170rpx + env(safe-area-inset-bottom)); padding-top: 26rpx; }
+.ui-screen .coach-hero-skeleton { height: 360rpx; }
+.ui-screen .coach-panel-skeleton { height: 300rpx; margin-top: 22rpx; }
+.ui-screen .coach-profile { background: #fff; padding: 0 0 28rpx; border-radius: 0; text-align: left; }
+.ui-screen .coach-photo { display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 104rpx; height: 104rpx; margin: 0; flex: 0 0 104rpx; }
+.ui-screen .coach-photo-empty { display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 25rpx; }
+.ui-screen .coach-name-row { display: flex; align-items: center; gap: 12rpx; margin-top: 0; justify-content: flex-start; flex-wrap: wrap; }
+.ui-screen .coach-name-row text:first-child { font-weight: 680; font-size: 36rpx; }
+.ui-screen .coach-name-row text:last-child { padding: 6rpx 10rpx; border-radius: 8rpx; background: #eaf7f0; color: var(--success); font-size: 20rpx; }
+.ui-screen .coach-specialties { margin-top: 12rpx; color: var(--text-secondary); font-size: 25rpx; line-height: 1.5; }
+.ui-screen .coach-venue { display: flex; width: 100%; min-height: 52rpx; align-items: center; justify-content: space-between; gap: 12rpx; margin: 5rpx 0 0; color: var(--text-secondary); font-size: 22rpx; text-align: left; }
+.ui-screen .coach-venue text:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .coach-venue text:last-child { flex: none; color: var(--brand); font-size: 20rpx; }
+.ui-screen .coach-venue-static { display: block; min-height: 0; margin-top: 8rpx; font-size: 23rpx; }
+.ui-screen .coach-intro { margin-top: 22rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.6; text-align: left; padding: 20rpx; background: var(--surface-muted); border-radius: 12rpx; }
+.ui-screen .coach-facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 26rpx; border-top: 2rpx solid var(--line); text-align: center; border-top-width: 1rpx; padding-top: 24rpx; }
+.ui-screen .coach-facts view { display: flex; flex-direction: column; border-right: 2rpx solid var(--line); border-right-width: 1rpx; }
+.ui-screen .coach-facts view:last-child { border-right: 0; }
+.ui-screen .coach-facts text:first-child { font-size: 27rpx; font-weight: 650; }
+.ui-screen .coach-facts text:last-child { margin-top: 7rpx; color: var(--text-tertiary); font-size: 22rpx; }
+.ui-screen .slot-section { background: #fff; margin-top: 0; padding: 30rpx 0; border-top: 1rpx solid var(--line); border-radius: 0; }
+.ui-screen .slot-date-scroll { white-space: nowrap; width: calc(100% + 64rpx); margin: 24rpx -32rpx 0; }
+.ui-screen .slot-date-track { display: inline-flex; padding: 0 32rpx; gap: 10rpx; }
+.ui-screen .slot-date { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2rpx solid var(--line); border-radius: 14rpx; color: var(--text-secondary); flex: 0 0 84rpx; width: 84rpx; min-height: 98rpx; margin: 0; padding: 0; font-size: 22rpx; line-height: 1.4; border-width: 1rpx; }
+.ui-screen .slot-date text:last-child { margin-top: 5rpx; }
+.ui-screen .slot-date.active { border-color: var(--brand); background: var(--brand); color: #fff; }
+.ui-screen .slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 22rpx; }
+.ui-screen .slot-button { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2rpx solid var(--line); border-radius: 14rpx; width: 100%; margin: 0; min-height: 98rpx; font-size: 27rpx; line-height: 1.4; border-width: 1rpx; }
+.ui-screen .slot-button text:last-child { margin-top: 4rpx; color: var(--text-tertiary); font-size: 22rpx; }
+.ui-screen .slot-button.active { border-color: var(--brand); background: var(--brand); color: #fff; }
+.ui-screen .slot-button.active text:last-child { color: #e8f2ed; }
+.ui-screen .slot-empty { padding: 50rpx 0 28rpx; color: var(--text-tertiary); font-size: 24rpx; text-align: center; }
+.ui-screen .booking-notice { background: #fff; padding: 0; margin-top: 0; border-top: 1rpx solid var(--line); border-radius: 0; }
+.ui-screen .booking-notice view { display: flex; justify-content: space-between; gap: 24rpx; padding: 20rpx 0; border-bottom: 2rpx solid var(--line); border-bottom-width: 1rpx; font-size: 25rpx; }
+.ui-screen .booking-notice view:last-child { border-bottom: 0; }
+.ui-screen .booking-notice text:first-child { flex: 0 0 116rpx; color: var(--text-secondary); }
+.ui-screen .booking-notice text:last-child { text-align: right; line-height: 1.5; }
+.ui-screen .coach-bottom { position: fixed; z-index: 30; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 20rpx; padding: 18rpx 32rpx calc(18rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--line); background: #fff; }
+.ui-screen .coach-bottom > view { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.ui-screen .coach-bottom > view text:first-child { font-size: 28rpx; font-weight: 660; }
+.ui-screen .coach-bottom > view text:last-child { overflow: hidden; margin-top: 4rpx; color: var(--text-secondary); font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .coach-bottom button { flex: 0 0 250rpx; min-height: 84rpx; border-radius: 16rpx; background: var(--brand); color: #fff; font-size: 28rpx; font-weight: 650; display: flex; width: 250rpx; margin: 0; align-items: center; justify-content: center; line-height: 1.4; }
+.ui-screen .coach-bottom button[disabled] { background: #b9c0cd; }
+.ui-screen .booking-summary { margin-top: 26rpx; padding: 2rpx 22rpx; border-radius: 14rpx; background: var(--surface-muted); }
+.ui-screen .booking-summary view { display: flex; justify-content: space-between; gap: 24rpx; padding: 20rpx 0; border-bottom: 2rpx solid #e1e3e6; font-size: 24rpx; }
+.ui-screen .submit-agreement { display: flex; align-items: center; justify-content: center; margin: 22rpx 0 10rpx; color: var(--text-secondary); flex-wrap: wrap; font-size: 22rpx; }
+.ui-screen .submit-agreement button { min-height: 58rpx; color: var(--brand); display: flex; width: auto; margin: 0; align-items: center; justify-content: center; font-size: 22rpx; line-height: 1.4; }
+.ui-screen .booking-summary view:last-child { border-bottom: 0; }
+.ui-screen .booking-summary text:first-child { color: var(--text-secondary); }
+.ui-screen .booking-summary text:last-child { text-align: right; }
+.ui-screen .booking-submit { margin-top: 28rpx; }
+
+.ui-screen .coach-profile-top { display: flex; align-items: center; gap: 22rpx; }
+.ui-screen .coach-profile-copy { min-width: 0; flex: 1; }

@@ -1,0 +1,161 @@
+<view class="ui-screen">
+<view class="page-shell orders-page safe-bottom" aria-hidden="{{cancelSheet}}">
+  <view class="screen-heading">
+    <view class="orders-title-row"><view class="screen-title">我的预约</view><button class="orders-refresh" bindtap="refreshAppointments" loading="{{refreshing}}" disabled="{{refreshing || requestBusyMatchId || actionBusyId}}" hover-class="text-button-press">{{refreshing ? '更新中' : '刷新'}}</button></view>
+    <view class="screen-subtitle">时间、球馆和沟通，都在这里</view>
+  </view>
+  <view class="orders-controls">
+    <view class="period-tabs" aria-role="tablist" aria-label="预约时间范围">
+      <button class="period-tab {{period === 'upcoming' ? 'active' : ''}}" aria-role="tab" aria-selected="{{period === 'upcoming'}}" data-value="upcoming" bindtap="changePeriod" hover-class="tab-press" hover-stay-time="80">当前安排</button>
+      <button class="period-tab {{period === 'history' ? 'active' : ''}}" aria-role="tab" aria-selected="{{period === 'history'}}" data-value="history" bindtap="changePeriod" hover-class="tab-press" hover-stay-time="80">历史记录</button>
+    </view>
+
+    <view class="type-tabs" aria-role="tablist" aria-label="预约类型">
+      <button wx:for="{{typeOptions}}" wx:key="value" class="type-tab {{type === item.value ? 'active' : ''}}" aria-role="tab" aria-selected="{{type === item.value}}" data-value="{{item.value}}" bindtap="changeType" hover-class="filter-press" hover-stay-time="80"><text>{{item.label}}</text><text wx:if="{{item.count}}" class="type-count">{{item.count}}</text></button>
+    </view>
+  </view>
+
+  <view wx:if="{{state === 'ready' && syncError}}" class="orders-sync-note" aria-live="polite">
+    <text>预约暂未更新，当前仍显示上次结果</text>
+    <button bindtap="refreshAppointments" loading="{{refreshing}}" disabled="{{refreshing}}" hover-class="text-button-press">重试</button>
+  </view>
+
+  <view wx:if="{{state === 'loading'}}" class="loading-list" aria-label="正在载入预约">
+    <view class="skeleton skeleton-heading"></view>
+    <view wx:for="{{[1,2,3]}}" wx:key="*this" class="skeleton skeleton-card"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="status-panel orders-status">
+    <view class="status-title">暂时无法载入预约</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button class="status-action status-retry" bindtap="loadAppointments" hover-class="button-press" hover-stay-time="80">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <button wx:if="{{(period !== 'upcoming' || type === 'coach') && joinRequests.length}}" class="request-shortcut" bindtap="showJoinRequests">{{joinRequests.length}} 条加入申请待处理<text>查看 ›</text></button>
+    <view wx:if="{{period === 'upcoming' && type !== 'coach' && hasHostMatches && !joinRequests.length && joinRequestsState !== 'error'}}" class="request-empty">
+      <view class="request-empty-title">{{joinRequestsState === 'loading' ? '正在检查加入申请…' : '暂无待处理申请'}}</view>
+      <view class="request-empty-copy">{{joinRequestsState === 'loading' ? '正在同步发起人的申请列表' : '有新申请会在这里提醒，无需反复刷新。'}}</view>
+    </view>
+    <view wx:if="{{period === 'upcoming' && type !== 'coach' && joinRequestsState === 'error'}}" class="request-sync-note">
+      <view><view>{{joinRequests.length ? '部分加入申请暂未更新' : '加入申请暂时无法加载'}}</view><view wx:if="{{joinRequestsError}}" class="request-error-detail">{{joinRequestsError}}</view></view>
+      <button class="request-retry" bindtap="retryJoinRequests" disabled="{{joinRequestsState === 'loading'}}" hover-class="text-button-press" hover-stay-time="80">重试</button>
+    </view>
+
+    <view wx:if="{{period === 'upcoming' && type !== 'coach' && joinRequests.length}}" class="request-section">
+      <view class="request-heading">
+        <view class="request-heading-copy">
+          <view class="section-kicker">加入申请</view>
+          <view class="request-heading-note">{{joinRequestsState === 'loading' ? '正在更新申请…' : '自动更新，无需反复刷新'}}</view>
+        </view>
+        <view class="request-count">{{joinRequests.length}}</view>
+      </view>
+
+      <view wx:for="{{joinRequests}}" wx:key="id" class="request-card">
+        <view class="request-top">
+          <view class="request-person">
+            <view class="request-name">{{item.applicantName}}</view>
+            <view class="request-profile">{{item.ballAge}}{{item.skillsText}}</view>
+          </view>
+          <view class="request-state {{item.stale ? 'stale' : ''}}"><text class="request-state-dot"></text><text>{{item.stale ? '待刷新' : item.statusLabel}}</text></view>
+        </view>
+
+        <view class="request-context">
+          <view class="request-match-title">{{item.matchTitle}}</view>
+          <view class="request-match-time">{{item.scheduleText}}</view>
+        </view>
+
+        <view class="request-actions">
+          <button class="request-action-button reject-button" data-id="{{item.id}}" bindtap="rejectRequest" loading="{{item.busy && item.busyAction === 'reject'}}" disabled="{{item.stale || item.busy || requestBusyMatchId === item.matchId}}" hover-class="soft-button-press" hover-stay-time="80">拒绝</button>
+          <button class="request-action-button approve-button" data-id="{{item.id}}" bindtap="approveRequest" loading="{{item.busy && item.busyAction === 'accept'}}" disabled="{{item.stale || item.busy || requestBusyMatchId === item.matchId}}" hover-class="button-press" hover-stay-time="80">同意加入</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{appointments.length}}" class="journey-heading">
+      <view class="section-kicker">{{period === 'upcoming' ? '你的安排' : '历史记录'}}</view>
+      <view class="journey-count">{{appointments.length}}</view>
+    </view>
+
+    <view wx:if="{{appointments.length}}" class="appointment-list {{period === 'history' ? 'history-list' : ''}}">
+      <view wx:for="{{appointments}}" wx:key="id" class="appointment-card">
+        <button class="appointment-main" aria-label="{{item.kindLabel}}，{{item.scheduleText}}，{{item.title}}，{{item.venueName}}，{{item.statusLabel}}" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openAppointment" hover-class="card-press" hover-stay-time="80">
+          <view class="appointment-head">
+            <view class="kind-label"><text class="kind-dot"></text><text>{{item.isNext ? '下一场 · ' : ''}}{{item.kindLabel}}</text></view>
+            <text class="status-label {{item.statusTone}}">{{item.statusLabel}}</text>
+          </view>
+
+          <view class="appointment-schedule-row">
+            <view class="appointment-schedule"><text class="appointment-date">{{item.dateLabel}}</text><text class="appointment-time">{{item.timeRange}}</text></view>
+            <view class="card-chevron" aria-hidden="true"></view>
+          </view>
+          <view class="appointment-title">{{item.title}}</view>
+
+          <view class="appointment-facts">
+            <view wx:if="{{item.venueName}}" class="appointment-fact">
+              <text class="fact-icon" aria-hidden="true"></text>
+              <text class="fact-value">{{item.venueName}}</text>
+            </view>
+            <view class="appointment-fact payment-fact">
+              <text class="fact-icon" aria-hidden="true"></text>
+              <text class="fact-value">{{item.paymentText}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{item.actionHint}}" class="action-hint"><text class="action-hint-dot"></text><text>{{item.actionHint}}</text></view>
+        </button>
+
+        <button wx:if="{{item.canChat}}" class="appointment-chat" data-match-id="{{item.matchId}}" bindtap="openChat" hover-class="appointment-chat-press" aria-label="打开{{item.title}}的球局沟通">
+          <view class="appointment-chat-icon" aria-hidden="true"><text>•••</text></view>
+          <view class="appointment-chat-copy"><text>球局沟通</text><text>确认球台、集合位置和时间</text></view>
+          <view class="appointment-chat-action">打开 <text>›</text></view>
+        </button>
+
+        <view wx:if="{{item.canCancel || item.canConfirmSchedule || item.canRebook}}" class="appointment-actions {{item.canRebook ? 'rebook-actions' : ''}}">
+          <button wx:if="{{item.canCancel}}" class="card-action cancel-action" data-id="{{item.id}}" bindtap="openCancel" disabled="{{actionBusyId === item.matchId || requestBusyMatchId === item.matchId}}" hover-class="text-button-press" hover-stay-time="80">取消预约</button>
+          <view class="appointment-action-main">
+            <button wx:if="{{item.canRebook}}" class="card-action rebook-action" data-id="{{item.id}}" bindtap="openRebook" hover-class="soft-button-press" hover-stay-time="80">再约一场</button>
+            <button wx:if="{{item.canConfirmSchedule}}" class="card-action primary" data-id="{{item.id}}" data-match-id="{{item.matchId}}" bindtap="confirmSchedule" loading="{{actionBusyId === item.matchId}}" disabled="{{actionBusyId || requestBusyMatchId === item.matchId}}" hover-class="button-press" hover-stay-time="80">确认新时间</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="status-panel empty-orders">
+      <view class="status-title">{{emptyTitle}}</view>
+      <view class="status-copy">{{emptyCopy}}</view>
+      <button wx:if="{{period === 'upcoming'}}" class="status-action empty-action" bindtap="goHome" hover-class="button-press" hover-stay-time="80">{{emptyActionText}}</button>
+    </view>
+  </block>
+</view>
+
+<view wx:if="{{cancelSheet}}" class="sheet-mask" catchtap="closeCancel">
+  <view class="sheet cancel-sheet" aria-role="dialog" aria-label="取消预约" catchtap="noop">
+    <view class="sheet-handle"></view>
+    <view class="cancel-eyebrow">取消预约</view>
+    <view class="sheet-title">确定取消这次预约？</view>
+
+    <view class="cancel-summary">
+      <text class="cancel-summary-title">{{selectedAppointment.title}}</text>
+      <text class="cancel-summary-time">{{selectedAppointment.scheduleText}}</text>
+      <text class="cancel-summary-venue">{{selectedAppointment.venueName}}</text>
+    </view>
+
+    <view class="cancel-policy">
+      <text class="cancel-policy-dot"></text>
+      <text>{{selectedAppointment.cancelPolicyText}}</text>
+    </view>
+
+    <view class="cancel-label">取消原因</view>
+    <picker class="cancel-picker-control {{cancelBusy ? 'is-disabled' : ''}}" mode="selector" range="{{cancelReasons}}" value="{{cancelReasonIndex}}" disabled="{{cancelBusy}}" bindchange="changeCancelReason">
+      <view class="cancel-picker">
+        <text>{{cancelReasons[cancelReasonIndex]}}</text>
+        <text class="picker-chevron">›</text>
+      </view>
+    </picker>
+
+    <button class="danger-button confirm-cancel" bindtap="confirmCancel" loading="{{cancelBusy}}" disabled="{{cancelBusy}}" hover-class="danger-button-press" hover-stay-time="80">确认取消</button>
+    <button class="text-button keep-button" bindtap="closeCancel" disabled="{{cancelBusy}}" hover-class="text-button-press" hover-stay-time="80">保留预约</button>
+  </view>
+</view>
+</view>

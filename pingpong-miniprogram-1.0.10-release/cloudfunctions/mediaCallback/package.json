@@ -1,0 +1,12 @@
+{
+  "name": "laiyipai-media-callback",
+  "version": "1.0.10",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/handler.test.js"
+  },
+  "dependencies": {
+    "wx-server-sdk": "4.0.2"
+  }
+}

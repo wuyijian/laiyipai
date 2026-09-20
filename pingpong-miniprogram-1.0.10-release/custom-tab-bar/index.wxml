@@ -1,0 +1,25 @@
+<view class="custom-tab-bar">
+  <view class="tab-bar" aria-role="tablist" aria-label="主导航">
+    <button
+      wx:for="{{list}}"
+      wx:key="pagePath"
+      class="tab-item {{selected === index ? 'tab-item--selected' : ''}}"
+      data-index="{{index}}"
+      bindtap="onTabTap"
+      hover-class="tab-item--pressed"
+      hover-stay-time="80"
+      aria-role="tab"
+      aria-label="{{item.text}}{{index === 3 && messageUnreadCount ? '，有' + messageBadgeText + '条未读球局消息' : ''}}{{selected === index ? '，当前页面' : ''}}"
+      aria-selected="{{selected === index}}"
+      aria-current="{{selected === index ? 'page' : 'false'}}"
+    >
+      <view class="tab-icon tab-icon--{{item.icon}}" aria-hidden="true">
+        <view class="icon-part icon-part--one"></view>
+        <view class="icon-part icon-part--two"></view>
+        <view class="icon-part icon-part--three"></view>
+        <text wx:if="{{index === 3 && messageUnreadCount}}" class="message-badge">{{messageBadgeText}}</text>
+      </view>
+      <text class="tab-label">{{item.text}}</text>
+    </button>
+  </view>
+</view>

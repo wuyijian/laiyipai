@@ -1,0 +1,21 @@
+.ui-screen .settings-page { padding-top: 0; }
+.ui-screen .settings-group { background: #fff; padding: 0; margin-bottom: 28rpx; border-radius: 0; border-top: 1rpx solid var(--line); }
+.ui-screen .settings-group-title { color: var(--text-tertiary); font-weight: 600; padding: 24rpx 0 8rpx; font-size: 23rpx; }
+.ui-screen .settings-item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 22rpx; border-bottom: 2rpx solid var(--line); text-align: left; margin: 0; padding: 20rpx 0; min-height: 118rpx; line-height: 1.5; border-bottom-width: 1rpx; border-radius: 0; }
+.ui-screen .settings-item:last-child { border-bottom: 0; }
+.ui-screen .settings-item > view { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.ui-screen .settings-item > view text:first-child { font-size: 28rpx; font-weight: 550; }
+.ui-screen .settings-item > view text:last-child { margin-top: 7rpx; color: var(--text-secondary); line-height: 1.45; font-size: 23rpx; }
+.ui-screen .settings-item > text { flex: none; color: var(--brand); font-size: 23rpx; }
+.ui-screen .danger-item > view text:first-child, .ui-screen .danger-item > text { color: var(--danger); }
+.ui-screen .version-copy { padding: 24rpx; color: var(--text-tertiary); font-size: 22rpx; line-height: 1.6; text-align: center; }
+.ui-screen .legal-sheet { height: 88vh; }
+.ui-screen .legal-content { height: calc(88vh - 250rpx); margin: 22rpx 0; color: var(--text-secondary); font-size: 25rpx; line-height: 1.7; }
+.ui-screen .legal-date { color: var(--text-tertiary); font-size: 22rpx; }
+.ui-screen .legal-heading { margin-top: 24rpx; color: var(--text); font-size: 28rpx; font-weight: 650; }
+.ui-screen .blocks-status { padding: 64rpx 20rpx; color: var(--text-secondary); font-size: 25rpx; text-align: center; }
+.ui-screen .block-list { margin-top: 24rpx; border-top: 2rpx solid var(--line); }
+.ui-screen .block-row { display: flex; align-items: center; justify-content: space-between; min-height: 94rpx; border-bottom: 2rpx solid var(--line); font-size: 26rpx; }
+.ui-screen .block-row button { min-width: 132rpx; border: 2rpx solid var(--line); border-radius: 12rpx; color: var(--brand); font-size: 23rpx; display: flex; width: auto; margin: 0; align-items: center; justify-content: center; padding: 0 18rpx; line-height: 1.4; min-height: 68rpx; border-width: 1rpx; }
+.ui-screen .delete-confirm { display: flex; align-items: flex-start; gap: 12rpx; margin: 28rpx 0; padding: 20rpx; border-radius: 14rpx; background: #fff1f0; color: #7a271a; font-size: 24rpx; line-height: 1.5; }
+.ui-screen .delete-confirm checkbox { transform: scale(.82); transform-origin: left top; }

@@ -1,0 +1,15 @@
+{
+  "name": "laiyipai-cloud-api",
+  "version": "1.0.10",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/contracts.test.js && node tests/hardening.test.js && node tests/rate-limit.test.js && node tests/match-update.test.js && node tests/admin-catalog.test.js && node tests/coach-applications.test.js && node tests/venue-photos.test.js && node tests/venue-entry.test.js && node tests/timing.test.js && node tests/wechat-login.test.js && node tests/review-compliance.test.js && node tests/public-read.test.js && node tests/friends.test.js && node tests/friend-updates.test.js && node tests/update-comments.test.js && node tests/message-inbox.test.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "wx-server-sdk": "4.0.2"
+  }
+}

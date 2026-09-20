@@ -1,0 +1,24 @@
+[
+  {
+    "venueId": "hz_xiaochao_table_tennis",
+    "name": "萧潮乒乓球馆",
+    "city": "杭州",
+    "listingMode": "name_only",
+    "activityTags": ["教学", "比赛", "训练", "切磋"],
+    "featuredRank": 10,
+    "verificationStatus": "verified",
+    "partnerVerified": false,
+    "active": true
+  },
+  {
+    "venueId": "hz_guiyu_chaoyang_table_tennis_room",
+    "name": "桂语朝阳乒乓球室",
+    "city": "杭州",
+    "listingMode": "name_only",
+    "activityTags": ["切磋"],
+    "featuredRank": 20,
+    "verificationStatus": "verified",
+    "partnerVerified": false,
+    "active": true
+  }
+]

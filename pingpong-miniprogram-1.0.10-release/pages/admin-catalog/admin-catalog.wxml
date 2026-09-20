@@ -1,0 +1,86 @@
+<view class="ui-screen">
+  <view class="catalog-page">
+    <view class="catalog-heading">
+      <view>
+        <view class="catalog-eyebrow">运营管理</view>
+        <view class="catalog-title">球馆与教练</view>
+        <view class="catalog-subtitle">删除会立即停止公开展示，历史球局和预约仍会保留。</view>
+      </view>
+    </view>
+
+    <view class="catalog-tabs" role="tablist">
+      <button class="catalog-tab {{type === 'venues' ? 'selected' : ''}}" data-type="venues" bindtap="switchType" disabled="{{removingId}}" aria-selected="{{type === 'venues'}}">球馆</button>
+      <button class="catalog-tab {{type === 'coaches' ? 'selected' : ''}}" data-type="coaches" bindtap="switchType" disabled="{{removingId}}" aria-selected="{{type === 'coaches'}}">教练</button>
+    </view>
+    <picker wx:if="{{type === 'venues'}}" class="district-filter" mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrictFilter">
+      <view class="district-filter-control"><text>区域 · {{districts[districtIndex]}}</text><text>⌄</text></view>
+    </picker>
+
+    <view wx:if="{{state === 'loading'}}" class="catalog-list" aria-live="polite">
+      <view wx:for="{{skeletonRows}}" wx:key="*this" class="catalog-row skeleton-row">
+        <view class="skeleton skeleton-avatar"></view>
+        <view class="skeleton-copy"><view class="skeleton skeleton-title"></view><view class="skeleton skeleton-line"></view></view>
+      </view>
+    </view>
+
+    <view wx:elif="{{state === 'forbidden'}}" class="catalog-state">
+      <view class="state-title">没有管理权限</view>
+      <view class="state-copy">请使用已配置为运营管理员的微信账号进入。</view>
+    </view>
+
+    <view wx:elif="{{state === 'error' && !items.length}}" class="catalog-state">
+      <view class="state-title">列表没有加载出来</view>
+      <view class="state-copy">{{errorMessage}}</view>
+      <button class="state-action" bindtap="retry">重新加载</button>
+    </view>
+
+    <block wx:else>
+      <view wx:if="{{errorMessage}}" class="catalog-notice">
+        <text>{{errorMessage}}</text><button bindtap="retry">重试</button>
+      </view>
+      <view wx:if="{{removalError}}" class="catalog-notice danger" aria-role="alert">{{removalError}}</view>
+
+      <view wx:if="{{items.length}}" class="catalog-list">
+        <view wx:for="{{items}}" wx:key="id" class="catalog-row">
+          <venue-avatar wx:if="{{type === 'venues'}}" seed="{{item.avatarSeed}}" size="70" label="{{item.name}}的球馆头像" />
+          <player-avatar wx:else src="" seed="{{item.avatarSeed}}" size="70" label="{{item.name}}的头像" />
+          <view class="catalog-copy">
+            <view class="catalog-name-row"><text class="catalog-name">{{item.name}}</text><text class="catalog-status {{item.active ? 'active' : ''}}">{{item.statusLabel}}</text></view>
+            <text class="catalog-meta">{{item.subtitle}}</text>
+          </view>
+          <button wx:if="{{type === 'venues'}}" class="edit-action" data-id="{{item.id}}" bindtap="openVenueEditor" disabled="{{removingId}}" aria-label="编辑{{item.name}}">编辑</button>
+          <button class="delete-action" data-id="{{item.id}}" bindtap="requestRemove" loading="{{removingId === item.id}}" disabled="{{removingId}}" aria-label="删除{{item.name}}">删除</button>
+        </view>
+      </view>
+
+      <view wx:else class="catalog-state compact-state">
+        <view class="state-title">暂无{{type === 'venues' ? '球馆' : '教练'}}</view>
+        <view class="state-copy">当前没有可管理的记录。</view>
+      </view>
+
+      <button wx:if="{{hasMore}}" class="load-more" bindtap="onReachBottom" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '加载中' : '加载更多'}}</button>
+    </block>
+  </view>
+
+  <view wx:if="{{editorVisible}}" class="sheet-mask" catchtap="closeVenueEditor">
+    <view class="sheet venue-editor" catchtap="noop" role="dialog" aria-modal="true" aria-label="编辑球馆资料">
+      <view class="sheet-handle"></view>
+      <view class="editor-head"><view><view class="sheet-title">编辑球馆</view><view class="sheet-copy">位置会用于球馆详情和地图导航。</view></view><button class="editor-close" bindtap="closeVenueEditor" disabled="{{saving}}">×</button></view>
+      <scroll-view class="editor-scroll" scroll-y="true">
+        <view class="editor-field"><text>名称</text><input value="{{editForm.name}}" maxlength="40" data-field="name" bindinput="changeEditField" /></view>
+        <view class="editor-field"><text>区域</text><picker mode="selector" range="{{districts}}" value="{{editDistrictIndex}}" bindchange="changeEditDistrict"><view class="editor-control"><text>{{districts[editDistrictIndex]}}</text><text>›</text></view></picker></view>
+        <view class="editor-field"><text>详细地址</text><input value="{{editForm.address}}" maxlength="120" data-field="address" bindinput="changeEditField" placeholder="道路、门牌号或商场楼层" /></view>
+        <view class="coordinate-row"><view class="editor-field"><text>经度</text><input type="digit" value="{{editForm.longitude}}" data-field="longitude" bindinput="changeEditField" placeholder="120.000000" /></view><view class="editor-field"><text>纬度</text><input type="digit" value="{{editForm.latitude}}" data-field="latitude" bindinput="changeEditField" placeholder="30.000000" /></view></view>
+        <view class="editor-help">经纬度可从腾讯地图地点详情复制；保存后“导航”会使用这里的位置。</view>
+        <view class="editor-field"><text>认证与上架状态</text><picker mode="selector" range="{{verificationOptions}}" range-key="label" value="{{verificationIndex}}" bindchange="changeVerification"><view class="editor-control"><text>{{verificationOptions[verificationIndex].label}}</text><text>›</text></view></picker></view>
+        <block wx:if="{{verificationOptions[verificationIndex].status === 'verified'}}">
+          <view class="editor-field"><text>核验日期</text><picker mode="date" value="{{editForm.verificationDate}}" bindchange="changeEditField" data-field="verificationDate"><view class="editor-control"><text>{{editForm.verificationDate || '选择日期'}}</text><text>›</text></view></picker></view>
+          <view class="editor-field"><text>资料来源</text><input value="{{editForm.sourceUrl}}" data-field="sourceUrl" bindinput="changeEditField" placeholder="https:// 开头的核验页面" /></view>
+        </block>
+        <view wx:if="{{saveError}}" class="editor-error">{{saveError}}</view>
+        <button class="primary-button editor-save" bindtap="saveVenue" loading="{{saving}}" disabled="{{saving}}">保存球馆资料</button>
+        <view class="editor-bottom"></view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

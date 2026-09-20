@@ -1,0 +1,27 @@
+.friends-page { padding-top: 22rpx; padding-bottom: calc(92rpx + env(safe-area-inset-bottom)); background: #fff; }
+.friends-hero { padding: 16rpx 0 28rpx; border-bottom: 1rpx solid var(--line); }
+.friends-title { color: var(--text); font-size: 44rpx; font-weight: 680; letter-spacing: -1rpx; }
+.friends-copy { max-width: 590rpx; margin-top: 9rpx; color: var(--text-secondary); font-size: 23rpx; line-height: 1.6; }
+.friends-loading { padding-top: 20rpx; }
+.friend-skeleton { height: 142rpx; margin-top: 14rpx; border-radius: 18rpx; }
+.friends-status { margin-top: 28rpx; }
+.friends-notice { display: flex; min-height: 72rpx; margin-top: 20rpx; padding: 12rpx 16rpx; align-items: center; justify-content: space-between; border-radius: 12rpx; background: #fff7e5; color: #7b5c16; font-size: 21rpx; }
+.friends-notice button { width: auto; min-height: 48rpx; padding: 0 12rpx; color: #6d551e; font-size: 20rpx; }
+.friend-list { margin-top: 8rpx; }
+.friend-row { display: flex; width: 100%; min-height: 144rpx; padding: 22rpx 0; align-items: center; gap: 18rpx; border-bottom: 1rpx solid var(--line); text-align: left; }
+.friend-row-press { opacity: .68; }
+.friend-body { min-width: 0; flex: 1; }
+.friend-name-row { display: flex; min-width: 0; align-items: center; gap: 12rpx; }
+.friend-name { overflow: hidden; color: var(--text); font-size: 27rpx; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.friend-relation { flex: none; padding: 4rpx 9rpx; border-radius: 7rpx; background: var(--brand-faint); color: var(--brand); font-size: 18rpx; }
+.friend-meta { display: block; margin-top: 7rpx; color: var(--text-secondary); font-size: 21rpx; }
+.friend-skills { display: flex; margin-top: 9rpx; gap: 7rpx; overflow: hidden; }
+.friend-skill { flex: none; padding: 4rpx 9rpx; border-radius: 8rpx; background: #f2f4f1; color: #5a625d; font-size: 18rpx; }
+.friend-chevron { flex: none; color: #a9afab; font-size: 32rpx; }
+.friends-empty { margin-top: 30rpx; }
+.empty-mark { position: relative; width: 78rpx; height: 54rpx; margin: 0 auto 18rpx; }
+.empty-mark view { position: absolute; top: 5rpx; width: 42rpx; height: 42rpx; border: 4rpx solid #b9ccc0; border-radius: 50%; }
+.empty-mark view:first-child { left: 4rpx; }
+.empty-mark view:last-child { right: 4rpx; }
+.friends-more { padding: 24rpx 0 8rpx; }
+.friends-more button { width: 100%; min-height: 72rpx; border-radius: 14rpx; background: #f5f7f5; color: var(--text-secondary); font-size: 22rpx; }

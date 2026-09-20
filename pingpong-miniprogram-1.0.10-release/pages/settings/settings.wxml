@@ -1,0 +1,74 @@
+<view class="ui-screen">
+<view class="page-shell settings-page safe-bottom">
+  <view class="screen-heading"><view class="screen-title">设置</view><view class="screen-subtitle">管理账号、隐私与使用偏好</view></view>
+  <view class="settings-group">
+    <view class="settings-group-title">协议与隐私</view>
+    <button class="settings-item" bindtap="openPrivacy"><view><text>隐私保护指引</text><text>查看信息收集与使用规则</text></view><text>查看</text></button>
+    <button class="settings-item" bindtap="openTerms"><view><text>用户协议</text><text>平台规则、责任边界与取消说明</text></view><text>查看</text></button>
+    <button class="settings-item" bindtap="openPermissions"><view><text>系统权限</text><text>查看与管理定位授权</text></view><text>管理</text></button>
+  </view>
+
+  <view class="settings-group">
+    <view class="settings-group-title">安全与内容</view>
+    <button class="settings-item" bindtap="openBlocks"><view><text>已屏蔽用户</text><text>{{blockedUsers.length}} 人</text></view><text>管理</text></button>
+    <button class="settings-item" open-type="contact"><view><text>联系客服</text><text>举报处理、账号问题与意见反馈</text></view><text>联系</text></button>
+  </view>
+
+  <view class="settings-group">
+    <view class="settings-group-title">账号</view>
+    <button class="settings-item" bindtap="openWechatLogin"><view><text>微信登录</text><text>{{wechatLoggedIn ? '已登录当前微信账号，昵称和运动资料可在“我的”编辑' : '登录后同步球局、预约与常去球馆'}}</text></view><text>{{wechatLoggedIn ? '重新验证' : '去登录'}}</text></button>
+    <button class="settings-item danger-item" bindtap="requestDelete"><view><text>注销账号</text><text>申请删除个人资料及可删除的业务数据</text></view><text>注销</text></button>
+  </view>
+
+  <view class="version-copy">来一拍 · {{version}}</view>
+</view>
+
+<view wx:if="{{termsVisible}}" class="sheet-mask" catchtap="closeTerms">
+  <view class="sheet legal-sheet" catchtap="noop">
+    <view class="sheet-handle"></view>
+    <view class="sheet-title">来一拍用户协议</view>
+    <scroll-view class="legal-content" scroll-y="true">
+      <view class="legal-date">生效日期：{{termsEffectiveDate}}</view>
+      <view class="legal-heading">1. 服务说明</view>
+      <view>来一拍用于查找、发布和加入乒乓球活动，查看同场球友，管理预约并与同一球局成员沟通。平台目前不代收球局费用。</view>
+      <view class="legal-heading">2. 信息真实性</view>
+      <view>用户应如实填写球局时间、地区、球馆、场地状态、费用及个人资料；不得发布私人住宅邀约、诱导转账或违法有害内容。</view>
+      <view class="legal-heading">3. 线下活动</view>
+      <view>参与线下活动前请核对球馆、费用与取消安排，优先选择公共或已核验场馆。未成年人应在监护人同意和陪同下参加。</view>
+      <view class="legal-heading">4. 内容与账号</view>
+      <view>平台可对涉嫌违规的球局、资料或账号采取下架、限制等措施，并提供举报和申诉渠道。严重违法线索可能依法提交有关部门。</view>
+      <view class="legal-heading">5. 取消与争议</view>
+      <view>每项预约的具体取消规则以提交前展示的信息为准。线下自行支付产生的退款争议由付款双方协商；平台会在能力范围内提供记录协助。</view>
+      <view class="legal-heading">6. 协议更新</view>
+      <view>重要条款更新时会提示重新阅读并同意。继续使用前，请确认已理解当期协议。</view>
+    </scroll-view>
+    <button class="primary-button" bindtap="closeTerms">我知道了</button>
+  </view>
+</view>
+
+<view wx:if="{{blocksVisible}}" class="sheet-mask" catchtap="closeBlocks">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-handle"></view>
+    <view class="sheet-title">已屏蔽用户</view>
+    <view class="sheet-copy">屏蔽后，双方不会在推荐列表中互相出现，对方消息也会被隐藏。</view>
+    <view wx:if="{{blocksLoading}}" class="blocks-status">正在加载…</view>
+    <view wx:elif="{{blockedUsers.length}}" class="block-list">
+      <view wx:for="{{blockedUsers}}" wx:key="id" class="block-row"><text>{{item.displayName}}</text><button data-id="{{item.id}}" bindtap="unblockUser" disabled="{{item.busy}}">解除屏蔽</button></view>
+    </view>
+    <view wx:else class="blocks-status">没有已屏蔽的用户</view>
+    <button class="text-button" bindtap="closeBlocks">关闭</button>
+  </view>
+</view>
+
+<view wx:if="{{deleteVisible}}" class="sheet-mask" catchtap="closeDelete">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-handle"></view>
+    <view class="sheet-title">注销账号</view>
+    <view class="sheet-copy">注销后将停止使用账号。你发布的未开始球局会被取消，个人资料将进入删除流程；依法需要留存的安全和交易记录会在法定期限内隔离保存。</view>
+    <label class="delete-confirm"><checkbox checked="{{deleteConfirmed}}" bindtap="toggleDeleteConfirmed" color="#b42318" /><text>我已了解注销影响，并确认继续</text></label>
+    <view wx:if="{{deleteError}}" class="inline-error">{{deleteError}}</view>
+    <button class="danger-button" bindtap="deleteAccount" loading="{{deleting}}" disabled="{{!deleteConfirmed || deleting}}">确认注销账号</button>
+    <button class="text-button" bindtap="closeDelete">暂不注销</button>
+  </view>
+</view>
+</view>

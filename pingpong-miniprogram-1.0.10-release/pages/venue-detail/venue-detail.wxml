@@ -1,0 +1,118 @@
+<view class="ui-screen">
+<view class="venue-page safe-bottom">
+  <view wx:if="{{state === 'loading'}}" class="page-shell venue-loading">
+    <view class="skeleton venue-cover-skeleton"></view>
+    <view class="skeleton venue-block-skeleton"></view>
+    <view class="skeleton venue-block-skeleton"></view>
+  </view>
+
+  <view wx:elif="{{state === 'error'}}" class="page-shell status-panel">
+    <view class="status-title">{{notFound ? '球馆资料不存在' : '暂时无法载入球馆'}}</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button wx:if="{{!notFound}}" class="status-action" bindtap="loadVenue">重新加载</button>
+    <button wx:else class="status-action" bindtap="goHome">返回首页</button>
+  </view>
+
+  <block wx:else>
+    <view class="page-shell venue-content">
+      <view wx:if="{{refreshing || refreshError}}" class="photos-sync">{{refreshing ? '正在更新资料…' : refreshError}}</view>
+      <view class="venue-title-row">
+        <venue-avatar src="{{venue.imageUrls[0] || ''}}" seed="{{venue.id || venue.name}}" size="88" label="{{venue.name}}的球馆头像" />
+        <view class="venue-title-main">
+          <view wx:if="{{!venue.nameOnly}}" class="verified-row"><text wx:if="{{venue.verified}}">资料已核验</text><text>更新于 {{venue.updatedText}}</text></view>
+          <view class="venue-title">{{venue.name}}</view>
+          <button wx:if="{{venue.locationText || venue.hasLocation}}" class="venue-location" bindtap="openMap" hover-class="venue-location-press" aria-label="{{venue.hasLocation ? '导航到' : '复制地址：'}}{{venue.name}}">
+            <view class="venue-location-copy"><text class="venue-location-label">位置</text><text>{{venue.locationText || '查看地图位置'}}</text></view>
+            <view class="venue-location-action">{{venue.hasLocation ? '地图导航' : '复制地址'}} <text>{{venue.hasLocation ? '↗' : '⧉'}}</text></view>
+          </button>
+          <view wx:if="{{venue.activityTags.length}}" class="venue-activity-tags">
+            <text wx:for="{{venue.activityTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+          </view>
+        </view>
+        <button
+          class="favorite-button {{venue.favorited ? 'active' : ''}} {{favoriteStatus === 'unknown' ? 'unknown' : ''}}"
+          bindtap="toggleFavorite"
+          disabled="{{favoriteSaving}}"
+          aria-label="{{!loggedIn ? '登录后标记球馆' : favoriteStatus === 'unknown' ? '重新查询球馆标记状态' : venue.favorited ? '取消标记球馆' : '标记球馆'}}"
+        >{{!loggedIn ? '登录后标记' : favoriteSaving ? (favoriteStatus === 'unknown' ? '查询中' : '保存中') : favoriteStatus === 'unknown' ? '状态待确认' : venue.favorited ? '已标记' : '标记球馆'}}</button>
+      </view>
+
+      <view wx:if="{{venue.phone}}" class="venue-actions single">
+        <button bindtap="callVenue">联系球馆</button>
+      </view>
+
+      <view wx:if="{{venue.hasInformation}}" class="venue-information">
+        <view wx:if="{{venue.businessHoursText}}"><text>营业时间</text><text>{{venue.businessHoursText}}</text></view>
+        <view wx:if="{{venue.phone}}"><text>场馆电话</text><text>{{venue.phone}}</text></view>
+        <view wx:if="{{venue.bookingNotice}}"><text>场地预约</text><text>{{venue.bookingNotice}}</text></view>
+      </view>
+
+      <view class="venue-notice">{{venue.userContributed ? '球友补充，未经平台实地核验。名称可用于约球，场地与球台请自行确认。' : venue.nameOnly ? '可在这里发起球局，具体场地与时间请加入后确认。' : '发起球局不会自动预订球台，请向球馆确认场地。'}}</view>
+
+      <view class="venue-photos">
+        <view class="photos-heading">
+          <view><view class="photos-title">场地照片 <text wx:if="{{venue.imageUrls.length}}">{{venue.imageUrls.length}}</text></view><view class="photos-caption">球台、空间、环境，一眼了解球馆</view></view>
+        </view>
+        <view wx:if="{{mediaLoading}}" class="photos-sync">照片加载中…</view>
+        <view wx:if="{{mediaFailed}}" class="photos-retry"><text>部分照片暂时无法加载</text><button bindtap="retryVenuePhotos">重试</button></view>
+        <view wx:if="{{!venue.coverFileIds.length}}" class="photos-empty"><view class="photos-camera"><view></view></view><text>暂无场地照片</text></view>
+        <scroll-view wx:if="{{venue.imageUrls.length}}" scroll-x class="photos-strip">
+          <button wx:for="{{venue.imageUrls}}" wx:key="*this" class="photos-thumb" data-url="{{item}}" bindtap="previewPhoto" aria-label="查看场地照片"><image src="{{item}}" mode="aspectFill" /></button>
+        </scroll-view>
+        <button class="photos-mine-toggle" bindtap="toggleOwnPhotos"><text>管理我的已有照片 <text wx:if="{{photoItems.length}}" class="photos-mine-count">{{photoItems.length}}</text></text><text>{{ownPhotosVisible ? '收起 −' : '展开 +'}}</text></button>
+        <block wx:if="{{ownPhotosVisible}}">
+          <view wx:if="{{photosState === 'error'}}" class="photos-retry"><text>已有照片记录暂时无法加载</text><button bindtap="loadPhotos">重试</button></view>
+          <view wx:elif="{{photosState === 'loading'}}" class="photos-sync">正在同步已有照片…</view>
+          <view wx:elif="{{photoItems.length}}" class="photos-mine">
+            <view wx:for="{{photoItems}}" wx:key="id" class="photo-mine-row">
+              <image wx:if="{{item.url}}" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" bindtap="previewPhoto" />
+              <view wx:else class="photo-mine-placeholder"><view class="photos-camera"><view></view></view></view>
+              <view class="photo-mine-copy"><text class="photo-mine-status {{item.status}}">{{item.statusText}}</text><text>{{item.status === 'rejected' ? item.rejectionReason : item.status === 'passed' ? '已在球馆公开展示' : '尚未公开，等待审核'}}</text></view>
+              <button class="photo-mine-delete" data-id="{{item.id}}" bindtap="removePhoto" disabled="{{photoDeletingId}}">{{photoDeletingId === item.id ? '删除中' : '删除'}}</button>
+            </view>
+          </view>
+          <view wx:elif="{{photosState === 'ready'}}" class="photos-sync">没有已保存的照片</view>
+        </block>
+      </view>
+
+      <view class="content-tabs" role="tablist">
+        <button class="content-tab {{activeTab === 'matches' ? 'active' : ''}}" data-value="matches" bindtap="switchTab">公开球局 <text wx:if="{{matchesLoaded && !matchesUnavailable}}">{{matches.length}}</text></button>
+        <button class="content-tab {{activeTab === 'coaches' ? 'active' : ''}}" data-value="coaches" bindtap="switchTab">认证教练 <text wx:if="{{coachesLoaded && !coachesUnavailable}}">{{coaches.length}}</text></button>
+      </view>
+
+      <block wx:if="{{activeTab === 'matches'}}">
+        <view wx:if="{{matchesLoading}}" class="venue-tab-loading"><view class="skeleton venue-row-skeleton"></view><view class="skeleton venue-row-skeleton"></view></view>
+        <view wx:elif="{{matches.length}}" class="venue-match-list">
+          <button wx:for="{{matches}}" wx:key="id" class="venue-match" data-id="{{item.id}}" bindtap="openMatch">
+            <view class="venue-match-time"><text>{{item.dateLabel}}</text><text>{{item.startTime}}</text></view>
+            <view class="venue-match-main"><text>{{item.title}}</text><text>{{item.expectedBallAge}} · {{item.seatText}}</text></view>
+            <text class="venue-match-fee">{{item.feeText}}</text>
+          </button>
+        </view>
+        <view wx:else class="status-panel venue-empty">
+          <view class="status-title">{{matchesUnavailable ? '球局列表暂时无法载入' : '暂无公开球局'}}</view>
+          <view class="status-copy">{{matchesUnavailable ? '球馆资料仍可正常查看，请稍后重试。' : '可以选择这个球馆发起一场。'}}</view>
+          <button wx:if="{{matchesUnavailable}}" class="status-action" bindtap="retryVenueTab">重试列表</button>
+        </view>
+      </block>
+
+      <block wx:else>
+        <view wx:if="{{coachesLoading}}" class="venue-tab-loading"><view class="skeleton venue-row-skeleton"></view><view class="skeleton venue-row-skeleton"></view></view>
+        <view wx:elif="{{coaches.length}}" class="venue-coach-list">
+          <button wx:for="{{coaches}}" wx:key="id" class="venue-coach" data-id="{{item.id}}" bindtap="openCoach">
+            <player-avatar src="{{item.avatarUrl}}" seed="{{item.id}}" size="84" label="{{item.displayName}}的头像" />
+            <view class="coach-copy"><text>{{item.displayName}}</text><text>{{item.specialtyText}}</text><text>{{item.nextSlotText}}</text></view>
+            <text class="coach-fee">{{item.priceText}}</text>
+          </button>
+        </view>
+        <view wx:else class="status-panel venue-empty">
+          <view class="status-title">{{coachesUnavailable ? '教练列表暂时无法载入' : '暂无可约教练'}}</view>
+          <view class="status-copy">{{coachesUnavailable ? '球馆资料仍可正常查看，请稍后重试。' : '只有完成身份核验并发布真实时段的教练才会显示。'}}</view>
+          <button wx:if="{{coachesUnavailable}}" class="status-action" bindtap="retryVenueTab">重试列表</button>
+        </view>
+      </block>
+    </view>
+    <view class="venue-publish-dock"><button class="primary-button venue-publish" bindtap="startMatch">在这里发起球局</button></view>
+  </block>
+</view>
+</view>
