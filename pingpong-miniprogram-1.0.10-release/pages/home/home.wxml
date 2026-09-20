@@ -1,7 +1,7 @@
 <view class="ui-screen">
 <view class="page-shell home-page safe-bottom">
   <view class="home-topbar">
-    <picker class="location-picker" mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict">
+    <picker wx:if="{{mode !== 'updates'}}" class="location-picker" mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict">
       <view class="location-control">
         <view class="location-dot"></view>
         <text class="city-name">杭州</text>
@@ -10,6 +10,7 @@
         <text class="location-chevron">⌄</text>
       </view>
     </picker>
+    <view wx:else class="location-control"><view class="location-dot"></view><text class="city-name">杭州</text><text class="district-name">· 全城动态</text></view>
     <view class="home-top-actions">
       <button class="home-refresh" bindtap="refreshHome" disabled="{{manualRefreshing}}" aria-label="刷新当前列表" hover-class="tap-feedback">
         <view class="refresh-icon {{manualRefreshing ? 'is-refreshing' : ''}}"></view>
@@ -20,12 +21,24 @@
 
   <view class="home-hero">
     <view class="hero-copy">
-      <view class="hero-title">找一场好球</view>
-      <view class="hero-subtitle">约好时间，球台见</view>
+      <view class="hero-title">{{mode === 'matches' ? '找一场好球' : mode === 'coaches' ? '练得更进一步' : '球友都在练什么'}}</view>
+      <view class="hero-subtitle">{{mode === 'matches' ? '约好时间，球台见' : mode === 'coaches' ? '选择教练和合适的时段' : '看可约时间，也看实战心得'}}</view>
     </view>
-    <button class="publish-quick" bindtap="openPublish" hover-class="publish-quick-press">
+    <button wx:if="{{mode !== 'updates'}}" class="publish-quick" bindtap="openPrimaryAction" hover-class="publish-quick-press">
       <text class="publish-plus">＋</text>
-      <text>发球局</text>
+      <text>{{mode === 'updates' ? '发动态' : '发球局'}}</text>
+    </button>
+  </view>
+
+  <view class="mode-switch" role="tablist" aria-role="tablist" aria-label="首页内容">
+    <button class="mode-button {{mode === 'matches' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'matches'}}" data-mode="matches" bindtap="switchMode">
+      <text class="mode-title">找球局</text>
+    </button>
+    <button class="mode-button {{mode === 'coaches' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'coaches'}}" data-mode="coaches" bindtap="switchMode">
+      <text class="mode-title">约教练</text>
+    </button>
+    <button class="mode-button {{mode === 'updates' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'updates'}}" data-mode="updates" bindtap="switchMode">
+      <text class="mode-title">动态</text>
     </button>
   </view>
 
@@ -34,7 +47,7 @@
   </view>
   <view wx:elif="{{refreshNotice}}" class="refresh-feedback" aria-live="polite">{{refreshNotice}}</view>
 
-  <view class="match-tools">
+  <view wx:if="{{mode === 'matches'}}" class="match-tools">
     <view class="tool-heading">
       <text class="tool-title">哪天有空</text>
       <text wx:if="{{refreshing}}" class="refresh-copy">正在更新</text>
@@ -62,7 +75,7 @@
   </view>
 
   <view wx:if="{{state === 'loading'}}" class="loading-list" aria-label="正在加载">
-    <view class="loading-caption" aria-live="polite">{{loadingStage === 'session' ? '正在连接服务…' : '正在查找球局…'}}</view>
+    <view class="loading-caption" aria-live="polite">{{loadingStage === 'session' ? '正在连接服务…' : mode === 'matches' ? '正在查找球局…' : mode === 'coaches' ? '正在加载教练…' : '正在加载球友动态…'}}</view>
     <view wx:if="{{loadingSlow}}" class="loading-explanation">网络有些慢，正在等待公开内容。你也可以点右上角刷新。</view>
     <view class="skeleton skeleton-title"></view>
     <view wx:for="{{[1,2,3]}}" wx:key="*this" class="skeleton skeleton-card"></view>
@@ -76,6 +89,7 @@
   </view>
 
   <block wx:else>
+    <block wx:if="{{mode === 'matches'}}">
       <view class="section-head-row matches-head">
         <view>
           <view class="section-title">{{friendsOnly ? '球友正在参与' : '开放球局'}}</view>
@@ -180,6 +194,74 @@
           </view>
         </scroll-view>
       </view>
+    </block>
+
+    <block wx:elif="{{mode === 'coaches'}}">
+      <view class="section-head-row coach-heading">
+        <view>
+          <view class="section-title">可预约教练</view>
+          <view class="section-caption">先选教练，再选时间</view>
+        </view>
+        <text class="result-count">{{coaches.length ? '已显示 ' + coaches.length + ' 位' : coachesHasMore ? '还有更多结果' : '0 位'}}{{coaches.length && coachesHasMore ? '，还有更多' : ''}}</text>
+      </view>
+      <view wx:if="{{coaches.length}}" class="coach-list">
+        <button wx:for="{{coaches}}" wx:key="id" class="coach-row" data-id="{{item.id}}" bindtap="openCoach" hover-class="coach-row-press" hover-stay-time="80">
+          <player-avatar src="{{item.avatarUrl}}" seed="{{item.id}}" size="100" label="{{item.displayName}}的头像" />
+          <view class="coach-body">
+            <view class="coach-name-row">
+              <text class="coach-name">{{item.displayName}}</text>
+              <text wx:if="{{item.verified}}" class="verified-label">已认证</text>
+            </view>
+            <view class="coach-specialty">{{item.specialtyText}}</view>
+            <view class="coach-venue">{{item.venueName}}</view>
+            <view class="coach-footer">
+              <text>{{item.nextSlotText}}</text>
+              <view class="coach-action">
+                <text class="coach-price">{{item.priceText}}</text>
+                <text class="card-chevron">›</text>
+              </view>
+            </view>
+          </view>
+        </button>
+      </view>
+      <view wx:if="{{coachesHasMore || paginationError}}" class="pagination-area">
+        <view wx:if="{{paginationError}}" class="pagination-error">
+          <text>{{paginationError}}</text>
+          <button bindtap="retryPagination" disabled="{{loadingMore}}">重试加载</button>
+        </view>
+        <button wx:else class="pagination-more" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在加载' : '加载更多教练'}}</button>
+      </view>
+      <view wx:if="{{!coaches.length && !coachesHasMore && !paginationError}}" class="status-panel empty-panel coach-empty">
+        <view class="status-title">当前地区暂无可约教练</view>
+        <view class="status-copy">{{districtIndex ? '看看杭州其他地区的教练和可约时段。' : '教练开放新时段后会在这里展示。'}}</view>
+        <button wx:if="{{districtIndex}}" class="status-action" bindtap="expandCoachSearch" hover-class="button-press">查看杭州其他教练</button>
+      </view>
+    </block>
+
+    <block wx:else>
+      <button class="updates-compose-card" bindtap="openUpdateComposer" hover-class="updates-compose-press">
+        <view class="updates-compose-plus" aria-hidden="true"></view>
+        <view class="updates-compose-copy"><text>分享一条球友动态</text><text>报个大致时间，或记下刚练到的心得</text></view>
+        <text class="updates-compose-action">发布</text>
+      </button>
+      <view class="section-head-row updates-heading"><view><view class="section-title">球友动态</view><view class="section-caption">可约时间与练球心得 · 全杭州可见</view></view><text class="result-count">{{updates.length ? updates.length + ' 条' : '0 条'}}</text></view>
+      <view wx:if="{{updates.length}}" class="home-update-list">
+        <view wx:for="{{updates}}" wx:key="id" class="home-update-card">
+          <view class="home-update-head">
+            <button class="home-update-author" data-id="{{item.playerId}}" bindtap="openUpdatePlayer"><player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="72" label="{{item.displayName}}的头像" /><view class="home-update-author-copy"><view><text class="home-update-name">{{item.displayName}}</text><text wx:if="{{item.ratingText}}" class="home-score-chip">{{item.ratingText}}</text></view><text class="home-update-meta">{{item.metaText}}</text></view></button>
+            <text class="home-update-kind {{item.kind}}">{{item.kindText}}</text>
+          </view>
+          <button class="home-update-detail" data-id="{{item.id}}" bindtap="openUpdateDetail" aria-label="查看{{item.displayName}}的动态详情">
+            <view wx:if="{{item.kind === 'availability'}}" class="home-update-time"><view class="home-time-mark" aria-hidden="true"></view><view class="home-time-copy"><text>{{item.availabilityText}}</text><text wx:if="{{item.timeNote}}" class="home-time-note">{{item.timeNote}}</text></view></view>
+            <view wx:if="{{item.venueName}}" class="home-update-venue"><view class="home-venue-pin" aria-hidden="true"></view><text>{{item.venueName}}</text></view>
+            <view wx:if="{{item.content}}" class="home-update-content">{{item.content}}</view>
+          </button>
+          <view class="home-update-actions"><button wx:if="{{item.kind === 'availability'}}" class="home-match-from-update" data-id="{{item.id}}" bindtap="useUpdate">发起约球</button><button class="home-reply-update" data-id="{{item.id}}" bindtap="openUpdate"><view class="home-reply-icon" aria-hidden="true"></view><text>{{item.commentText}}</text></button></view>
+        </view>
+      </view>
+      <view wx:if="{{!updates.length && !updatesHasMore && !paginationError}}" class="status-panel empty-panel"><view class="status-title">还没有球友动态</view><view class="status-copy">发布大致可约时间，或者分享一条练球心得。</view><button class="status-action" bindtap="openUpdateComposer">发布第一条动态</button></view>
+      <view wx:if="{{updatesHasMore || paginationError}}" class="pagination-area"><view wx:if="{{paginationError}}" class="pagination-error"><text>{{paginationError}}</text><button bindtap="retryPagination" disabled="{{loadingMore}}">重试加载</button></view><button wx:else class="pagination-more" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '正在加载' : '加载更多动态'}}</button></view>
+    </block>
   </block>
 </view>
 </view>

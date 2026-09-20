@@ -165,10 +165,11 @@ async function run() {
   assert(publish.data.venueSelectionError.includes('已下架'), '失效已选球馆必须有明确提示')
   console.log('PASS 失效已选球馆会被清理并明确提示')
 
-  const beforeDynamic = clone(publish.data)
   publish.applyPrefill({ source: 'friend-update', venueId: 'search_1', date: '2099-01-01', startTime: '19:00', endTime: '21:00' })
-  assert.strictEqual(publish.data.venueId, beforeDynamic.venueId, '审核版不应从动态预填发球局表单')
-  console.log('PASS 审核版不接受动态预填')
+  assert.strictEqual(publish.data.venueId, 'search_1', '从动态发起约球时应带入对应球馆')
+  assert.strictEqual(publish.data.date, '2099-01-01')
+  assert(publish.data.prefillNotice.includes('对方大致可约') || publish.data.prefillNotice.includes('约球方向'))
+  console.log('PASS 动态约球可安全带入球馆和时间方向')
 
   const chosen = venue('catalog_1', '阿里体育馆')
   publish.setData({
@@ -190,8 +191,8 @@ async function run() {
   await publish.submit()
   assert.strictEqual(publish.data.publishOutcomeUnknown, true)
   assert.strictEqual(mutationCalls.length, 2, '首次未知结果应自动用同一请求对账一次')
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(mutationCalls[0].payload, 'title'), false, '标题应由后端根据结构化字段生成')
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(mutationCalls[0].payload, 'note'), false, '发布球局不应夹带自由文本备注')
+  assert.strictEqual(mutationCalls[0].payload.title, '轻松练一场', '留空标题应提交兼容 1.0.7 的默认标题')
+  assert.strictEqual(mutationCalls[0].payload.note, '', '空备注应作为空字符串提交')
   assert.strictEqual(mutationCalls[0].requestId, mutationCalls[1].requestId)
   const reloaded = await loadedPage()
   assert.strictEqual(reloaded.data.publishOutcomeUnknown, true, '未知结果应跨页面重载保留对账信息')
@@ -203,7 +204,7 @@ async function run() {
 
   const template = fs.readFileSync(path.join(root, 'pages/publish/publish.wxml'), 'utf8')
   assert(!template.includes('open-type="share"'), '发布成功页不应诱导分享')
-  assert(!template.includes('<textarea') && !template.includes('球局标题'), '发布页只保留结构化信息')
+  assert(template.includes('<textarea') && template.includes('球局标题'), '发布页应保留 1.0.7 的标题与见面备注')
   assert(template.includes('bindtap="openPublishedMatch"') && template.includes('查看球局'))
   console.log('PASS 成功页仅提供查看球局，不使用分享按钮')
 }

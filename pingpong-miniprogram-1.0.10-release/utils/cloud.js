@@ -5,6 +5,7 @@ const diagnostics = require('./diagnostics')
 let initialized = ''
 let readGeneration = 0
 const inFlightReads = new Map()
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
 function invalidateReads() { readGeneration += 1; inFlightReads.clear() }
 
@@ -17,7 +18,6 @@ class CloudApiError extends Error {
     this.requestId = requestId || ''
   }
 }
-
 function createRequestId() {
   return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
 }
@@ -69,6 +69,20 @@ function responseError(error = {}, requestId) {
     message = '服务正在更新，请稍后重新打开小程序'
   }
   return new CloudApiError(code, message, details, requestId)
+}
+
+function uploadError(error, requestId, mediaLabel = '文件', maxSizeMb = 100) {
+  const cause = String(error && (error.errMsg || error.message) || 'unknown').slice(0, 200)
+  if (/too\s*large|entity\s*too\s*large|file.{0,12}size|size.{0,12}(?:limit|exceed)|exceed.{0,12}size|100\s*mb|\b413\b/i.test(cause)) {
+    return new CloudApiError('UPLOAD_TOO_LARGE', `${mediaLabel}超过 ${maxSizeMb}MB，请压缩后重试`, { cause }, requestId)
+  }
+  if (/permission|forbidden|unauthori[sz]ed|access\s*denied|permission\s*deny|storage|bucket|cloud\s*path|environment|env\s*not|\b403\b|-60100/i.test(cause)) {
+    return new CloudApiError('UPLOAD_STORAGE_UNAVAILABLE', '云存储权限或环境配置异常，请稍后重试', { cause }, requestId)
+  }
+  if (/network|timeout|timed\s*out|offline|socket|connection|dns|request:fail/i.test(cause)) {
+    return new CloudApiError('NETWORK_ERROR', '网络连接失败，请检查网络后重试', { cause }, requestId)
+  }
+  return new CloudApiError('UPLOAD_FAILED', `${mediaLabel}上传失败，请稍后重试`, { cause }, requestId)
 }
 
 function isRetryableApiError(error, action) {
@@ -182,6 +196,112 @@ async function call(action, payload = {}, options = {}) {
   return result === undefined ? result : JSON.parse(JSON.stringify(result))
 }
 
+function avatarExtension(value) {
+  const normalized = String(value || '').toLowerCase().replace(/^image\//, '')
+  if (normalized === 'jpg' || normalized === 'jpeg') return 'jpg'
+  if (normalized === 'png') return 'png'
+  return ''
+}
+
+function avatarPathExtension(filePath) {
+  const pathWithoutQuery = String(filePath || '').split(/[?#]/, 1)[0]
+  const match = pathWithoutQuery.match(/\.([A-Za-z0-9]{2,5})$/)
+  return avatarExtension(match && match[1])
+}
+
+function getImageInfo(filePath) {
+  if (typeof wx.getImageInfo !== 'function') return Promise.resolve(null)
+  return new Promise((resolve, reject) => {
+    try {
+      wx.getImageInfo({ src: filePath, success: resolve, fail: reject })
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+function getLocalFileSize(filePath) {
+  if (typeof wx.getFileInfo === 'function') {
+    return new Promise((resolve) => {
+      try {
+        wx.getFileInfo({
+          filePath,
+          success: (result) => resolve(Number(result && result.size)),
+          fail: () => resolve(NaN)
+        })
+      } catch (_) {
+        resolve(NaN)
+      }
+    })
+  }
+  if (typeof wx.getFileSystemManager === 'function') {
+    return new Promise((resolve) => {
+      try {
+        wx.getFileSystemManager().stat({
+          path: filePath,
+          success: (result) => resolve(Number(result && result.stats && result.stats.size)),
+          fail: () => resolve(NaN)
+        })
+      } catch (_) {
+        resolve(NaN)
+      }
+    })
+  }
+  return Promise.resolve(NaN)
+}
+
+async function inspectAvatar(filePath, requestId) {
+  const pathExtension = avatarPathExtension(filePath)
+  let imageInfo = null
+  try {
+    imageInfo = await getImageInfo(filePath)
+  } catch (error) {
+    if (!pathExtension) {
+      throw new CloudApiError('INVALID_ARGUMENT', '无法读取头像文件，请重新选择', {
+        cause: String(error && (error.errMsg || error.message) || 'unknown').slice(0, 200)
+      }, requestId)
+    }
+  }
+  const detectedType = imageInfo && imageInfo.type
+  const extension = detectedType ? avatarExtension(detectedType) : pathExtension
+  if (!extension) {
+    throw new CloudApiError('INVALID_ARGUMENT', '头像仅支持 JPG 或 PNG 图片，请重新选择', null, requestId)
+  }
+  const size = await getLocalFileSize(filePath)
+  if (Number.isFinite(size) && size > AVATAR_MAX_BYTES) {
+    throw new CloudApiError('UPLOAD_TOO_LARGE', '头像超过 5MB，请压缩后重试', {
+      size,
+      maxSize: AVATAR_MAX_BYTES
+    }, requestId)
+  }
+  return { extension, size: Number.isFinite(size) ? size : null }
+}
+
+async function uploadAvatar(tempFilePath, options = {}) {
+  if (!tempFilePath) throw new CloudApiError('INVALID_ARGUMENT', '请选择头像文件')
+  const requestId = options.requestId || createRequestId()
+  const { extension } = await inspectAvatar(tempFilePath, requestId)
+  const policy = await call('files.prepareUpload', { purpose: 'avatar', extension }, { requestId })
+  const cloudPath = policy.cloudPath
+  let uploaded
+  try {
+    const uploadTask = wx.cloud.uploadFile({ cloudPath, filePath: tempFilePath })
+    if (options.onProgress && uploadTask && typeof uploadTask.onProgressUpdate === 'function') uploadTask.onProgressUpdate(options.onProgress)
+    uploaded = await uploadTask
+  } catch (error) {
+    throw uploadError(error, requestId, '头像', 5)
+  }
+  if (!uploaded || !uploaded.fileID) throw new CloudApiError('UPLOAD_FAILED', '云存储未返回头像文件信息，请重试', null, requestId)
+  try {
+    return await call('profile.avatar.register', { fileId: uploaded.fileID, uploadToken: policy.uploadToken }, { requestId })
+  } catch (error) {
+    if (['INVALID_ARGUMENT', 'UPLOAD_TICKET_INVALID', 'UPLOAD_TICKET_EXPIRED', 'UPLOAD_TICKET_USED', 'CONTENT_CHECK_UNAVAILABLE'].includes(error.code)) {
+      try { await wx.cloud.deleteFile({ fileList: [uploaded.fileID] }) } catch (_) {}
+    }
+    throw error
+  }
+}
+
 async function resolveFileUrls(fileIds, options = {}) {
   const unique = Array.from(new Set((fileIds || []).filter(Boolean)))
   if (!unique.length) return { urls: {}, unresolved: [] }
@@ -199,6 +319,7 @@ module.exports = {
   init,
   call,
   invalidateReads,
+  uploadAvatar,
   resolveFileUrls,
-  _private: { responseError }
+  _private: { avatarExtension, avatarPathExtension, inspectAvatar, responseError, AVATAR_MAX_BYTES }
 }

@@ -18,7 +18,7 @@
 
 按 `database/README.md` 在唯一生产环境创建集合、索引和安全规则。新增的 `venue_submissions` 必须先创建并等待四个组合索引可用；新增的 `player_friends` 必须先创建并等待 `user_updated`、`friend_updated` 两个索引可用；`message_inboxes.user_unread_updated` 也必须可用，再部署新版 `api`。所有数据库集合对客户端设为 `read:false/write:false`，页面代码不得调用 `wx.cloud.database()`。
 
-云存储应用 `database/security-rules/storage-owner-only.json`，其 1.0.10 实际规则为全局 `read:false/write:false`。客户端不能上传头像、视频或场馆照片，也不能直接读取历史文件；所有允许展示的球馆封面、历史已通过场馆照片和已上架教练头像都只能由 `api.files.resolve` 鉴权后换取短时 URL。用户头像由客户端根据公开 `playerId` 生成系统头像，不走云存储。
+云存储应用 `database/security-rules/storage-owner-only.json`。规则仅允许登录用户向自己的 `user-avatars/` 路径写入不超过 5MB 的 JPG/JPEG/PNG；公开头像、球馆封面和已上架教练头像由 `api.files.resolve` 鉴权换取短时 URL。视频与新增场馆照片上传保持关闭。
 
 个人历史视频、历史用户头像媒体与场馆照片记录暂不物理删除，只保留兼容删除、运营处置和账号注销清理能力。不要为了 1.0.10 放开任何客户端存储路径。
 
@@ -42,21 +42,22 @@
 1.0.10 的业务更新必须先部署：
 
 1. `cloudfunctions/api`
-2. `cloudfunctions/accountCleanup`
+2. `cloudfunctions/mediaCallback`
+3. `cloudfunctions/accountCleanup`
 
-`mediaCallback` 只为历史媒体审核记录保留。如果生产库仍有升级前已发起、尚未收敛的 `user_media` 审核任务，继续保留现有函数与消息订阅直到队列清空；1.0.10 不上传用户头像，不应为了新版本新建头像审核链路。
+`mediaCallback` 是头像异步审核链路的一部分。部署后启用 `event/wxa_media_check → mediaCallback` 消息订阅；回调只根据可信 `trace_id` 更新本人头像审核记录，审核通过后才公开新的 `avatarFileId`。
 
-本次客户端使用 API v2，并保留 API v1 的滚动升级兼容。新版 `api` 对旧动态列表返回安全空结果，对动态详情、发布、删除和回复返回 `FEATURE_UNAVAILABLE`；头像相关 action 与 `files.prepareUpload` 返回 `FEATURE_DISABLED`。必须先部署 `cloudfunctions/api`，确认旧体验版能够明确降级后，再上传新版小程序；不要先上传客户端，否则旧云函数会拒绝 `matches.update`、`messages.inbox/read` 等新版请求。
+本次客户端使用 API v2，并保留 API v1 的滚动升级兼容。新版 `api` 同时保留动态、回复、头像与教练能力，并增加 `matches.update`、`messages.inbox/read` 等路由。必须先部署云函数再上传新版小程序，避免客户端调用尚未上线的 action。
 
-`api/config.json` 已声明 `security.msgSecCheck` 和历史兼容的 `security.mediaCheckAsync`。1.0.10 仍开放的用户文字使用 `msgSecCheck` 并失败关闭；系统头像不调用 `mediaCheckAsync`。上传后若文字检测遇到 `-604101`，先确认云调用权限已生效。
+`api/config.json` 已声明 `security.msgSecCheck` 与 `security.mediaCheckAsync`。用户文字使用 `msgSecCheck` 并失败关闭；头像登记后调用 `mediaCheckAsync`，结果由 `mediaCallback` 收敛。上传后若内容检测遇到 `-604101`，先确认云调用权限已生效。
 
 在云函数权限控制中应用 `database/security-rules/cloud-functions.json`。`mediaCallback` 和 `accountCleanup` 对客户端必须是禁止调用。
 
-## 5. 系统头像与历史媒体
+## 5. 头像审核与历史媒体
 
-用户头像由 `utils/avatar.js` 根据公开 `playerId` 稳定生成。1.0.10 页面没有 `chooseAvatar`，`utils/api.js` 不暴露头像上传方法，服务端的 `profile.avatar.*` 与 `files.prepareUpload` 均为明确停用路由。验收时应确认客户端没有头像选择、上传、审核轮询或历史头像 URL 解析请求。
+用户未设置或头像审核未通过时，由 `utils/avatar.js` 根据公开 `playerId` 生成稳定系统头像。用户主动选择头像后，客户端经一次性凭证上传，登记审核并轮询状态；审核通过后通过 `files.resolve` 展示，超时状态允许重试。
 
-升级前的 `event/wxa_media_check → mediaCallback` 仅用于收敛已经存在的历史任务，不是 1.0.10 上线前置条件。不得用历史 `passed` 记录恢复用户头像展示。个人比赛视频、用户头像媒体和场馆照片都不得新增；历史记录只供运营处置、兼容删除与注销清理，不得重新进入公开资料或球局详情。
+`event/wxa_media_check → mediaCallback` 必须启用，并完成一张真实头像的通过/拒绝回调验证。个人比赛视频和新增场馆照片仍不得上传；相关历史记录只供运营处置、兼容删除与注销清理。
 
 ## 6. 导入真实供给
 
@@ -68,12 +69,12 @@
 
 - 启动：`api.bootstrap`
 - 首页：`api.venues.*`、`api.matches.list`、`api.coaches.list`
-- 球友：`api.friends.list`；`api.matches.list` 的 `friendsOnly:true` 只允许登录用户使用
+- 球友与动态：`api.friends.list`、`api.friendUpdates.*`、`api.updateComments.*`；`api.matches.list` 的 `friendsOnly:true` 只允许登录用户使用
 - 发布与球局详情：`api.matches.*`
 - 预约：`api.appointments.list`、`api.coachBookings.*`
 - 对话与提醒：`api.messages.list/send/inbox/read`；`messages.inbox` 驱动“我的”页及第 4 个自定义 Tab 的未读红点
 - 我的：`api.profile.*`、`api.favorites.*`、`api.coachApplications.*`、`api.venues.submissions.*`
-- 媒体显示：`api.files.resolve` 只解析获准的球馆/教练媒体；不要把临时 URL 持久化，用户系统头像不调用该接口
+- 媒体显示：`api.files.resolve` 解析获准的用户头像、球馆和教练媒体；不要把临时 URL 持久化
 
 生产工程已移除旧的本地业务数据文件。云请求失败时显示重试/空状态，绝不能静默回退到本地数据，否则会产生假球局和状态分叉。
 
@@ -84,11 +85,11 @@
 - 直接加入或申请获批后，双方在 `player_friends` 中形成双向关系；同一球局重试不增加共同场次，候补、待审批和被拒绝申请不建立关系，“球友局”不展示被拉黑用户参与的球局。
 - 非成员无法读写群聊；被拉黑双方互相不可见。
 - 相同 `requestId` 重放创建、加入、发消息和预约，不产生重复数据。
-- `matches.create` 只接受结构化发布字段，忽略旧 `title/note/courtBookingNote`；`matches.update` 仅发起人可用，以 `expectedVersion` 和 `requestId` 防并发覆盖与异意图重放，变更球馆或时段时重置订台状态并要求成员重新确认。
+- `matches.create` 与 `matches.update` 保留标题和备注并校验内容安全；编辑仅发起人可用，以 `expectedVersion` 和 `requestId` 防并发覆盖与异意图重放，变更球馆或时段时重置订台状态并要求成员重新确认。
 - 新消息只为有效成员维护每人每局一条 `message_inboxes` 指针；收件箱总未读数正确驱动“我的”页与自定义 Tab 红点，进入最新消息后用 `messages.read` 清零，旧消息 ID 不能误清新消息。
 - 内容安全不可用时，用户内容不落库。
-- 1.0.10 客户端没有头像、比赛视频或场馆照片上传入口；旧客户端调用相应上传/登记接口得到明确停用错误，用户资料只显示稳定系统头像。公开资料和球局详情不返回历史用户媒体；兼容删除、账号注销清理及历史场馆照片处置流程正常。
-- 1.0.10 不展示球友动态或回复入口；旧客户端动态列表为空，写入和回复请求不产生 UGC 数据。
+- 头像选择、上传、审核中、通过、拒绝、超时重试和删除链路均通过真机验证；未通过的头像不得公开。比赛视频和新增场馆照片仍无上传入口。
+- 球友动态支持发布可约信息或文字心得、查看详情、公开回复和本人删除；内容安全失败时不落库，图片与视频入口仍关闭。
 - 教练申请完整跑通未提交、审核中、通过和退回四态；运营审核通过后生成的教练必须保持下架，补齐真实球馆与可约时段后再上架。
 - 新球馆完整跑通即时可用、同名并发复用、文本安全拒绝不落库，以及历史待审记录的审核与申请人注销撤回。
 - `app.json` 不声明未使用的第三方插件，客户端不存在对应的运行时加载代码。

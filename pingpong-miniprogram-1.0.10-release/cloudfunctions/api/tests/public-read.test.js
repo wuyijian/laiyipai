@@ -56,7 +56,6 @@ test('公开读取使用显式白名单，写操作和个人读取不在白名�
     'admin.coachApplications.pending', 'admin.coachApplications.get', 'admin.coachApplications.review'
   ].forEach((action) => assert.strictEqual(isPublicRead(action), false, action))
 })
-
 test('公开身份仅绑定可信 OPENID，不访问或创建 users，也不要求隐私同意', () => {
   const context = {
     openid: 'forged_openid',
@@ -197,7 +196,7 @@ test('players.get 未屏蔽游客返回公开资料但不返回本人状态', as
   assert.strictEqual(result.isSelf, false)
 })
 
-test('files.resolve 不再为历史用户头像续签 URL', async () => {
+test('files.resolve 游客仅解析公开引用，不读取本人媒体', async () => {
   const fileId = 'cloud://bucket/public-avatar.png'
   const result = await files.resolve({
     openid: 'trusted_public_openid',
@@ -210,18 +209,22 @@ test('files.resolve 不再为历史用户头像续签 URL', async () => {
     },
     db: {
       collection(name) {
-        if (name === 'users' || name === 'user_blocks') throw new Error('系统头像不应读取用户媒体或拉黑表')
+        if (name === 'users') return queryReturning([{
+          _id: 'avatar_owner_openid',
+          status: 'active', profile: { avatarFileId: fileId }
+        }])
         if (name === 'venues' || name === 'coaches') return queryReturning([])
+        if (name === 'user_blocks') return { where: () => queryReturning([]) }
         if (name === 'user_media') throw new Error('public file resolve must not access own media')
         throw new Error(`unexpected collection ${name}`)
       }
     }
   }, { fileIds: [fileId] })
-  assert.strictEqual(result.urls[fileId], undefined)
-  assert.deepStrictEqual(result.unresolved, [fileId])
+  assert.strictEqual(result.urls[fileId], 'https://example.test/public-avatar.png')
+  assert.deepStrictEqual(result.unresolved, [])
 })
 
-test('files.resolve 跳过用户头像，但场馆和教练公开媒体仍可解析', async () => {
+test('files.resolve 不为双向屏蔽用户续签头像 URL，但场馆和教练公开媒体仍可解析', async () => {
   const blockedAvatar = 'cloud://bucket/blocked-avatar.png'
   const venueCover = 'cloud://bucket/public-venue.png'
   const coachAvatar = 'cloud://bucket/public-coach.png'
@@ -248,7 +251,18 @@ test('files.resolve 跳过用户头像，但场馆和教练公开媒体仍可解
           }
         }
         if (name === 'coaches') return queryReturning([{ avatarFileId: coachAvatar }])
-        if (name === 'users' || name === 'user_blocks') throw new Error('系统头像不应读取用户媒体或拉黑表')
+        if (name === 'users') return queryReturning([{
+          _id: 'blocked_owner_openid',
+          status: 'active',
+          profile: { avatarFileId: blockedAvatar }
+        }])
+        if (name === 'user_blocks') return {
+          where(condition) {
+            return queryReturning(condition.userId
+              ? [{ userId: 'trusted_public_openid', targetUserId: 'blocked_owner_openid', active: true }]
+              : [])
+          }
+        }
         if (name === 'user_media') throw new Error('public file resolve must not access own media')
         throw new Error(`unexpected collection ${name}`)
       }

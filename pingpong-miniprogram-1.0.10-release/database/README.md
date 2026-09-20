@@ -6,11 +6,11 @@
 
 `users`、`venues`、`venue_submissions`、`matches`、`match_members`、`player_friends`、`player_updates`、`player_update_comments`、`coaches`、`coach_applications`、`coach_slots`、`coach_bookings`、`venue_favorites`、`match_messages`、`message_inboxes`、`user_videos`、`user_media`、`upload_tickets`、`user_blocks`、`reports`、`account_deletion_jobs`、`rate_limits`、`audit_logs`。
 
-其中 `player_updates`、`player_update_comments`、`user_videos`、`user_media` 与 `upload_tickets` 是升级前数据的兼容/清理集合，不表示 1.0.10 仍开放动态或用户媒体上传。
+其中 `player_updates`、`player_update_comments`、`user_media` 与 `upload_tickets` 是当前功能集合；`user_videos` 仅保留历史兼容与清理，不表示 1.0.10 仍开放视频上传。
 
 所有集合均切换到“自定义安全规则”，逐个粘贴 `security-rules/database-deny-client.json`；规则为 `read:false/write:false`。客户端不得直接查库或写库；公开球馆数据同样经 `api` 云函数返回，避免绕开封禁、字段脱敏和限流。
 
-云存储粘贴 `security-rules/storage-owner-only.json`。尽管保留了旧文件名，1.0.10 的实际内容同样是全局 `read:false/write:false`：客户端不能直接上传或读取头像、视频、场馆照片及任何其他云文件。用户头像由客户端根据公开 `playerId` 生成稳定系统头像；允许展示的球馆封面、历史已通过场馆照片和已上架教练头像，只能经 `api.files.resolve` 鉴权后取得短时 URL。历史媒体删除通过鉴权云函数完成。
+云存储粘贴 `security-rules/storage-owner-only.json`。客户端仅可向自己的 `user-avatars/` 路径写入不超过 5MB 的 JPG/JPEG/PNG，并只能读取本人头像与历史场馆照片；公开头像、球馆封面和已上架教练头像必须经 `api.files.resolve` 鉴权后取得短时 URL。视频与新增场馆照片上传仍关闭，历史媒体删除通过鉴权云函数完成。
 
 云函数权限粘贴 `security-rules/cloud-functions.json`。`api` 仅允许微信登录态调用；媒体回调和注销清理任务禁止客户端直接调用。
 
@@ -22,7 +22,7 @@
 
 球友关系使用 `player_friends.user_updated` 展示我的球友，并用 `player_friends.friend_updated` 在账号注销时清除反向关系；两个索引都必须先于新版 `api` 上线。球友录入功能使用唯一组合索引 `venues.city_name_key` 与普通索引 `venues.city_name` 查重，并为 `venue_submissions` 建立 `user_updated`、`status_submitted`、`target_status_submitted`、`reviewer_updated` 组合索引。注销清理还依赖 `coaches.user_updated` 与 `coach_applications.reviewer_updated` 定位教练账号和历史审核员；唯一生产环境必须等待这些索引可用。历史审核队列继续依赖相应索引；不能为联调放开客户端直接读写。
 
-球友动态与回复在 1.0.10 已停用。`friendUpdates.list` 只返回 `items:[]` 和 `featureAvailable:false`；动态详情、发布、删除以及回复列表/发送均返回 `FEATURE_UNAVAILABLE`，不会新增 `player_updates` 或 `player_update_comments`。相关集合和索引仅为旧客户端降级、历史清理与回滚安全暂时保留，不应作为新功能依赖。
+球友动态与回复沿用 1.0.7 契约：`player_updates` 保存全局可见的可约时间、球馆方向或文字心得，`player_update_comments` 保存公开回复；发布、回复与删除均走云函数鉴权、限流和文本安全检查。客户端不直连这两个集合。
 
 站内消息提醒使用 `message_inboxes.user_unread_updated` 查询当前用户的未读球局。每个用户在每场球局只有一条稳定收件箱记录；它只保存 `lastMessageId`、`unread/unreadCount` 和读写时间，不复制消息正文。正文仍只存在 `match_messages`。`messages.inbox` 批量重新校验成员状态、球局有效期、最新消息与双向屏蔽关系，并返回全部有效扫描记录的总未读数；客户端以该数驱动“我的”页和第 4 个自定义 Tab 红点。`messages.read` 只有在传入的 `messageId` 仍是最新指针时才原子清零，避免旧页面误清新消息。
 
@@ -55,10 +55,10 @@
 - 所有用户归属字段由服务端依据 `OPENID` 写入，不接受客户端的 `userId/openid/hostId`。
 - 新 `venue_submissions.status` 由服务端直接写为 `approved`；历史记录仍允许 `reviewing → approved/rejected`、`rejected → approved`，申请人注销时历史待审记录转为终态 `withdrawn`。客户端传入的 `status/active/verificationStatus` 均不入库。
 - `matches.version`、`coach_bookings.version` 用于乐观并发控制。
-- `matches.create` 只接受 `venueId/date/startTime/endTime/capacity/feePerPerson/expectedBallAge/practiceIntent/joinMode/courtStatus/termsAccepted/termsVersion` 等结构化字段；标题由服务端生成，客户端传入的旧 `title/note/courtBookingNote` 不参与新球局内容。
+- `matches.create` 接受 `title/note/courtBookingNote` 以及球馆、日期、时段、人数、费用、球龄、练球类型、加入方式、订台状态和协议留痕；所有自由文字先过内容安全检查。
 - `matches.update` 只允许发起人在开球前按完整结构化表单更新，并同时校验 `expectedVersion` 与绑定意图的 `requestId`；总人数不能小于已加入人数，变更球馆或时段会递增 `scheduleVersion`、把订台状态重置为 `unbooked` 并要求成员重新确认。
 - `match_members` 文档 ID、球局创建 ID、消息 ID、预约 ID均由服务端按用户和 `requestId` 计算，保证重试幂等。
 - 直接加入和教练时段扣减均使用数据库事务，不能用客户端“先查再写”替代。
-- 用户公开资料和成员快照的 `avatarFileId` 在 1.0.10 presenter 中固定为空，界面只显示基于 `playerId` 的系统头像。`profile.avatar.*` 与 `files.prepareUpload` 均返回 `FEATURE_DISABLED`，不创建上传凭证或新审核记录。升级前的头像、比赛视频和场馆照片记录仅保留运营处置、兼容删除及注销清理；历史状态不得使用户头像或个人视频重新公开。
+- 用户公开资料和成员快照保留已审核通过的 `avatarFileId`。`files.prepareUpload` 只签发本人头像的一次性凭证，`profile.avatar.*` 负责登记、状态查询、超时重试和移除；异步审核通过后才替换公开头像。比赛视频和新增场馆照片仍不开放上传。
 - `audit_logs`、`reports` 属于敏感运营数据，客户端永远不可读取。
 - `accountCleanup` 每小时处理注销清理任务，并通过 `expiresAt` 普通索引分别限量清理过期 `upload_tickets` 与 `rate_limits`；任一过期集合清理失败不会阻断注销任务。注销只取消未来已确认预约，历史预约保留状态并去标识；教练申请和关联档案去标识后下架；任务完成时自身的原始用户标识也替换为稳定删除引用。应对连续失败和长期清理积压配置云函数告警。

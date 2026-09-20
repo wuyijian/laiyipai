@@ -12,6 +12,7 @@ Page({
     id: '', state: 'loading', errorMessage: '', saving: false, saveError: '', dirty: false,
     venues: [], venueNames: [], visibleVenues: [], venueIndex: 0, venueId: '', minimumDate: '',
     currentVenueUnavailable: false, selectedVenueUnavailable: false, arrangementChanged: false, courtResetNotice: '',
+    title: '', note: '', noteLength: 0,
     date: '', startTime: '', endTime: '', capacity: 2, participantCount: 1,
     expectedBallAge: BALL_AGES[0], ballAges: BALL_AGES, ballAgeIndex: 0,
     practiceIntent: matchOptions.DEFAULT_PRACTICE_INTENT, intents: INTENTS,
@@ -34,6 +35,8 @@ Page({
 
   formValues() {
     return {
+      title: String(this.data.title || '').trim(),
+      note: String(this.data.note || '').trim(),
       venueId: this.data.venueId,
       date: this.data.date,
       startTime: this.data.startTime,
@@ -101,6 +104,7 @@ Page({
         const patch = {
           state: 'ready', venues, venueNames: venues.map((item) => item.name), venueIndex,
           venueId: match.venueId, currentVenueUnavailable, selectedVenueUnavailable: currentVenueUnavailable,
+          title: match.title || '', note: match.note || '', noteLength: String(match.note || '').length,
           date: match.date, startTime: match.startTime, endTime: match.endTime,
           capacity: match.capacity, participantCount: match.participantCount,
           expectedBallAge: BALL_AGES[ballAgeIndex], ballAgeIndex,
@@ -128,6 +132,14 @@ Page({
 
   changeNumeric(event) {
     this.setData({ feePerPerson: String(event.detail.value || '').replace(/\D/g, '').slice(0, 3) }, () => this.changed())
+  },
+
+  changeText(event) {
+    const field = event.currentTarget.dataset.field
+    const value = String(event.detail.value || '')
+    const patch = { [field]: value }
+    if (field === 'note') patch.noteLength = value.length
+    this.setData(patch, () => this.changed())
   },
 
   applyArrangementPatch(patch) {
@@ -249,6 +261,7 @@ Page({
 
   validate() {
     if (!this.data.venueId) return '请选择球馆'
+    if (this.data.title.trim().length < 2) return '球局名称至少需要 2 个字'
     const scheduleChanged = Boolean(this.data.arrangementChanged && (
       this.data.date !== this.originalArrangement.date ||
       this.data.startTime !== this.originalArrangement.startTime ||

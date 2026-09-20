@@ -11,6 +11,7 @@ const RATING_PLATFORMS = ['未填写', '开球网', 'ChinaTT', '其他平台']
 const FAVORITE_PAGE_SIZE = 20
 const FAVORITE_RETRY_DELAY_MS = 260
 const FAVORITE_RETRY_CODES = new Set(['NETWORK_ERROR', 'REQUEST_TIMEOUT', 'SERVICE_UNAVAILABLE', 'INVALID_SERVER_RESPONSE', 'INTERNAL'])
+const AVATAR_POLL_DELAYS_MS = [10000, 15000, 30000, 60000]
 const COACH_APPLICATION_STATUSES = ['not_submitted', 'reviewing', 'approved', 'rejected']
 const VENUE_SUBMISSION_STATUSES = ['reviewing', 'approved', 'rejected']
 
@@ -67,15 +68,27 @@ function formatCoachApplication(raw) {
   return Object.assign({}, value, views[status], { status })
 }
 
+async function settle(promise) {
+  try {
+    return { ok: true, value: await promise }
+  } catch (error) {
+    return { ok: false, error }
+  }
+}
+
 function formatProfile(rawProfile, previousProfile) {
   const skills = Array.isArray(rawProfile.skills) ? rawProfile.skills : []
   const ratingPlatform = rawProfile.ratingPlatform || '未填写'
   const ratingValue = rawProfile.ratingValue || ''
+  const canReuseAvatar = Boolean(
+    rawProfile.avatarFileId &&
+    previousProfile &&
+    previousProfile.avatarFileId === rawProfile.avatarFileId
+  )
+  const canReuseAvatarReview = Boolean(previousProfile && previousProfile.avatarFileId === rawProfile.avatarFileId)
   return Object.assign({}, rawProfile, {
     nickname: rawProfile.nickname || '新球友',
-    // 审核版统一使用 player-avatar 的稳定系统头像。历史
-    // avatarFileId 仍可随资料返回，但不再解析、展示或发起审核。
-    avatarUrl: '',
+    avatarUrl: canReuseAvatar ? previousProfile.avatarUrl : '',
     locationText: ['杭州', rawProfile.district].filter(Boolean).join(' · '),
     ballAge: rawProfile.ballAge || '未填写',
     ballAgeText: String(rawProfile.ballAge || '未填写').replace(/^球龄\s*/, ''),
@@ -83,8 +96,28 @@ function formatProfile(rawProfile, previousProfile) {
     ratingPlatform,
     ratingValue,
     ratingText: ratingPlatform !== '未填写' && ratingValue ? `${ratingPlatform} ${ratingValue}` : '未填写',
-    complete: rawProfile.nickname && rawProfile.nickname !== '新球友' && (rawProfile.ballAge && rawProfile.ballAge !== '未填写' || skills.length > 0)
+    complete: rawProfile.nickname && rawProfile.nickname !== '新球友' && (rawProfile.ballAge && rawProfile.ballAge !== '未填写' || skills.length > 0),
+    avatarReviewing: Boolean(canReuseAvatarReview && previousProfile.avatarReviewing),
+    avatarReviewState: canReuseAvatarReview ? previousProfile.avatarReviewState || '' : '',
+    avatarReviewMessage: canReuseAvatarReview ? previousProfile.avatarReviewMessage || '' : '',
+    avatarReviewCanRetry: Boolean(canReuseAvatarReview && previousProfile.avatarReviewCanRetry)
   })
+}
+
+function avatarReviewView(avatar) {
+  const status = avatar && avatar.status || ''
+  const messages = {
+    reviewing: '新头像审核中，通过后会自动更新',
+    timed_out: '审核结果没有按时返回，可直接重新提交',
+    failed: avatar && avatar.rejectionReason || '头像审核暂时失败，可重新提交',
+    rejected: avatar && avatar.rejectionReason || '头像未通过审核，请更换图片'
+  }
+  return {
+    avatarReviewState: status,
+    avatarReviewing: status === 'reviewing',
+    avatarReviewMessage: messages[status] || '',
+    avatarReviewCanRetry: Boolean(avatar && avatar.canRetry)
+  }
 }
 
 function formatMessageConversation(item = {}) {
@@ -122,9 +155,12 @@ Page({
     messageUnreadCount: 0,
     messageBadgeText: '',
     messageConversations: [],
+    uploadProgress: 0,
+    avatarRetrying: false,
     editVisible: false,
     editProfile: null,
     editDirty: false,
+    avatarDirty: false,
     profileDirty: false,
     ballAgeOptions: BALL_AGES,
     editBallAgeIndex: 0,
@@ -153,12 +189,14 @@ Page({
 
   onHide() {
     this.active = false
+    this.clearAvatarPoll()
     this.savedVenueRun = Number(this.savedVenueRun || 0) + 1
     this.venueSubmissionRun = Number(this.venueSubmissionRun || 0) + 1
   },
 
   onUnload() {
     this.active = false
+    this.clearAvatarPoll()
     if (this.unsubscribeMessages) this.unsubscribeMessages()
     this.unsubscribeMessages = null
     this.savedVenueRun = Number(this.savedVenueRun || 0) + 1
@@ -211,7 +249,7 @@ Page({
         const previousProfile = this.data.profile
         const profile = formatProfile(rawProfile, previousProfile)
 
-        // 基础资料先解除整页骨架；球馆等次要模块再并行更新。
+        // 基础资料先解除整页骨架；头像和球馆各自完成后再局部更新。
         const capabilities = session && session.capabilities || {}
         this.setData({
           state: 'ready',
@@ -228,6 +266,7 @@ Page({
         messageNotifier.poll()
 
         await Promise.all([
+          this.loadAvatarDetails(rawProfile),
           this.loadSavedVenues(),
           this.loadCoachApplication(),
           this.loadVenueSubmissions()
@@ -246,6 +285,88 @@ Page({
       await this.loading
     } finally {
       this.loading = null
+    }
+  },
+
+  async loadAvatarDetails(rawProfile) {
+    const [avatarResult, fileResult] = await Promise.all([
+      settle(api.profile.avatarStatus()),
+      this.resolveFiles(rawProfile.avatarFileId ? [rawProfile.avatarFileId] : [])
+    ])
+    const currentProfile = this.data.profile
+    if (!currentProfile || currentProfile.avatarFileId !== rawProfile.avatarFileId) return
+    const avatarUrl = fileResult.urls[rawProfile.avatarFileId] || currentProfile.avatarUrl || ''
+    const avatar = avatarResult.ok ? avatarResult.value.avatar : null
+    this.setData({
+      profile: Object.assign({}, currentProfile, { avatarUrl }, avatarResult.ok ? avatarReviewView(avatar) : {})
+    })
+    if (avatarResult.ok) this.scheduleAvatarPoll(avatar)
+  },
+
+  clearAvatarPoll() {
+    if (this.avatarPollTimer) clearTimeout(this.avatarPollTimer)
+    this.avatarPollTimer = null
+  },
+
+  scheduleAvatarPoll(avatar) {
+    this.clearAvatarPoll()
+    if (this.active === false || !avatar || avatar.status !== 'reviewing') {
+      this.avatarPollAttempt = 0
+      return
+    }
+    const attempt = Number(this.avatarPollAttempt || 0)
+    const delay = AVATAR_POLL_DELAYS_MS[Math.min(attempt, AVATAR_POLL_DELAYS_MS.length - 1)]
+    this.avatarPollTimer = setTimeout(() => this.pollAvatarStatus(), delay)
+    if (this.avatarPollTimer && typeof this.avatarPollTimer.unref === 'function') this.avatarPollTimer.unref()
+  },
+
+  async pollAvatarStatus() {
+    this.avatarPollTimer = null
+    if (this.active === false || this.avatarPollInFlight) return
+    this.avatarPollInFlight = true
+    try {
+      const result = await api.profile.avatarStatus()
+      const avatar = result && result.avatar
+      if (!this.data.profile) return
+      this.setData({ profile: Object.assign({}, this.data.profile, avatarReviewView(avatar)) })
+      if (avatar && avatar.status === 'reviewing') {
+        this.avatarPollAttempt = Number(this.avatarPollAttempt || 0) + 1
+        this.scheduleAvatarPoll(avatar)
+      } else if (avatar && avatar.status === 'passed') {
+        this.avatarPollAttempt = 0
+        await wait(500)
+        if (this.active !== false) await this.loadProfile()
+      } else {
+        this.avatarPollAttempt = 0
+      }
+    } catch (_) {
+      // A transient poll error must not turn the whole profile page into an
+      // error state. Retry with the normal backoff while the page is visible.
+      if (this.active !== false && this.data.profile && this.data.profile.avatarReviewing) {
+        this.avatarPollAttempt = Number(this.avatarPollAttempt || 0) + 1
+        this.scheduleAvatarPoll({ status: 'reviewing' })
+      }
+    } finally {
+      this.avatarPollInFlight = false
+    }
+  },
+
+  async retryAvatarReview() {
+    if (this.data.avatarRetrying || !this.data.profile || !this.data.profile.avatarReviewCanRetry) return
+    this.setData({ avatarRetrying: true })
+    try {
+      const result = await api.profile.retryAvatar({}, { requestId: api.createRequestId() })
+      const avatar = result && result.avatar
+      this.avatarPollAttempt = 0
+      this.setData({
+        avatarRetrying: false,
+        profile: Object.assign({}, this.data.profile, avatarReviewView(avatar))
+      })
+      this.scheduleAvatarPoll(avatar)
+      wx.showToast({ title: '已重新提交审核', icon: 'success' })
+    } catch (error) {
+      this.setData({ avatarRetrying: false })
+      errors.toast(error, '重新提交失败，请稍后重试')
     }
   },
 
@@ -328,6 +449,17 @@ Page({
     }
   },
 
+  async resolveFiles(fileIds) {
+    if (!fileIds.length) return { ok: true, urls: {} }
+    if (!api.files || !api.files.resolve) return { ok: false, urls: {} }
+    try {
+      const result = await api.files.resolve(Array.from(new Set(fileIds)))
+      return { ok: true, urls: result.urls || {} }
+    } catch (_) {
+      return { ok: false, urls: {} }
+    }
+  },
+
   openEdit() {
     const editProfile = {
       nickname: this.data.profile.nickname,
@@ -335,8 +467,10 @@ Page({
       ballAge: this.data.profile.ballAge || '未填写',
       skills: this.data.profile.skills.slice(),
       ratingPlatform: this.data.profile.ratingPlatform || '未填写',
-      ratingValue: this.data.profile.ratingValue || ''
+      ratingValue: this.data.profile.ratingValue || '',
+      avatarPreviewUrl: this.data.profile.avatarUrl || ''
     }
+    this.pendingAvatarPath = ''
     this.setData({
       editVisible: true,
       editProfile,
@@ -345,6 +479,7 @@ Page({
       newSkill: '',
       editError: '',
       editDirty: false,
+      avatarDirty: false,
       profileDirty: false
     })
   },
@@ -352,7 +487,8 @@ Page({
   closeEdit() {
     if (this.data.saving) return
     const dismiss = () => {
-      this.setData({ editVisible: false, editDirty: false, profileDirty: false, editError: '' })
+      this.pendingAvatarPath = ''
+      this.setData({ editVisible: false, editDirty: false, avatarDirty: false, profileDirty: false, editError: '' })
     }
     if (!this.data.editDirty) return dismiss()
     wx.showModal({
@@ -364,6 +500,14 @@ Page({
         if (result.confirm) dismiss()
       }
     })
+  },
+
+  chooseAvatar(event) {
+    const path = event.detail && event.detail.avatarUrl
+    if (!path) return
+    if (!this.data.editVisible || !this.data.editProfile) this.openEdit()
+    this.pendingAvatarPath = path
+    this.setData({ 'editProfile.avatarPreviewUrl': path, editError: '', editDirty: true, avatarDirty: true })
   },
 
   changeNickname(event) { this.setData({ 'editProfile.nickname': event.detail.value, editError: '', editDirty: true, profileDirty: true }) },
@@ -405,7 +549,9 @@ Page({
 
   async saveProfile() {
     if (this.data.saving || !this.data.editDirty) return
-    const validationError = this.validateEdit()
+    const profileDirty = this.data.profileDirty === true
+    const avatarPath = this.pendingAvatarPath || ''
+    const validationError = profileDirty ? this.validateEdit() : ''
     if (validationError) return this.setData({ editError: validationError })
     const skills = this.data.editProfile.skills.slice()
     const pendingSkill = this.data.newSkill.trim()
@@ -419,17 +565,29 @@ Page({
       skills
     })
     this.setData({ saving: true, editError: '' })
+    let avatarSubmitted = false
     try {
       await privacy.authorize()
-      await api.profile.update({
-        nickname: submittedProfile.nickname,
-        city: '杭州',
-        district: submittedProfile.district,
-        ballAge: submittedProfile.ballAge,
-        skills: submittedProfile.skills,
-        ratingPlatform: submittedProfile.ratingPlatform,
-        ratingValue: submittedProfile.ratingValue
-      })
+      if (avatarPath) {
+        await api.profile.uploadAvatar(avatarPath, {
+          requestId: api.createRequestId(),
+          onProgress: (progress) => this.setData({ uploadProgress: Number(progress && progress.progress !== undefined ? progress.progress : progress) || 0 })
+        })
+        if (this.pendingAvatarPath === avatarPath) this.pendingAvatarPath = ''
+        avatarSubmitted = true
+        this.setData({ avatarDirty: false })
+      }
+      if (profileDirty) {
+        await api.profile.update({
+          nickname: submittedProfile.nickname,
+          city: '杭州',
+          district: submittedProfile.district,
+          ballAge: submittedProfile.ballAge,
+          skills: submittedProfile.skills,
+          ratingPlatform: submittedProfile.ratingPlatform,
+          ratingValue: submittedProfile.ratingValue
+        })
+      }
       const ratingText = submittedProfile.ratingPlatform !== '未填写' && submittedProfile.ratingValue
         ? `${submittedProfile.ratingPlatform} ${submittedProfile.ratingValue}` : '未填写'
       const profile = Object.assign({}, this.data.profile, {
@@ -444,15 +602,16 @@ Page({
         ratingText,
         complete: submittedProfile.nickname !== '新球友' && (submittedProfile.ballAge !== '未填写' || submittedProfile.skills.length > 0)
       })
-      this.setData({ saving: false, editVisible: false, editDirty: false, profileDirty: false, newSkill: '', profile })
-      wx.showToast({ title: '资料已保存', icon: 'success' })
+      this.setData({ saving: false, editVisible: false, editDirty: false, avatarDirty: false, profileDirty: false, newSkill: '', uploadProgress: 0, profile })
+      wx.showToast({ title: avatarSubmitted ? profileDirty ? '资料已保存，头像待审核' : '头像已提交审核' : '资料已保存', icon: 'success' })
       await this.loadProfile()
     } catch (error) {
+      const avatarDirty = Boolean(this.pendingAvatarPath)
       this.setData({
         saving: false,
-        editDirty: true,
-        profileDirty: true,
-        editError: errors.message(error)
+        avatarDirty,
+        editDirty: avatarDirty || profileDirty,
+        editError: avatarSubmitted && profileDirty ? `头像已提交审核；${errors.message(error)}` : errors.message(error)
       })
     }
   },

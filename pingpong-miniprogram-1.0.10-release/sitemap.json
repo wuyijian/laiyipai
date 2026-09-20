@@ -1,5 +1,5 @@
 {
-  "desc": "仅开放球馆、球局与约球首页索引",
+  "desc": "仅开放公开球馆、球局和教练页面索引",
   "rules": [
     {
       "action": "allow",
@@ -12,6 +12,10 @@
     {
       "action": "allow",
       "page": "pages/match-detail/match-detail"
+    },
+    {
+      "action": "allow",
+      "page": "pages/coach-detail/coach-detail"
     },
     {
       "action": "disallow",

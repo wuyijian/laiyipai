@@ -1,4 +1,4 @@
 {
-  "read": false,
-  "write": false
+  "read": "auth != null && (resource.openid == auth.openid || resource.openid == auth.uid) && (/^user-avatars\\//.test(resource.path) || /^venue-photos\\//.test(resource.path))",
+  "write": "auth != null && (resource.openid == auth.openid || resource.openid == auth.uid) && /^user-avatars\\//.test(resource.path) && resource.size <= 5242880 && (/\\.jpg$/.test(resource.path) || /\\.jpeg$/.test(resource.path) || /\\.png$/.test(resource.path))"
 }

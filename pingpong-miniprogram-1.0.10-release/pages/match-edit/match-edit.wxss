@@ -6,6 +6,12 @@
 .section-label { margin-bottom: 18rpx; color: var(--text); font-size: 25rpx; font-weight: 620; }
 .field { display: flex; min-height: 84rpx; align-items: center; justify-content: space-between; gap: 20rpx; color: var(--text-secondary); font-size: 23rpx; }
 .field input { min-width: 0; flex: 1; color: var(--text); font-size: 25rpx; text-align: right; }
+.text-field { display: flex; min-height: 88rpx; align-items: center; gap: 20rpx; border-top: 1rpx solid var(--line); color: var(--text-secondary); font-size: 23rpx; }
+.text-field input { min-width: 0; flex: 1; color: var(--text); font-size: 24rpx; text-align: right; }
+.note-field { position: relative; min-height: 170rpx; align-items: flex-start; padding-top: 24rpx; }
+.note-field > text { flex: 0 0 auto; padding-top: 5rpx; }
+.note-field textarea { width: auto; min-width: 0; height: 116rpx; flex: 1; color: var(--text); font-size: 24rpx; line-height: 1.55; text-align: left; }
+.field-count { position: absolute; right: 0; bottom: 7rpx; color: var(--text-tertiary); font-size: 18rpx; }
 .schedule-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10rpx; }
 .schedule-row picker view { display: flex; min-height: 88rpx; flex-direction: column; justify-content: center; gap: 5rpx; padding: 0 16rpx; border-radius: 13rpx; background: var(--surface-muted); }
 .schedule-row picker text:first-child { color: var(--text-tertiary); font-size: 19rpx; }

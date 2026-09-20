@@ -16,9 +16,11 @@ const profile = require('./lib/profile')
 const appointments = require('./lib/appointments')
 const messages = require('./lib/messages')
 const videos = require('./lib/videos')
+const avatar = require('./lib/avatar')
 const safety = require('./lib/safety')
 const admin = require('./lib/admin')
 const files = require('./lib/files')
+const uploads = require('./lib/uploads')
 const players = require('./lib/players')
 const friends = require('./lib/friends')
 const friendUpdates = require('./lib/friend-updates')
@@ -32,10 +34,6 @@ const db = cloud.database()
 const API_VERSION = 2
 const SUPPORTED_API_VERSIONS = [1, API_VERSION]
 let invoked = false
-
-function avatarUnavailable() {
-  throw new ApiError('FEATURE_DISABLED', '头像更换已停用，当前使用系统头像')
-}
 
 const routes = {
   bootstrap: auth.bootstrap,
@@ -82,12 +80,10 @@ const routes = {
   'updateComments.list': updateComments.list,
   'updateComments.send': updateComments.send,
   'profile.update': profile.update,
-  // Keep explicit tombstones for the 1.0.7 rolling-upgrade window. Older
-  // clients receive a clear terminal response instead of ACTION_NOT_FOUND.
-  'profile.avatar.status': avatarUnavailable,
-  'profile.avatar.register': avatarUnavailable,
-  'profile.avatar.retry': avatarUnavailable,
-  'profile.avatar.remove': avatarUnavailable,
+  'profile.avatar.status': avatar.status,
+  'profile.avatar.register': avatar.register,
+  'profile.avatar.retry': avatar.retry,
+  'profile.avatar.remove': avatar.remove,
   'messages.list': messages.list,
   'messages.send': messages.send,
   'messages.inbox': messages.inbox,
@@ -115,7 +111,7 @@ const routes = {
   'admin.videos.pending': admin.pendingVideos,
   'admin.videos.review': admin.reviewVideo,
   'files.resolve': files.resolve,
-  'files.prepareUpload': avatarUnavailable
+  'files.prepareUpload': uploads.prepare
 }
 
 function safeRequestId(value) {

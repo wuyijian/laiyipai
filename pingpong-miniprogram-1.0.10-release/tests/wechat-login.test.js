@@ -170,14 +170,12 @@ test('只记录协议版本与 AppID，更换小程序或协议需要重新确�
   appId = 'wx_current'; config.privacyPolicyVersion = 'new'; assert.equal(consent.accepted(), false)
 })
 
-test('登录页打包与分享限制、系统头像与昵称编辑保持正确', () => {
+test('登录页打包与分享限制、微信头像昵称填写保持正确', () => {
   const config = require('../app.json'), project = require('../project.config.json')
   assert(config.pages.includes('pages/login/login'))
   assert(project.packOptions.include.some(item => item.value === 'pages/login'))
   const profile = fs.readFileSync(path.join(root, 'pages/profile/profile.wxml'), 'utf8')
-  assert(!profile.includes('open-type="chooseAvatar"')); assert(profile.includes('type="nickname"'))
-  const login = fs.readFileSync(path.join(root, 'pages/login/login.wxml'), 'utf8')
-  assert(login.includes('系统头像，无需授权微信头像'))
+  assert(profile.includes('open-type="chooseAvatar"')); assert(profile.includes('type="nickname"'))
   const code = fs.readFileSync(path.join(root, 'pages/login/login.js'), 'utf8')
   assert(code.includes('share.disable()')); assert(!code.includes('onShareTimeline'))
 })

@@ -28,12 +28,12 @@ function page() {
   return instance
 }
 const tests = [], test = (name, run) => tests.push({ name, run })
-test('审核版移除视频、场馆照片和用户头像上传', () => {
+test('审核版移除视频和新增场馆照片上传，保留 1.0.7 头像能力', () => {
   assert.equal(api.videos, undefined)
   assert.equal(api.venuePhotos.upload, undefined)
   assert.equal(cloud.uploadVideo, undefined)
   assert.equal(cloud.uploadVenuePhoto, undefined)
-  assert.equal(api.profile.uploadAvatar, undefined)
+  assert.equal(typeof api.profile.uploadAvatar, 'function')
   const p = page()
   for (const key of ['choosePhotos', 'uploadPhotos', 'removeDraft', 'updateDraft']) assert.equal(p[key], undefined)
   for (const key of ['photoDrafts', 'photoUploading', 'photoChoosing']) assert.equal(p.data[key], undefined)
@@ -81,13 +81,13 @@ test('历史照片仍只能确认后移除，失败时保留记录', async () =>
   assert.equal(p.data.photoItems.length, 0)
   assert.deepEqual(p.data.venue.imageUrls, [])
 })
-test('审核版云存储不允许客户端直读或直写', () => {
+test('云存储只允许本人头像写入并保留本人历史媒体读取', () => {
   const rules = JSON.parse(fs.readFileSync(path.join(__dirname, '../database/security-rules/storage-owner-only.json'), 'utf8'))
   const write = new Function('auth', 'resource', 'return (' + rules.write + ')')
   const read = new Function('auth', 'resource', 'return (' + rules.read + ')')
   const auth = { openid: 'owner', uid: 'uid_owner' }
   const resource = { openid: 'owner', path: 'user-avatars/test.jpg', size: 100 }
-  assert(!write(auth, resource))
+  assert(write(auth, resource))
   assert(!write(null, resource))
   assert(!write({ openid: 'other', uid: 'other' }, resource))
   assert(!write(auth, Object.assign({}, resource, { size: 6 * 1024 * 1024 })))
@@ -95,7 +95,8 @@ test('审核版云存储不允许客户端直读或直写', () => {
     assert(!write(auth, Object.assign({}, resource, { path: file })))
   }
   assert(!read(auth, Object.assign({}, resource, { path: 'user-videos/old.mp4' })))
-  assert(!read(auth, Object.assign({}, resource, { path: 'venue-photos/old.jpg' })))
+  assert(read(auth, Object.assign({}, resource, { path: 'venue-photos/old.jpg' })))
+  assert(read(auth, resource))
   assert(!read({ openid: 'other', uid: 'other' }, resource))
 })
 ;(async () => {

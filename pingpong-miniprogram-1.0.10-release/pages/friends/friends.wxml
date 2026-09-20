@@ -1,40 +1,86 @@
 <view class="ui-screen">
-  <view class="page-shell friends-page safe-bottom">
-    <view class="friends-hero">
-      <view class="friends-title">球友</view>
-      <view class="friends-copy">确认参加同一场球局后自动记录，不需要发送好友申请。</view>
-    </view>
+<view class="page-shell friends-page safe-bottom" aria-hidden="{{composerVisible}}">
+  <view class="friends-hero">
+    <view class="friends-title">球友</view>
+    <view class="friends-copy">看看谁有空，也看看大家最近在练什么。</view>
+  </view>
 
-    <view wx:if="{{state === 'loading'}}" class="friends-loading" aria-label="正在加载球友">
-      <view class="skeleton friend-skeleton" wx:for="{{[1,2,3]}}" wx:key="*this"></view>
-    </view>
-    <view wx:elif="{{state === 'error'}}" class="status-panel friends-status">
-      <view class="status-title">暂时无法载入球友</view>
-      <view class="status-copy">{{errorMessage}}</view>
-      <button class="status-action" bindtap="retry">重新加载</button>
-    </view>
+  <view class="section-switch" role="tablist" aria-role="tablist" aria-label="球友页面内容">
+    <button class="switch-item {{activeSection === 'updates' ? 'is-active' : ''}}" data-section="updates" bindtap="switchSection" role="tab" aria-role="tab" aria-selected="{{activeSection === 'updates'}}">球友动态</button>
+    <button class="switch-item {{activeSection === 'friends' ? 'is-active' : ''}}" data-section="friends" bindtap="switchSection" role="tab" aria-role="tab" aria-selected="{{activeSection === 'friends'}}">我的球友</button>
+  </view>
+
+  <block wx:if="{{activeSection === 'updates'}}">
+    <button class="create-update-card" bindtap="openComposer" hover-class="create-update-press">
+      <view class="create-update-icon" aria-hidden="true"></view>
+      <view class="create-update-copy"><text class="create-update-title">分享一条球友动态</text><text>报个大致时间，或记下刚练到的心得</text></view>
+      <text class="create-update-action">发布</text>
+    </button>
+
+    <view class="feed-heading"><view><view class="feed-title">球友动态</view><view class="feed-caption">可约时间与练球心得 · 全杭州可见</view></view></view>
+    <view wx:if="{{updatesState === 'loading'}}" class="friends-loading" aria-label="正在加载动态"><view class="skeleton update-skeleton" wx:for="{{[1,2,3]}}" wx:key="*this"></view></view>
+    <view wx:elif="{{updatesState === 'error'}}" class="status-panel friends-status"><view class="status-title">暂时无法载入动态</view><view class="status-copy">{{updatesError}}</view><button class="status-action" bindtap="retryUpdates">重新加载</button></view>
     <block wx:else>
-      <view wx:if="{{errorMessage}}" class="friends-notice" role="alert">
-        <text>{{errorMessage}}</text><button bindtap="retry">重试</button>
-      </view>
-      <view wx:if="{{items.length}}" class="friend-list">
-        <button wx:for="{{items}}" wx:key="playerId" class="friend-row" data-id="{{item.playerId}}" bindtap="openPlayer" hover-class="friend-row-press" hover-stay-time="80">
-          <player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="88" label="{{item.displayName}}的头像" />
-          <view class="friend-body">
-            <view class="friend-name-row"><text class="friend-name">{{item.displayName}}</text><text class="friend-relation">{{item.relationshipText}}</text></view>
-            <text wx:if="{{item.metaText}}" class="friend-meta">{{item.metaText}}</text>
-            <view wx:if="{{item.skills.length}}" class="friend-skills"><text wx:for="{{item.skills}}" wx:key="*this" class="friend-skill">{{item}}</text></view>
+      <view wx:if="{{updatesError}}" class="friends-notice" role="alert"><text>{{updatesError}}</text><button bindtap="retryUpdates">重试</button></view>
+      <view wx:if="{{updates.length}}" class="update-list">
+        <view wx:for="{{updates}}" wx:key="id" class="update-card">
+          <view class="update-head">
+            <button class="update-author" data-id="{{item.playerId}}" bindtap="openUpdatePlayer" hover-class="soft-press">
+              <player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="76" label="{{item.displayName}}的头像" />
+              <view class="update-author-copy"><view class="update-name-row"><text class="update-name">{{item.displayName}}</text><text wx:if="{{item.ratingText}}" class="score-chip">{{item.ratingText}}</text></view><text class="update-location">{{item.metaText}}</text></view>
+            </button>
+            <text class="update-kind {{item.kind}}">{{item.kindText}}</text>
           </view>
-          <text class="friend-chevron" aria-hidden="true">›</text>
-        </button>
+          <button class="update-detail-link" data-id="{{item.id}}" bindtap="openUpdateDetail" aria-label="查看{{item.displayName}}的动态详情">
+            <view wx:if="{{item.kind === 'availability'}}" class="update-schedule"><view class="time-mark" aria-hidden="true"></view><view class="update-time-copy"><text class="update-main-time">{{item.availabilityText}}</text><text wx:if="{{item.timeNote}}" class="update-note">{{item.timeNote}}</text></view></view>
+            <view wx:if="{{item.venueName}}" class="update-venue"><view class="venue-pin" aria-hidden="true"></view><text>{{item.venueName}}</text></view>
+            <view wx:if="{{item.content}}" class="update-content">{{item.content}}</view>
+          </button>
+          <view class="update-actions">
+            <button wx:if="{{item.kind === 'availability'}}" class="update-match-action" data-id="{{item.id}}" bindtap="useUpdate" hover-class="match-action-press">发起约球</button>
+            <button class="update-reply-action" data-id="{{item.id}}" bindtap="openUpdate"><view class="reply-icon" aria-hidden="true"></view><text>{{item.commentText}}</text></button>
+            <button wx:if="{{item.mine}}" class="update-remove" data-id="{{item.id}}" bindtap="withdrawUpdate" loading="{{removingId === item.id}}" disabled="{{removingId}}">撤下</button>
+          </view>
+        </view>
       </view>
-      <view wx:else class="status-panel friends-empty">
-        <view class="empty-mark"><view></view><view></view></view>
-        <view class="status-title">还没有同场球友</view>
-        <view class="status-copy">加入或发起一场球局，确认同行后会自动出现在这里。</view>
-        <button class="status-action" bindtap="goHome">去找球局</button>
-      </view>
+      <view wx:if="{{!updates.length && !updatesHasMore && !updatesError}}" class="status-panel updates-empty"><view class="empty-clock"><view></view></view><view class="status-title">还没有动态</view><view class="status-copy">分享大致可约时间，或一条刚练到的技术心得。</view><button class="status-action" bindtap="openComposer">发布第一条动态</button></view>
+      <view wx:if="{{updatesHasMore || updatesLoadingMore}}" class="friends-more"><button bindtap="loadMoreUpdates" loading="{{updatesLoadingMore}}" disabled="{{updatesLoadingMore}}">{{updatesLoadingMore ? '加载中' : '查看更多动态'}}</button></view>
+    </block>
+  </block>
+
+  <block wx:else>
+    <view class="friends-section-copy">确认参加同一场球局后自动记录，不需要发送好友申请。</view>
+    <view wx:if="{{state === 'loading' || state === 'idle'}}" class="friends-loading" aria-label="正在加载球友"><view class="skeleton friend-skeleton" wx:for="{{[1,2,3]}}" wx:key="*this"></view></view>
+    <view wx:elif="{{state === 'error'}}" class="status-panel friends-status"><view class="status-title">暂时无法载入球友</view><view class="status-copy">{{errorMessage}}</view><button class="status-action" bindtap="retry">重新加载</button></view>
+    <block wx:else>
+      <view wx:if="{{errorMessage}}" class="friends-notice" role="alert"><text>{{errorMessage}}</text><button bindtap="retry">重试</button></view>
+      <view wx:if="{{items.length}}" class="friend-list"><button wx:for="{{items}}" wx:key="playerId" class="friend-row" data-id="{{item.playerId}}" bindtap="openPlayer" hover-class="friend-row-press" hover-stay-time="80"><player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="88" label="{{item.displayName}}的头像" /><view class="friend-body"><view class="friend-name-row"><text class="friend-name">{{item.displayName}}</text><text class="friend-relation">{{item.relationshipText}}</text></view><text wx:if="{{item.metaText}}" class="friend-meta">{{item.metaText}}</text><view wx:if="{{item.skills.length}}" class="friend-skills"><text wx:for="{{item.skills}}" wx:key="*this" class="friend-skill">{{item}}</text></view></view><text class="friend-chevron" aria-hidden="true">›</text></button></view>
+      <view wx:else class="status-panel friends-empty"><view class="empty-mark"><view></view><view></view></view><view class="status-title">还没有同场球友</view><view class="status-copy">加入或发起一场球局，确认同行后会自动出现在这里。</view><button class="status-action" bindtap="goHome">去找球局</button></view>
       <view wx:if="{{hasMore || loadingMore}}" class="friends-more"><button bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{loadingMore ? '加载中' : '查看更多球友'}}</button></view>
     </block>
+  </block>
+</view>
+<view wx:if="{{composerVisible}}" class="sheet-mask" catchtap="closeComposer">
+  <view class="sheet update-composer" catchtap="noop" role="dialog" aria-role="dialog" aria-modal="true" aria-label="发布动态">
+    <view class="sheet-handle"></view>
+    <view class="composer-head"><view><view class="sheet-title">发布动态</view><view class="sheet-copy">让信息清楚即可，不需要刻意寒暄。</view></view><button class="composer-close" bindtap="closeComposer" disabled="{{submitting}}" aria-label="关闭">×</button></view>
+    <view class="kind-switch" role="tablist" aria-role="tablist" aria-label="动态类型">
+      <button class="kind-item {{kind === 'availability' ? 'active' : ''}}" data-kind="availability" bindtap="changeKind" role="tab" aria-role="tab" aria-selected="{{kind === 'availability'}}" disabled="{{submitting}}"><text class="kind-title">可约球</text><text class="kind-copy">找个时间打球</text></button>
+      <button class="kind-item {{kind === 'tip' ? 'active' : ''}}" data-kind="tip" bindtap="changeKind" role="tab" aria-role="tab" aria-selected="{{kind === 'tip'}}" disabled="{{submitting}}"><text class="kind-title">心得技巧</text><text class="kind-copy">分享练球收获</text></button>
+    </view>
+    <scroll-view class="composer-scroll" scroll-y="true">
+      <block wx:if="{{kind === 'availability'}}">
+        <view class="composer-section"><view class="field-label"><text class="field-label-main">地区</text><text class="field-hint">必填</text></view><picker mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict" disabled="{{submitting}}"><view class="field-control"><text>杭州 · {{districts[districtIndex]}}</text><text class="field-arrow">›</text></view></picker></view>
+        <view class="composer-section"><view class="field-label"><text class="field-label-main">大致可约时间</text><text class="field-hint">无需选择日期</text></view><picker mode="selector" range="{{availabilityOptions}}" value="{{availabilityIndex}}" bindchange="changeAvailability" disabled="{{submitting}}"><view class="field-control"><text>{{availabilityOptions[availabilityIndex]}}</text><text class="field-arrow">›</text></view></picker><input wx:if="{{availabilityIndex === availabilityOptions.length - 1}}" class="text-input" value="{{customAvailability}}" maxlength="40" placeholder="例如：下周二或周四晚" bindinput="changeCustomAvailability" disabled="{{submitting}}" /></view>
+        <view class="composer-section"><view class="field-label"><text class="field-label-main">时间备注</text><text class="field-hint">选填</text></view><input class="text-input primary-text-input" value="{{timeNote}}" maxlength="60" placeholder="例如：19 点以后，具体可商量" bindinput="changeTimeNote" disabled="{{submitting}}" /></view>
+        <view class="composer-section"><view class="field-label"><text class="field-label-main">球馆</text><text class="field-hint">选填</text></view><input class="text-input primary-text-input" value="{{venueName}}" maxlength="50" placeholder="例如：萧潮乒乓球馆，或滨江都可以" bindinput="changeVenueName" disabled="{{submitting}}" /></view>
+      </block>
+      <view class="composer-section"><view class="field-label"><text class="field-label-main">{{kind === 'tip' ? '心得或技巧' : '补充说明'}}</text><view class="field-hint"><text>{{kind === 'tip' ? '必填' : '选填'}}</text><text> · {{content.length}}/500</text></view></view><textarea class="content-input" value="{{content}}" maxlength="500" auto-height="true" placeholder="{{kind === 'tip' ? '分享一个刚练会的细节、训练方法或比赛心得' : '例如：偏好切磋，想多练接发球'}}" bindinput="changeContent" disabled="{{submitting}}"></textarea></view>
+      <view class="composer-section"><view class="field-label"><text class="field-label-main">参考积分</text><text class="field-hint">选填，不会自动读取</text></view><view class="rating-row"><picker class="rating-platform" mode="selector" range="{{ratingLabels}}" value="{{ratingPlatformIndex}}" bindchange="changeRatingPlatform" disabled="{{submitting}}"><view class="field-control"><text>{{ratingLabels[ratingPlatformIndex]}}</text><text class="field-arrow">›</text></view></picker><input wx:if="{{ratingPlatformIndex > 0}}" class="text-input rating-value-input" type="number" value="{{ratingValue}}" maxlength="4" placeholder="输入积分" bindinput="changeRatingValue" disabled="{{submitting}}" /></view></view>
+      <view wx:if="{{formError}}" class="inline-error">{{formError}}</view>
+      <view class="composer-footnote">动态与回复对所有已登录用户可见；可约动态 14 天后自动隐藏。</view>
+    </scroll-view>
+    <view class="composer-footer"><button class="primary-button composer-submit" bindtap="submitUpdate" loading="{{submitting}}" disabled="{{submitting}}">{{kind === 'availability' ? '发布可约动态' : '发布心得'}}</button></view>
   </view>
+</view>
 </view>

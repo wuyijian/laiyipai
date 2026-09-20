@@ -1,11 +1,22 @@
 const assert = require('assert')
 const path = require('path')
+const Module = require('module')
 
 const root = path.resolve(__dirname, '..')
 const tests = []
 const test = (name, run) => tests.push({ name, run })
+const virtualModules = new Map()
+const originalLoad = Module._load
+Module._load = function(request, parent, isMain) {
+  if (virtualModules.has(request)) return virtualModules.get(request)
+  return originalLoad.call(this, request, parent, isMain)
+}
 
 function mock(filename, exports) {
+  if (filename === 'wx-server-sdk') {
+    virtualModules.set(filename, exports)
+    return
+  }
   const resolved = require.resolve(filename)
   require.cache[resolved] = { id: resolved, filename: resolved, loaded: true, exports }
 }
@@ -114,22 +125,6 @@ test('用户收藏等私有写操作继续强制身份检查', async () => {
   assert.equal(response.ok, true)
   assert.deepEqual(calls.identity.map(item => item.action), ['favorites.set'])
   assert.equal(calls.handlers.at(-1).action, 'favorites')
-})
-
-test('1.0.7 旧客户端调用头像接口时返回明确的功能停用', async () => {
-  const { api } = loadApi()
-  for (const action of [
-    'profile.avatar.status',
-    'profile.avatar.register',
-    'profile.avatar.retry',
-    'profile.avatar.remove',
-    'files.prepareUpload'
-  ]) {
-    const response = await api.main(event(action, {}, false, 1))
-    assert.equal(response.ok, false)
-    assert.equal(response.error.code, 'FEATURE_DISABLED')
-    assert(response.error.message.includes('系统头像'))
-  }
 })
 
 ;(async () => {

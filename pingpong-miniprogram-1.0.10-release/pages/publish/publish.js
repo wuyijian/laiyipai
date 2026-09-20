@@ -18,7 +18,7 @@ const CAPACITY_MAX = 8
 const VENUE_PAGE_SIZE = 50
 const VENUE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000
 const VENUE_SEARCH_CACHE_MAX_ENTRIES = 8
-const DRAFT_FIELDS = ['venueId', 'date', 'startTime', 'endTime', 'courtStatus', 'capacity', 'ballAgeIndex', 'practiceIntent', 'joinMode', 'feePerPerson', 'termsAccepted', 'rebookMode', 'rebookTimeConfirmed', 'rebookVenueUnavailable']
+const DRAFT_FIELDS = ['title', 'venueId', 'date', 'startTime', 'endTime', 'courtStatus', 'capacity', 'ballAgeIndex', 'practiceIntent', 'joinMode', 'feePerPerson', 'note', 'termsAccepted', 'rebookMode', 'rebookTimeConfirmed', 'rebookVenueUnavailable']
 
 function isOutcomeUnknown(error) {
   return Boolean(error && error.details && error.details.outcomeUnknown) ||
@@ -100,6 +100,7 @@ function rebookDraft(prefill) {
     minimumDate: dateUtil.today(),
     dateLabel: dateUtil.displayDate(schedule.date),
     publishedMatch: null,
+    title: typeof prefill.title === 'string' ? prefill.title.slice(0, 30) : '',
     venueId: typeof prefill.venueId === 'string' ? prefill.venueId : '',
     venueIndex: 0,
     selectedVenue: null,
@@ -109,14 +110,12 @@ function rebookDraft(prefill) {
     practiceIntent,
     joinMode: capacity === 1 || prefill.joinMode !== 'confirm' ? 'direct' : 'confirm',
     feePerPerson: Number.isInteger(fee) && fee > 0 ? String(Math.min(999, fee)) : '',
-    showMoreOptions: false,
+    note: '',
+    noteLength: 0,
+    showMoreOptions: Boolean(prefill.title || fee > 0),
     termsAccepted: false,
     submitError: '',
     submitting: false,
-    // Explicitly clear fields left in a live 1.0.7 page instance. They are no
-    // longer rendered, persisted or submitted by the structured 1.0.10 form.
-    title: '',
-    note: '',
     courtBookingNote: '',
     rebookMode: true,
     rebookTimeConfirmed: false,
@@ -150,6 +149,7 @@ Page({
     startTime: '',
     endTime: '',
     courtStatus: 'unbooked',
+    title: '',
     capacityMin: CAPACITY_MIN,
     capacityMax: CAPACITY_MAX,
     capacity: matchOptions.DEFAULT_CAPACITY,
@@ -159,6 +159,8 @@ Page({
     practiceIntentOptions: PRACTICE_INTENT_OPTIONS,
     joinMode: 'direct',
     feePerPerson: '',
+    note: '',
+    noteLength: 0,
     showMoreOptions: false,
     termsAccepted: false,
     submitError: '',
@@ -176,17 +178,11 @@ Page({
     const schedule = initialSchedule()
     const draft = clientState.getPublishDraft() || {}
     const rawAttempt = draft.publishAttempt
-    const storedAttempt = rawAttempt && rawAttempt.requestId && rawAttempt.payload &&
-      !Object.prototype.hasOwnProperty.call(rawAttempt.payload, 'title') &&
-      !Object.prototype.hasOwnProperty.call(rawAttempt.payload, 'note')
-      ? rawAttempt
-      : null
+    const storedAttempt = rawAttempt && rawAttempt.requestId && rawAttempt.payload ? rawAttempt : null
     delete draft.publishAttempt
-    // Purge free-text fields retained by an older 1.0.7 draft. The review
-    // build only publishes structured booking information.
-    delete draft.title
-    delete draft.note
-    delete draft.noteLength
+    draft.title = String(draft.title || '').slice(0, 30)
+    draft.note = String(draft.note || '').slice(0, 200)
+    draft.noteLength = draft.note.length
     this.publishAttempt = draft.publishOutcomeUnknown && storedAttempt ? storedAttempt : null
     draft.publishOutcomeUnknown = Boolean(this.publishAttempt)
     if (draft.termsVersion !== cloudConfig.termsVersion) draft.termsAccepted = false
@@ -213,7 +209,7 @@ Page({
           ? '上次的球馆当前不可选择，请换一家球馆，并确认本次时间。'
           : '已复用上次的球馆和练习设置。请确认本次时间；球台状态已重置。'
         : '',
-      showMoreOptions: false
+      showMoreOptions: Boolean(draft.showMoreOptions || draft.title || draft.note || Number(draft.feePerPerson) > 0)
     }))
     if (prefill) this.applyPrefill(prefill)
     this.loadVenues()
@@ -457,10 +453,6 @@ Page({
 
   applyPrefill(prefill) {
     if (!prefill) return
-    // The review build is a focused booking tool. Public-feed availability is
-    // deliberately not copied into a new match: the host must choose every
-    // concrete schedule/venue field on this page.
-    if (prefill.source === 'player-update' || prefill.source === 'friend-update') return
     if (prefill.kind === 'rebook') {
       const patch = rebookDraft(prefill)
       this.pendingRebookVenueId = patch.venueId
@@ -508,7 +500,15 @@ Page({
         if (venueChanged) this.pendingRebookVenueId = prefill.venueId
       }
     }
-    if (prefill.source === 'home' && (requestedDate || ballAgeIndex > 0)) {
+    if (prefill.source === 'player-update' || prefill.source === 'friend-update') {
+      const context = [prefill.availabilityText, prefill.timeNote, prefill.venueName]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(' · ')
+      patch.prefillNotice = context
+        ? `对方大致可约：${context}。请选择具体日期并确认球馆`
+        : `已带入${String(prefill.district || '球友').trim()}的约球方向，请选择具体日期和球馆`
+    } else if (prefill.source === 'home' && (requestedDate || ballAgeIndex > 0)) {
       patch.prefillNotice = '已带入首页选择的日期和球龄，可继续调整'
     } else if (venueChanged) {
       patch.prefillNotice = '已切换球馆，球台状态已重置'
@@ -618,6 +618,14 @@ Page({
   },
   changeEndTime(event) { this.commitScheduleChange({ endTime: event.detail.value }) },
 
+  changeField(event) {
+    const field = event.currentTarget.dataset.field
+    const value = event.detail.value
+    const patch = { [field]: value }
+    if (field === 'note') patch.noteLength = value.length
+    this.setData(patch, () => this.changed())
+  },
+
   changeNumericField(event) {
     const field = event.currentTarget.dataset.field
     this.setData({ [field]: String(event.detail.value || '').replace(/\D/g, '').slice(0, 3) }, () => this.changed())
@@ -645,6 +653,10 @@ Page({
   },
   changeBallAge(event) { this.setData({ ballAgeIndex: Number(event.detail.value), prefillNotice: '' }, () => this.changed()) },
   selectJoinMode(event) { this.setData({ joinMode: event.currentTarget.dataset.value }, () => this.changed()) },
+
+  toggleMoreOptions() {
+    this.setData({ showMoreOptions: !this.data.showMoreOptions })
+  },
 
   selectPracticeIntent(event) {
     const practiceIntent = event.currentTarget.dataset.value
@@ -707,6 +719,7 @@ Page({
   validate() {
     if (!this.data.venueId) return '请选择球馆'
     if (!this.data.selectedVenue || this.data.selectedVenue.id !== this.data.venueId) return '已选球馆当前不可用，请重新选择'
+    if (this.data.title.trim() && this.data.title.trim().length < 2) return '球局名称至少 2 个字，也可以留空'
     const scheduleError = this.validateSchedule()
     if (scheduleError) return scheduleError
     if (this.data.rebookMode && !this.data.rebookTimeConfirmed) return '请先确认本次约球时间'
@@ -723,7 +736,7 @@ Page({
     const patch = Object.assign({ submitError: message }, extraPatch)
     if (message.includes('球馆')) selector = '#publish-venue'
     else if (message.includes('时间') || message.includes('小时') || message.includes('分钟')) selector = '#publish-schedule'
-    else if (message.includes('费用')) {
+    else if (message.includes('名称') || message.includes('费用')) {
       selector = '#publish-more'
       patch.showMoreOptions = true
     } else if (message.includes('协议') || message.includes('隐私')) selector = '#publish-terms'
@@ -746,6 +759,7 @@ Page({
     this.setData({ submitting: true, submitError: '' })
     const payload = existingAttempt ? existingAttempt.payload : {
       venueId: this.data.venueId,
+      title: this.data.title.trim() || '轻松练一场',
       date: this.data.date,
       startTime: this.data.startTime,
       endTime: this.data.endTime,
@@ -755,6 +769,7 @@ Page({
       practiceIntent: this.data.practiceIntent,
       joinMode: this.data.joinMode,
       feePerPerson: this.data.feePerPerson === '' ? 0 : Number(this.data.feePerPerson),
+      note: this.data.note.trim(),
       termsAccepted: true,
       termsVersion: cloudConfig.termsVersion
     }
@@ -820,6 +835,7 @@ Page({
     const schedule = initialSchedule()
     this.setData(Object.assign({}, schedule, {
       publishedMatch: null,
+      title: '',
       venueId: '',
       selectedVenue: null,
       venueIndex: 0,
@@ -829,6 +845,8 @@ Page({
       practiceIntent: matchOptions.DEFAULT_PRACTICE_INTENT,
       joinMode: 'direct',
       feePerPerson: '',
+      note: '',
+      noteLength: 0,
       showMoreOptions: false,
       termsAccepted: false,
       publishOutcomeUnknown: false,

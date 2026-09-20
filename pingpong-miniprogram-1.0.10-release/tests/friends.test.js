@@ -1,8 +1,5 @@
 const assert = require('assert')
-const fs = require('fs')
-const path = require('path')
 
-const root = path.resolve(__dirname, '..')
 let definition
 global.Page = value => { definition = value }
 global.wx = {}
@@ -26,13 +23,17 @@ const presented = exported.presentFriend({
 assert.strictEqual(presented.relationshipText, '一起打过 3 场')
 assert.strictEqual(presented.metaText, '杭州 · 滨江区 · 球龄 2—5 年')
 assert.deepStrictEqual(presented.skills, ['正手攻球', '反手拧拉', '发球'])
+const update = exported.presentUpdate({
+  id: 'update-one',
+  author: { playerId: 'player-two', displayName: '陈小拍' },
+  district: '萧山区', date: '2099-05-01', startTime: '19:00', endTime: '20:30',
+  ratingPlatform: '开球网', ratingValue: '1700'
+})
+assert.strictEqual(update.ratingText, '开球网 1700')
+assert(update.scheduleText.includes('19:00—20:30'))
 assert.strictEqual(typeof definition.loadFriends, 'function')
+assert.strictEqual(typeof definition.loadUpdates, 'function')
+assert.strictEqual(typeof definition.submitUpdate, 'function')
 assert.strictEqual(typeof definition.openPlayer, 'function')
-assert.strictEqual(definition.loadUpdates, undefined)
-assert.strictEqual(definition.submitUpdate, undefined)
 
-const template = fs.readFileSync(path.join(root, 'pages/friends/friends.wxml'), 'utf8')
-assert(template.includes('同一场球局后自动记录'))
-assert(!/(发布动态|球友动态|心得技巧|公开回复)/.test(template))
-
-console.log('same-match friends page tests passed')
+console.log('friends page tests passed')

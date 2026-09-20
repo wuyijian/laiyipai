@@ -90,9 +90,9 @@ async function editor(loaded = match()) {
 async function run() {
   const editMarkup = fs.readFileSync(path.join(root, 'pages/match-edit/match-edit.wxml'), 'utf8')
   const detailMarkup = fs.readFileSync(path.join(root, 'pages/match-detail/match-detail.wxml'), 'utf8')
-  assert(!editMarkup.includes('见面备注') && !editMarkup.includes('data-field="title"'), '审核版编辑页不得开放自由标题或备注')
-  assert(!detailMarkup.includes('match.note') && !detailMarkup.includes('match.courtBookingNote'), '详情页不得展示历史自由文本')
-  console.log('PASS 审核版只编辑结构化球局字段')
+  assert(editMarkup.includes('见面备注') && editMarkup.includes('data-field="title"'), '编辑页应保留 1.0.7 的自由标题和备注')
+  assert(detailMarkup.includes('match.note') && detailMarkup.includes('match.courtBookingNote'), '详情页应展示已审核通过版本支持的备注')
+  console.log('PASS 编辑能力覆盖结构化字段、球局标题和见面备注')
 
   const ready = await editor()
   assert.strictEqual(ready.data.state, 'ready')

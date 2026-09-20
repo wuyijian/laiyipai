@@ -79,7 +79,7 @@ async function run() {
     assert.strictEqual(result.noop, false)
     assert.strictEqual(result.match.version, 4)
     assert.strictEqual(result.match.scheduleVersion, 3, '普通资料修改不应要求成员重新确认')
-    assert.strictEqual(result.match.title, '滨江球馆 · 切磋球技')
+    assert.strictEqual(result.match.title, '滨江球馆 · 随便练练', '修改练法不应覆盖用户原有标题')
     assert.strictEqual(db.record('matches', matchId).courtBookingNote, '')
   }
 
@@ -131,9 +131,9 @@ async function run() {
       title: '客户端试图提交自由标题',
       note: '客户端试图提交自由备注'
     }))
-    assert.strictEqual(result.match.title, '滨江球馆 · 随便练练')
-    assert.strictEqual(db.record('matches', matchId).note, '')
-    assert.strictEqual(db.record('matches', matchId).courtBookingNote, '')
+    assert.strictEqual(result.match.title, '客户端试图提交自由标题')
+    assert.strictEqual(db.record('matches', matchId).note, '客户端试图提交自由备注')
+    assert.strictEqual(db.record('matches', matchId).courtBookingNote, '2 号台', '未编辑的球台说明必须保留')
   }
 
   {

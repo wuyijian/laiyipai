@@ -11,9 +11,7 @@ function userProfile(user) {
   return {
     playerId: user && user.publicId || '',
     nickname: profile.nickname || '新球友',
-    // Player avatars are generated locally from playerId in the review build.
-    // Do not expose historical uploaded media or trigger an extra URL resolve.
-    avatarFileId: '',
+    avatarFileId: profile.avatarFileId || '',
     city: profile.city || '杭州',
     district: profile.district || '',
     ballAge: profile.ballAge || '未填写',
@@ -30,7 +28,7 @@ function playerSnapshot(user) {
   return {
     playerId: user.publicId || '',
     displayName: profile.nickname,
-    avatarFileId: '',
+    avatarFileId: profile.avatarFileId,
     ballAge: profile.ballAge,
     skills: profile.skills.slice(0, 3),
     ratingPlatform: profile.ratingPlatform,
@@ -73,7 +71,7 @@ function participant(snapshot) {
   return {
     playerId: snapshot.playerId || '',
     displayName: snapshot.displayName || '球友',
-    avatarFileId: '',
+    avatarFileId: snapshot.avatarFileId || '',
     ballAge: snapshot.ballAge || '未填写',
     skills: Array.isArray(snapshot.skills) ? snapshot.skills : [],
     ratingPlatform: snapshot.ratingPlatform || '未填写',

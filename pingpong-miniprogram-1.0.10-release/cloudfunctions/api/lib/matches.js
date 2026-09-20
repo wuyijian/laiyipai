@@ -34,13 +34,7 @@ function presentedMatchState(document) {
 }
 
 function presentMatch(document) {
-  const intent = matchOptions.normalizeStoredPracticeIntent(document.practiceIntent, document.skills)
-  const venueName = document.venueSnapshot && document.venueSnapshot.name || '乒乓球馆'
-  return presenters.match(Object.assign({}, document, {
-    title: structuredMatchTitle(venueName, intent),
-    note: '',
-    courtBookingNote: ''
-  }))
+  return presenters.match(document)
 }
 
 function canChat(document, membership) {
@@ -149,6 +143,7 @@ async function create(context, payload) {
   const termsVersion = terms.requireAcceptance(payload)
   const requestId = validate.id(context.requestId, '请求 ID')
   const venueId = validate.id(payload.venueId, '球馆 ID')
+  const title = validate.text(payload.title, '球局名称', { min: 2, max: 30 })
   const schedule = validate.schedule(payload.date, payload.startTime || payload.time, payload.endTime)
   const capacity = validate.integer(payload.capacity, '总人数', { min: 1, max: 8 })
   const feePerPerson = validate.integer(payload.feePerPerson === undefined ? payload.fee || 0 : payload.feePerPerson, '人均费用', { min: 0, max: 999 })
@@ -161,11 +156,11 @@ async function create(context, payload) {
     matchOptions.PRACTICE_INTENTS,
     '想练什么'
   )
+  const note = validate.text(payload.note || '', '补充说明', { required: false, max: 300 })
   const joinMode = validate.oneOf(payload.joinMode || 'direct', ['direct', 'confirm'], '加入方式')
   const courtStatus = validate.oneOf(payload.courtStatus || 'unbooked', ['booked', 'unbooked'], '球台预订状态')
-  // Review builds accept structured booking data only. Ignore title/note fields
-  // sent by legacy clients and derive the public copy after loading the venue.
-  await checkText(context, [expectedBallAge, practiceIntent].concat(legacySkills), 2)
+  const courtBookingNote = validate.text(payload.courtBookingNote || '', '球台说明', { required: false, max: 120 })
+  await checkText(context, [title, expectedBallAge, note, courtBookingNote, practiceIntent].concat(legacySkills), 2)
 
   const matchId = stableId('match-create', context.openid, requestId)
   const existing = await getDocument(context.db.collection(COLLECTIONS.matches).doc(matchId))
@@ -178,7 +173,6 @@ async function create(context, payload) {
     if (duplicate) return
     const venue = await getDocument(transaction.collection(COLLECTIONS.venues).doc(venueId))
     assert(venue && venue.active && venue.verificationStatus === 'verified', 'NOT_FOUND', '球馆不存在或暂未开放')
-    const title = structuredMatchTitle(venue.name, practiceIntent)
     const match = {
       title,
       city: venue.city,
@@ -208,8 +202,8 @@ async function create(context, payload) {
       skills: legacySkills,
       feePerPerson,
       courtStatus,
-      courtBookingNote: '',
-      note: '',
+      courtBookingNote,
+      note,
       joinMode,
       termsVersion,
       status: capacity === 1 ? 'full' : 'recruiting',
@@ -527,8 +521,18 @@ async function update(context, payload) {
 
   const current = await requireMatch(context, matchId)
   assert(current.hostId === context.openid, 'FORBIDDEN', '仅发起人可修改球局')
+  const title = Object.prototype.hasOwnProperty.call(payload, 'title')
+    ? validate.text(payload.title, '球局名称', { min: 2, max: 30 })
+    : String(current.title || structuredMatchTitle(current.venueSnapshot && current.venueSnapshot.name, practiceIntent)).slice(0, 30)
+  const note = Object.prototype.hasOwnProperty.call(payload, 'note')
+    ? validate.text(payload.note || '', '补充说明', { required: false, max: 300 })
+    : String(current.note || '')
+  const courtBookingNote = Object.prototype.hasOwnProperty.call(payload, 'courtBookingNote')
+    ? validate.text(payload.courtBookingNote || '', '球台说明', { required: false, max: 120 })
+    : String(current.courtBookingNote || '')
   const schedule = updateSchedule(payload, current)
   const submittedIntent = {
+    title,
     venueId,
     date: schedule.date,
     startTime: schedule.startTime,
@@ -537,6 +541,8 @@ async function update(context, payload) {
     expectedBallAge,
     practiceIntent,
     feePerPerson,
+    note,
+    courtBookingNote,
     courtStatus: requestedCourtStatus,
     joinMode
   }
@@ -551,7 +557,7 @@ async function update(context, payload) {
   }
   assert(activeMatch(current), 'MATCH_CLOSED', '球局已开始或结束，无法修改')
   assert(capacity >= Number(current.participantCount || 1), 'INVALID_ARGUMENT', `当前已有 ${Number(current.participantCount || 1)} 人，不能把总人数调得更少`)
-  await checkText(context, [expectedBallAge, practiceIntent], 2)
+  await checkText(context, [title, expectedBallAge, note, courtBookingNote, practiceIntent], 2)
 
   let noop = false
   let idempotent = false
@@ -585,15 +591,10 @@ async function update(context, payload) {
     assert(selectableVenue || (!venueChanged && match.venueSnapshot && match.venueSnapshot.id === venueId),
       'NOT_FOUND', '球馆不存在或暂未开放，请选择其他球馆')
     const nextVenueSnapshot = selectableVenue ? venueSnapshot(venue, venueId) : match.venueSnapshot
-    const title = structuredMatchTitle(nextVenueSnapshot && nextVenueSnapshot.name, practiceIntent)
-    // The review build exposes structured match information only. Legacy free
-    // text is removed the next time a match is edited and client-supplied
-    // title/note values are deliberately ignored.
     const intent = Object.assign({}, submittedIntent, {
-      title,
       courtStatus,
-      courtBookingNote: '',
-      note: ''
+      courtBookingNote,
+      note
     })
     if (sameUpdateValues(match, intent)) {
       noop = true
@@ -619,8 +620,8 @@ async function update(context, payload) {
       practiceIntent,
       feePerPerson,
       courtStatus,
-      courtBookingNote: '',
-      note: '',
+      courtBookingNote,
+      note,
       joinMode,
       status: nextStatus,
       scheduleVersion: nextScheduleVersion,

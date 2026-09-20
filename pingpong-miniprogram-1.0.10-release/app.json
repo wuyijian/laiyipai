@@ -16,6 +16,7 @@
     "pages/coach-apply/coach-apply",
     "pages/player-detail/player-detail",
     "pages/friends/friends",
+    "pages/update-detail/update-detail",
     "pages/settings/settings",
     "pages/login/login"
   ],

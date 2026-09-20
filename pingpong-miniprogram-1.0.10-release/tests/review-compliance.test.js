@@ -223,7 +223,6 @@ test('审核首屏固定为可浏览的找球局首页，模板不含头像或�
   const template = fs.readFileSync(path.join(root, 'pages/home/home.wxml'), 'utf8')
   assert(!/open-type\s*=\s*["'](?:chooseAvatar|getPhoneNumber)["']/.test(template))
 })
-
 test('冷启动和被动会话检查不申请隐私权限、不取头像手机号、也不导航登录', async () => {
   const { app, calls } = loadApp()
   app.onLaunch()

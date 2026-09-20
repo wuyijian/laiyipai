@@ -467,7 +467,6 @@ test('云 API 使用真实 wx.cloud 契约、同一 requestId 重试且不回退
     clearModule(apiPath)
   }
 })
-
 test('新版客户端连到旧云函数时提示服务更新，不再透出旧版日期校验', async () => {
   resetRuntime()
   const config = require(cloudConfigPath)
@@ -489,7 +488,7 @@ test('新版客户端连到旧云函数时提示服务更新，不再透出旧�
     clearModule(apiPath)
     const api = require(apiPath)
     await assert.rejects(
-      () => api.matches.create({ venueId: 'venue-version-check' }),
+      () => api.friendUpdates.publish({ kind: 'tip', content: '练球心得' }),
       error => error.code === 'API_VERSION_UNSUPPORTED' &&
         error.message === '服务正在更新，请稍后重新打开小程序' &&
         !error.message.includes('日期')
@@ -546,14 +545,7 @@ test('云 API 对服务繁忙做一次安全重试且保持 requestId', async ()
   }
 })
 
-test('审核版不打包头像上传实现', async () => {
-  clearModule(cloudPath)
-  clearModule(apiPath)
-  const cloud = require(cloudPath)
-  const api = require(apiPath)
-  assert.strictEqual(cloud.uploadAvatar, undefined)
-  assert.strictEqual(api.profile.uploadAvatar, undefined)
-  return
+test('头像上传区分超限、云存储权限与网络错误', async () => {
   resetRuntime()
   const config = require(cloudConfigPath)
   const originalEnvId = config.cloudEnvId
@@ -600,11 +592,7 @@ test('审核版不打包头像上传实现', async () => {
   }
 })
 
-test('客户端不再请求头像上传凭证', async () => {
-  const cloudSource = fs.readFileSync(cloudPath, 'utf8')
-  const apiSource = fs.readFileSync(apiPath, 'utf8')
-  assert(!/files\.prepareUpload|profile\.avatar\.register|uploadAvatar/.test(cloudSource + apiSource))
-  return
+test('头像上传按真实图片类型处理微信临时路径并在上传前检查大小', async () => {
   resetRuntime()
   const config = require(cloudConfigPath)
   const originalEnvId = config.cloudEnvId
@@ -999,19 +987,21 @@ test('首页忽略旧教练入口记忆，默认找球局并保留筛选条件',
   assert.strictEqual(wx.getStorageSync('laiyipai_ui_home_filters_v1').mode, undefined)
 })
 
-test('首页忽略旧教练和动态深链，始终保持找球局', async () => {
+test('手动约教练后返回保留选择，重新创建首页仍默认找球局', async () => {
   resetRuntime()
   const home = loadPage('pages/home/home.js')
   const requestedModes = []
   home.loadContent = async () => { requestedModes.push(home.data.mode); return true }
-  home.onLoad({ mode: 'coaches' })
+  home.onLoad()
   assert.strictEqual(home.data.mode, 'matches')
+  home.switchMode({ currentTarget: { dataset: { mode: 'coaches' } } })
+  assert.strictEqual(home.data.mode, 'coaches')
   await home.onShow()
-  assert.strictEqual(home.data.mode, 'matches')
-  assert.deepStrictEqual(requestedModes, ['matches'])
+  assert.strictEqual(home.data.mode, 'coaches')
+  assert.deepStrictEqual(requestedModes, ['coaches', 'coaches'])
   assert.strictEqual(wx.getStorageSync('laiyipai_ui_home_filters_v1').mode, undefined)
   const reopened = loadPage('pages/home/home.js')
-  reopened.onLoad({ mode: 'updates' })
+  reopened.onLoad()
   assert.strictEqual(reopened.data.mode, 'matches')
 })
 
@@ -1255,16 +1245,17 @@ test('找球局模式不调用教练接口，次要模块故障不影响主列�
   assert.strictEqual(home.data.matches[0].id, 'match-primary-flow')
 })
 
-test('首页不再请求教练模式，旧状态也只加载球局', async () => {
+test('首页跨模式并发切换时旧教练响应不能污染新的球局视图', async () => {
   resetRuntime()
+  const coachRequest = deferred()
   let coachCalls = 0
   let matchCalls = 0
   installApi({
     venues: { list: async () => ({ items: [] }) },
     coaches: {
-      list: async () => {
+      list: () => {
         coachCalls += 1
-        return { items: [] }
+        return coachRequest.promise
       }
     },
     matches: {
@@ -1277,10 +1268,24 @@ test('首页不再请求教练模式，旧状态也只加载球局', async () =>
   const home = loadPage('pages/home/home.js')
   home.onLoad()
   home.setData({ mode: 'coaches' })
-  await home.loadContent({ showSkeleton: true })
-  assert.strictEqual(coachCalls, 0)
+  const oldCoachLoad = home.loadContent({ showSkeleton: true })
+  await nextEventLoopTurn()
+  assert.strictEqual(coachCalls, 1)
+
+  home.setData({ mode: 'matches' })
+  const latestMatchLoad = home.loadContent({ showSkeleton: true })
+  await latestMatchLoad
   assert.strictEqual(matchCalls, 1)
+  assert.strictEqual(home.data.mode, 'matches')
   assert.strictEqual(home.data.matches[0].id, 'match-after-mode-switch')
+
+  coachRequest.resolve({
+    items: [{ id: 'coach-stale', name: '旧请求教练', verified: true, venueIds: [], nextSlots: [] }]
+  })
+  await oldCoachLoad
+  assert.strictEqual(home.data.mode, 'matches')
+  assert.strictEqual(home.data.matches[0].id, 'match-after-mode-switch')
+  assert.deepStrictEqual(home.data.coaches, [])
 })
 
 test('首页后台刷新失败时保留已展示球局并退出刷新态', async () => {
@@ -1495,7 +1500,7 @@ test('首页旧的标记状态响应不能覆盖稍后保存成功的结果', as
   assert.strictEqual(home.favoriteMutations[venue.id], undefined, '保存后的新鲜状态应清理临时覆盖')
 })
 
-test('首页将 25 个球馆媒体 fileID 按最多 20 个分批解析并合 URL', async () => {
+test('首页将 45 个媒体 fileID 按最多 20 个分批解析并合并 URL', async () => {
   resetRuntime()
   const venues = Array.from({ length: 25 }, (_, index) => {
     const sequence = String(index + 1).padStart(2, '0')
@@ -1504,9 +1509,22 @@ test('首页将 25 个球馆媒体 fileID 按最多 20 个分批解析并合 URL
       coverFileIds: [`cloud://laiyipai-prod/venues/cover-${sequence}.jpg`]
     })
   })
+  const coaches = Array.from({ length: 20 }, (_, index) => {
+    const sequence = String(index + 1).padStart(2, '0')
+    return {
+      id: `coach-media-${sequence}`,
+      name: `认证教练 ${sequence}`,
+      verified: true,
+      venueIds: [venues[index % venues.length].id],
+      avatarFileId: `cloud://laiyipai-prod/coaches/avatar-${sequence}.jpg`,
+      specialty: ['基本功'],
+      nextSlots: []
+    }
+  })
   const resolveBatches = []
   installApi({
     venues: { list: async () => ({ items: venues }) },
+    coaches: { list: async () => ({ items: coaches }) },
     files: {
       resolve: async (fileIds) => {
         resolveBatches.push(fileIds.slice())
@@ -1522,12 +1540,14 @@ test('首页将 25 个球馆媒体 fileID 按最多 20 个分批解析并合 URL
   })
   const home = loadPage('pages/home/home.js')
   home.onLoad()
+  home.setData({ mode: 'coaches' })
   await home.loadContent({ showSkeleton: true })
 
-  assert.deepStrictEqual(resolveBatches.map((batch) => batch.length), [20, 5])
+  assert.deepStrictEqual(resolveBatches.map((batch) => batch.length), [20, 20, 5])
   assert(resolveBatches.every((batch) => batch.length > 0 && batch.length <= 20))
-  assert.strictEqual(new Set(resolveBatches.flat()).size, 25)
+  assert.strictEqual(new Set(resolveBatches.flat()).size, 45)
   assert.strictEqual(home.data.venues.filter((item) => item.coverUrl).length, 25)
+  assert.strictEqual(home.data.coaches.filter((item) => item.avatarUrl).length, 20)
   assert.strictEqual(home.data.state, 'ready')
 })
 
@@ -1541,7 +1561,8 @@ test('首页从云端得到真实空列表时进入可操作空状态', async ()
   }
   installApi({
     venues: { list: async (payload) => { payloads.push(['venues', payload]); return { items: [] } } },
-    matches: { list: async (payload) => { payloads.push(['matches', payload]); return { items: [] } } }
+    matches: { list: async (payload) => { payloads.push(['matches', payload]); return { items: [] } } },
+    coaches: { list: async (payload) => { payloads.push(['coaches', payload]); return { items: [] } } }
   })
   const home = loadPage('pages/home/home.js')
   home.onLoad()
@@ -1550,10 +1571,11 @@ test('首页从云端得到真实空列表时进入可操作空状态', async ()
   assert.strictEqual(home.data.state, 'ready')
   assert.deepStrictEqual(home.data.venues, [])
   assert.deepStrictEqual(home.data.matches, [])
+  assert.deepStrictEqual(home.data.coaches, [])
   assert(payloads.every((entry) => entry[1].city === '杭州'))
   const template = fs.readFileSync(path.join(projectRoot, 'pages', 'home', 'home.wxml'), 'utf8')
   assert(template.includes('暂时没有合适的球局'))
-  assert(!template.includes('当前地区暂无可约教练'))
+  assert(template.includes('当前地区暂无可约教练'))
   assert(template.includes('bindtap="openPublish"'))
 })
 
@@ -1609,11 +1631,7 @@ test('首页缓存跨天返回时刷新日期栏，同时保留全部日期选�
   assert.strictEqual(requestedDates[1], undefined)
 })
 
-test('个人主体审核版首页不再展示教练模式', async () => {
-  const template = fs.readFileSync(path.join(projectRoot, 'pages', 'home', 'home.wxml'), 'utf8')
-  assert(!template.includes('可预约教练'))
-  assert(!template.includes('expandCoachSearch'))
-  return
+test('教练空状态扩大地区仍保留教练模式且不请求球局', async () => {
   resetRuntime()
   let matchRequests = 0
   const coachRequests = []
@@ -1678,13 +1696,12 @@ test('首页球局分页可跨过空页并按 ID 合并去重', async () => {
   assert.deepStrictEqual(requestedPages, [1, 2, 3])
 
   const template = fs.readFileSync(path.join(projectRoot, 'pages', 'home', 'home.wxml'), 'utf8')
-  assert(template.includes("matches.length + ' 场'"))
+  assert(template.includes('已显示 '))
   assert(template.includes('加载更多球局'))
   assert(!template.includes('matchCountText'), '球馆卡片不能展示仅由当前分页推算的场次数')
 })
 
 test('首页教练分页合并去重并保留各自页码', async () => {
-  return // 个人主体审核版首页已移除教练模式
   resetRuntime()
   const requestedPages = []
   const coach = (id, name) => ({ id, name, venueIds: [], specialty: ['基础训练'], nextSlots: [] })
@@ -1856,7 +1873,7 @@ test('发布页晚间生成的默认时间始终能在同一日期内结束', as
   }
 })
 
-test('发布仅提交结构化约球信息、规范球馆 ID 与稳定幂等键', async () => {
+test('发布允许留空标题并提交默认标题、规范球馆 ID 与稳定幂等键', async () => {
   resetRuntime()
   const venues = [venueFixture('venue_huanglong'), venueFixture('venue_xihu')]
   const createCalls = []
@@ -1875,6 +1892,7 @@ test('发布仅提交结构化约球信息、规范球馆 ID 与稳定幂等键'
   await publish.loadVenues()
   publish.changeVenue({ detail: { value: '1' } })
   publish.setData({
+    title: '',
     date: dateString(3),
     startTime: '19:00',
     endTime: '20:30',
@@ -1884,13 +1902,13 @@ test('发布仅提交结构化约球信息、规范球馆 ID 与稳定幂等键'
     joinMode: 'confirm',
     courtStatus: 'booked',
     feePerPerson: '35',
+    note: '前台集合，费用到店 AA',
     termsAccepted: true
   })
   await publish.submit()
   assert.strictEqual(createCalls.length, 1)
   const call = createCalls[0]
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(call.payload, 'title'), false)
-  assert.strictEqual(Object.prototype.hasOwnProperty.call(call.payload, 'note'), false)
+  assert.strictEqual(call.payload.title, '轻松练一场')
   assert.strictEqual(call.payload.venueId, 'venue_xihu')
   assert.strictEqual(call.payload.feePerPerson, 35)
   assert.strictEqual(call.payload.capacity, 7)
@@ -2546,7 +2564,7 @@ test('客户端不再展示或请求个人视频', async () => {
   })
 })
 
-test('个人资料不依赖头像接口，收藏失败时仍可编辑基础资料', async () => {
+test('个人资料的收藏与头像接口失败时仍可查看和编辑基础资料', async () => {
   resetRuntime()
   installApi({
     profile: {
@@ -2704,7 +2722,7 @@ test('我的页面可分页展示超过 50 家标记球馆并移除下架占位�
   assert(template.includes('savedVenuesTotal'))
 })
 
-test('个人资料使用系统头像并提交球龄、技术和第三方积分', async () => {
+test('个人资料按 files.resolve 契约显示头像并提交球龄、技术和第三方积分', async () => {
   resetRuntime()
   const updates = []
   let authorizeCount = 0
@@ -2728,7 +2746,7 @@ test('个人资料使用系统头像并提交球龄、技术和第三方积分',
   })
   const profile = loadPage('pages/profile/profile.js')
   await profile.loadProfile()
-  assert.strictEqual(profile.data.profile.avatarUrl, '')
+  assert.strictEqual(profile.data.profile.avatarUrl, 'https://temp.example/avatar.jpg')
   assert.strictEqual(profile.data.savedVenues[0].id, 'venue_huanglong')
 
   profile.openEdit()
@@ -2760,12 +2778,7 @@ test('个人资料使用系统头像并提交球龄、技术和第三方积分',
   assert(template.includes('仅作约球参考，不影响加入球局'))
 })
 
-test('审核版不提供 chooseAvatar 或头像上传入口', async () => {
-  const source = fs.readFileSync(path.join(projectRoot, 'pages', 'profile', 'profile.js'), 'utf8')
-  const template = fs.readFileSync(path.join(projectRoot, 'pages', 'profile', 'profile.wxml'), 'utf8')
-  assert(!/chooseAvatar|uploadAvatar|avatarStatus|retryAvatar/.test(source))
-  assert(!/chooseAvatar|bindchooseavatar|头像审核|保存新头像/.test(template))
-  return
+test('微信 chooseAvatar 事件保留临时路径且仅修改头像时不重复提交资料', async () => {
   resetRuntime()
   const avatarUploads = []
   const profileUpdates = []
@@ -2805,11 +2818,7 @@ test('审核版不提供 chooseAvatar 或头像上传入口', async () => {
   assert.strictEqual(profile.data.editVisible, false)
 })
 
-test('我的页面仅展示稳定系统头像', async () => {
-  const profileTemplate = fs.readFileSync(path.join(projectRoot, 'pages', 'profile', 'profile.wxml'), 'utf8')
-  assert(profileTemplate.includes('我的系统头像'))
-  assert(!profileTemplate.includes('更换我的头像'))
-  return
+test('我的头像可直接选择，且只改头像不会被旧资料校验或整表保存阻断', async () => {
   resetRuntime()
   const uploads = []
   let updateCount = 0

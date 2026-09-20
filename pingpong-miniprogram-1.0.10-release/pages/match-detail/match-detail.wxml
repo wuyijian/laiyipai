@@ -63,6 +63,7 @@
         </button>
       </view>
       <view class="court-note"><view class="court-note-dot {{match.courtStatus === 'booked' ? 'booked' : ''}}"></view><view><text class="court-note-title">{{match.courtStatusText}}</text><text class="court-note-caption">{{match.courtStatus === 'booked' ? '发起人填写，球台请到馆前确认' : '加入后，和发起人确认订台安排'}}</text></view></view>
+      <view wx:if="{{match.courtBookingNote}}" class="venue-note">{{match.courtBookingNote}}</view>
     </view>
 
     <view class="detail-section players-section">
@@ -91,6 +92,7 @@
       <view class="fact-row"><text>练球方式</text><text>{{match.practiceIntentLabel}}</text></view>
       <view class="fact-row"><text>加入方式</text><text>{{match.joinModeText}}</text></view>
       <view class="fact-row"><text>预计每人</text><text>{{match.feeText}}{{match.feePerPerson > 0 ? ' · 到店支付' : ''}}</text></view>
+      <view wx:if="{{match.note}}" class="match-note"><text class="note-label">发起人说</text><text>{{match.note}}</text></view>
       <view class="court-booking-note">{{match.courtBookingNotice}}</view>
     </view>
     <view class="detail-footnote">如不能到场，请尽早在预约中取消。平台不代收费用。</view>

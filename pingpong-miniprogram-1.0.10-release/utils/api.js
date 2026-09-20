@@ -57,10 +57,24 @@ module.exports = {
   },
   profile: {
     get: action('profile.get'),
-    update: action('profile.update')
+    update: action('profile.update'),
+    uploadAvatar: cloud.uploadAvatar,
+    avatarStatus: action('profile.avatar.status'),
+    retryAvatar: action('profile.avatar.retry'),
+    removeAvatar: action('profile.avatar.remove')
   },
   players: { get: action('players.get') },
   friends: { list: action('friends.list') },
+  friendUpdates: {
+    list: action('friendUpdates.list'),
+    get: action('friendUpdates.get'),
+    publish: action('friendUpdates.publish'),
+    remove: action('friendUpdates.remove')
+  },
+  updateComments: {
+    list: action('updateComments.list'),
+    send: action('updateComments.send')
+  },
   messages: {
     list: action('messages.list'),
     send: action('messages.send'),

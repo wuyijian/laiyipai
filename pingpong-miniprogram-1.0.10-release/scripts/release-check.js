@@ -240,19 +240,19 @@ if (mediaPushSubscription.msg_type !== 'event' ||
     !Array.isArray(mediaPushSubscription.event_types) ||
     !mediaPushSubscription.event_types.includes('wxa_media_check') ||
     mediaPushSubscription.function_name !== 'mediaCallback' ||
-    mediaPushSubscription.enable !== false) {
-  fail('系统头像版本必须停用 event/wxa_media_check → mediaCallback 消息推送')
+    mediaPushSubscription.enable !== true) {
+  fail('头像审核消息推送清单必须启用 event/wxa_media_check → mediaCallback')
 }
 ;['profile.avatar.status', 'profile.avatar.register', 'profile.avatar.retry', 'profile.avatar.remove'].forEach((route) => {
   if (!cloudApiSource.includes(`'${route}'`) && !cloudApiSource.includes(`"${route}"`)) {
-    fail(`api 云函数缺少旧头像客户端兼容停用路由：${route}`)
+    fail(`api 云函数缺少头像审核路由：${route}`)
   }
 })
-if (!cloudApiSource.includes("'files.prepareUpload': avatarUnavailable") && !cloudApiSource.includes('"files.prepareUpload": avatarUnavailable')) {
-  fail('api 云函数必须明确停用旧头像上传凭证路由')
+if (!clientApiSource.includes("'profile.avatar.retry'") && !clientApiSource.includes('"profile.avatar.retry"')) {
+  fail('utils/api.js 缺少头像审核超时恢复能力')
 }
-if (/profile\.avatar\.|files\.prepareUpload|uploadAvatar/.test(clientApiSource)) {
-  fail('系统头像版本的客户端不得暴露头像审核或上传接口')
+if (!read('cloudfunctions/mediaCallback/handler.js').includes('wxa_media_check')) {
+  fail('mediaCallback 缺少 wxa_media_check 事件处理')
 }
 
 const requiredVenueSubmissionCloudRoutes = [

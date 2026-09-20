@@ -34,7 +34,7 @@ wx.cloud.callFunction({
 
 `requestId` 必填，长度 8—80，只可包含字母、数字、`_`、`-`。同一次用户操作的网络重试必须复用同一个值。客户端封装位于 `utils/api.js`，不提供 mock 或本地缓存回退；云端失败会直接抛出 `CloudApiError`。
 
-1.0.10 只有生产环境 `laiyipai-d2gks4fmq84ce6b44`。客户端既不直连云数据库，也不直接读写云存储；两类安全规则均为 `read:false/write:false`。公开数据、历史媒体清理和允许展示的球馆/教练文件都必须经过本契约中的 action。
+1.0.10 只有生产环境 `laiyipai-d2gks4fmq84ce6b44`。客户端不直连云数据库；云存储仅允许本人头像路径的受限写入，所有公开媒体解析和历史媒体清理都必须经过本契约中的 action。
 
 服务端在滚动升级期间同时接受 API v1 和 v2；v1 仅用于已上传旧客户端的过渡兼容，所有新客户端统一发送 v2。部署顺序固定为先更新 `api` 云函数，再上传新版小程序。
 
@@ -47,17 +47,17 @@ wx.cloud.callFunction({
 | `profile.update` | 昵称、城市、地区、球龄、技术、第三方积分的任意白名单字段 | 更新后的资料；文本先经过内容安全检测 |
 | `players.get` | `{playerId}` | 从具体球局查看的球友公开资料；双向屏蔽时返回不可见。兼容字段 `videos` 固定为空数组，不查询或返回个人视频 |
 | `friends.list` | `{page?,pageSize?}` | 当前用户的球友列表；确认加入同一球局后自动建立，返回公开资料和共同球局数；双向屏蔽及注销用户不返回 |
-| `profile.avatar.register` | 旧版参数 | 已停用，返回 `FEATURE_DISABLED` |
-| `profile.avatar.status` | `{}` | 已停用，返回 `FEATURE_DISABLED` |
-| `profile.avatar.retry` | 旧版参数 | 已停用，返回 `FEATURE_DISABLED` |
-| `profile.avatar.remove` | `{}` | 已停用，返回 `FEATURE_DISABLED` |
+| `profile.avatar.register` | `{fileId,uploadToken}` | `{avatar:{status:'reviewing'}}`；必须先取得一次性上传凭证并上传云存储 |
+| `profile.avatar.status` | `{}` | 最近头像审核状态；对外状态为 `reviewing/passed/rejected/failed/timed_out`，失败或超时可重试 |
+| `profile.avatar.retry` | `{}` | 对本人最新失败或超时头像重新发起审核，复用原文件并保持请求幂等 |
+| `profile.avatar.remove` | `{}` | `{deleted:true}` |
 | `account.delete` | `{confirmation:'注销账号'}` | 立即注销并返回后台清理任务 ID；同一请求重试幂等，已暂停账号仍可注销 |
 
-`profile.update` 不接受 `avatarFileId` 或 `videoFileIds`。用户公开资料与成员快照中的 `avatarFileId` 固定为空，客户端依据公开 `playerId` 生成稳定系统头像。
+`profile.update` 不接受 `avatarFileId` 或 `videoFileIds`，防止绕过媒体审核。用户公开资料与成员快照只返回已审核通过的头像编号。
 
-1.0.10 的 `utils/api.js` 不暴露头像上传方法，页面也没有 `chooseAvatar`。头像、比赛视频和场馆照片均不能新增上传；旧客户端即使直接调用头像 action 或 `files.prepareUpload`，也只会得到明确的功能停用错误。
+上传头像使用 `utils/api.js` 的 `profile.uploadAvatar`：先取得绑定本人、用途和路径的一次性凭证，再上传并登记审核。比赛视频和场馆照片的客户端上传方法保持移除。
 
-升级前已经存在的 `user_media`、`user_videos` 与 `upload_tickets` 只用于历史处置、兼容删除和注销清理。`mediaCallback` 可继续收敛升级前已发起的审核事件，但其结果不得恢复用户头像展示；系统头像不调用 `security.mediaCheckAsync`。
+`security.mediaCheckAsync` 的结果通过 `event/wxa_media_check → mediaCallback` 收敛，只有通过审核的头像才公开。超过审核窗口的记录对外显示为可重试超时态，但不会自动通过。
 
 ## 球馆与球局
 
@@ -72,8 +72,8 @@ wx.cloud.callFunction({
 | `venues.submissions.resubmit` | `{submissionId,activityTags?,confirmPublic:true,expectedVersion}` | `{submission,venue,venueCreated,idempotent}`；仅申请人可将历史 `rejected` 记录按版本重提并直接公开 |
 | `matches.list` | `{city?,district?,venueId?,date?,expectedBallAge?,friendsOnly?,page?,pageSize?}` | `{items,page,pageSize,hasMore}`；过滤发生在服务端，自动排除双向拉黑用户；`friendsOnly:true` 仅对登录用户开放，返回有球友确认参加的球局；传入全局唯一的 `venueId` 时忽略地区条件。新球局的 `venue` 快照包含经脱敏的位置，名称型球馆仍不返回地址或坐标 |
 | `matches.get` | `{matchId}` | `{match,membership,confirmedCount,hostVideos}`；`match.venue` 可包含地址、位置和展示模式。兼容字段 `hostVideos` 固定为空数组，不查询或返回发起人的个人视频 |
-| `matches.create` | `{venueId,date,startTime,endTime,capacity,feePerPerson,expectedBallAge,practiceIntent,joinMode,courtStatus,termsAccepted,termsVersion}` | `{match,membership:{status:'host',canChat:true},idempotent}`；`practiceIntent` 只能为 `随便练练/切磋球技`，`capacity` 为 1—8 的整数，1 人球局按单人练习创建且不开放加入，`courtStatus` 只能为 `booked/unbooked`。标题由服务端生成为“球馆名 · 练球类型”；旧客户端传入的 `title/note/courtBookingNote` 被忽略 |
-| `matches.update` | `{matchId,expectedVersion,venueId,date,startTime,endTime,capacity,feePerPerson,expectedBallAge,practiceIntent,joinMode,courtStatus}` | `{match,idempotent,noop}`；仅发起人可在开球前修改。总人数不得小于已加入人数；球馆或时段变化时 `courtStatus` 强制重置为 `unbooked`、`scheduleVersion` 递增并要求成员重新确认；旧自由文本字段被忽略 |
+| `matches.create` | `{venueId,title,date,startTime,endTime,capacity,feePerPerson,expectedBallAge,practiceIntent,note,joinMode,courtStatus,courtBookingNote?,termsAccepted,termsVersion}` | `{match,membership:{status:'host',canChat:true},idempotent}`；`practiceIntent` 只能为 `随便练练/切磋球技`，`capacity` 为 1—8 的整数，1 人球局不开放加入；自由文字经过内容安全检查 |
+| `matches.update` | `{matchId,expectedVersion,title?,note?,courtBookingNote?,venueId,date,startTime,endTime,capacity,feePerPerson,expectedBallAge,practiceIntent,joinMode,courtStatus}` | `{match,idempotent,noop}`；仅发起人可在开球前修改。未提交的文字字段保持原值；球馆或时段变化时订台状态重置并要求成员重新确认 |
 | `matches.join` | `{matchId,allowWaitlist?,termsAccepted,termsVersion}` | 直接加入为 `joined`，申请制为 `pending`，满员且明确允许时为 `waitlisted` |
 | `matches.pending` | `{matchId}` | 仅发起人可见的申请和候补列表 |
 | `matches.respondJoin` | `{matchId,membershipId,decision:'accept'|'reject',expectedVersion}` | 审批结果和新球局版本 |
@@ -93,7 +93,7 @@ wx.cloud.callFunction({
 
 | action | payload | data |
 | --- | --- | --- |
-| `files.prepareUpload` | 旧版上传参数 | 所有用途均已停用，返回 `FEATURE_DISABLED`，不创建上传凭证 |
+| `files.prepareUpload` | `{purpose:'avatar',extension:'jpg'|'jpeg'|'png'}` | 仅发放本人头像的一次性上传凭证；`video/venue_photo` 返回 `FEATURE_DISABLED` |
 | `venuePhotos.register` | 旧版登记参数 | 已停用，返回 `FEATURE_DISABLED`，不写入媒体记录 |
 | `venuePhotos.list` | `{venueId}` | `{items,limit:6}`；只返回自己的历史照片状态，未通过不返回 fileID |
 | `venuePhotos.remove` | `{photoId}` | 仅本人可删除；事务移除公开引用并释放配额 |
@@ -101,20 +101,20 @@ wx.cloud.callFunction({
 | `admin.venuePhotos.review` | `{photoId,decision:'pass'|'reject',reason?}` | 审核与公开引用事务更新；拒绝必须有原因 |
 | `admin.venuePhotos.remove` | `{photoId}` | 运营下架已公开或待审核照片，记录审计并清理文件 |
 
-场馆照片上传已移除，前端仅保留历史 `list/remove`。每馆最多公开 6 张历史用户贡献照片。审核通过的 `photoFileIds` 与官方封面合并返回；名称型球馆仍无地址、位置或认证标志。客户端云存储权限为 `read:false/write:false`，不能绕过 action 直接读写文件。
+场馆照片上传已移除，前端仅保留历史 `list/remove`。每馆最多公开 6 张历史用户贡献照片。审核通过的 `photoFileIds` 与官方封面合并返回；名称型球馆仍无地址、位置或认证标志。云存储写规则只允许本人头像路径，不能绕过 action 新增场馆照片。
 
-## 球友动态兼容
+## 球友动态与回复
 
-1.0.10 客户端不展示动态或回复入口，`utils/api.js` 也不暴露这些调用。以下路由仅为 1.0.7 滚动升级保留，不得用于恢复 UGC：
+以下路由保留 1.0.7 已审核能力；动态与回复全局可见，写入前执行身份、限流、双向屏蔽和文本安全校验：
 
 | action | payload | data |
 | --- | --- | --- |
-| `friendUpdates.list` | `{page?,pageSize?}` | `{mine:null,items:[],page,pageSize,hasMore:false,featureAvailable:false}` |
-| `friendUpdates.get` | 旧版参数 | 返回 `FEATURE_UNAVAILABLE` |
-| `friendUpdates.publish` | 旧版参数 | 返回 `FEATURE_UNAVAILABLE`，不写入数据 |
-| `friendUpdates.remove` | 旧版参数 | 返回 `FEATURE_UNAVAILABLE` |
-| `updateComments.list` | 旧版参数 | 返回 `FEATURE_UNAVAILABLE`，不返回历史 UGC |
-| `updateComments.send` | 旧版参数 | 返回 `FEATURE_UNAVAILABLE`，不写入数据 |
+| `friendUpdates.list` | `{page?,pageSize?}` | `{mine,items,page,pageSize,hasMore}`；返回未被双向屏蔽的公开动态 |
+| `friendUpdates.get` | `{updateId}` | 动态详情与当前用户权限 |
+| `friendUpdates.publish` | `{kind,content,availability?,timeNote?,venueName?,district?,ratingPlatform?,ratingValue?}` | 新动态；同一请求幂等 |
+| `friendUpdates.remove` | `{updateId}` | 仅本人删除 |
+| `updateComments.list` | `{updateId,page?,pageSize?}` | 公开回复分页 |
+| `updateComments.send` | `{updateId,text}` | 发布回复；同一请求幂等 |
 
 ## 教练、预约和收藏
 

@@ -232,22 +232,44 @@
     </view>
     </view>
 
-    <view id="publish-more" class="section-card fee-card">
-      <view class="section-heading compact-heading">
-        <view class="section-copy">
-          <text class="section-title">费用</text>
-          <text class="section-caption">仅记录球馆费用，到店后自行结算</text>
+    <view id="publish-more" class="section-card more-card">
+      <button class="more-toggle" hover-class="more-press" bindtap="toggleMoreOptions" aria-label="{{showMoreOptions ? '收起更多设置' : '展开更多设置'}}">
+        <view class="more-plus {{showMoreOptions ? 'open' : ''}}"><view></view><view></view></view>
+        <view class="more-copy">
+          <text class="more-title">补充设置</text>
+          <text class="more-caption">标题、费用和见面备注，都可以不填</text>
         </view>
-      </view>
-      <view class="field-group first-field">
-        <view class="field-label-row">
-          <text class="field-label">人均费用</text>
-          <text class="optional">不填按免费展示</text>
+        <view class="more-arrow {{showMoreOptions ? 'open' : ''}}"></view>
+      </button>
+
+      <view wx:if="{{showMoreOptions}}" class="more-content">
+        <view class="field-group first-field">
+          <view class="field-label-row">
+            <text class="field-label">球局标题</text>
+            <text class="optional">选填</text>
+          </view>
+          <input class="text-input" value="{{title}}" maxlength="30" placeholder="例如：周末轻松练一场" data-field="title" bindinput="changeField" />
         </view>
-        <view class="money-input">
-          <text class="currency">¥</text>
-          <input type="number" value="{{feePerPerson}}" maxlength="3" placeholder="0" data-field="feePerPerson" bindinput="changeNumericField" />
-          <text class="money-unit">元 / 人</text>
+
+        <view class="field-group">
+          <view class="field-label-row">
+            <text class="field-label">人均费用</text>
+            <text class="optional">到店支付</text>
+          </view>
+          <view class="money-input">
+            <text class="currency">¥</text>
+            <input type="number" value="{{feePerPerson}}" maxlength="3" placeholder="0" data-field="feePerPerson" bindinput="changeNumericField" />
+            <text class="money-unit">每人</text>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <view class="field-label-row">
+            <text class="field-label">留句话</text>
+            <text class="optional">选填</text>
+          </view>
+          <textarea class="note-input" value="{{note}}" maxlength="200" placeholder="例如：到了在前台碰面" data-field="note" bindinput="changeField"></textarea>
+          <view class="char-count">{{noteLength}} / 200</view>
         </view>
       </view>
     </view>

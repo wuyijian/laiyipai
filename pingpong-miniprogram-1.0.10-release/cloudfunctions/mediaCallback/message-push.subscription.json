@@ -1,7 +1,7 @@
 {
-  "$note": "1.0.10 使用系统头像，不再提交媒体审核；请在云开发消息推送中停用该订阅。该文件不会自行修改云端。",
+  "$note": "部署 mediaCallback 后，在小程序云开发消息推送中按此清单订阅；该文件不会自行修改云端。",
   "msg_type": "event",
   "event_types": ["wxa_media_check"],
   "function_name": "mediaCallback",
-  "enable": false
+  "enable": true
 }

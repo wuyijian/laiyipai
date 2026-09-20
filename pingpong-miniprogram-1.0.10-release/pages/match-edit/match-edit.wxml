@@ -5,6 +5,11 @@
     <block wx:else>
       <view class="edit-heading"><view class="edit-title">编辑球局</view><view class="edit-copy">保存后立即生效；时间或球馆变化时，已加入成员需要重新确认。</view></view>
       <view class="edit-card">
+        <view class="section-label">球局信息</view>
+        <view class="text-field"><text>球局标题</text><input value="{{title}}" maxlength="30" placeholder="例如：周末轻松练一场" data-field="title" bindinput="changeText" /></view>
+        <view class="text-field note-field"><text>见面备注</text><textarea value="{{note}}" maxlength="200" placeholder="例如：到了在前台碰面" data-field="note" bindinput="changeText"></textarea><view class="field-count">{{noteLength}} / 200</view></view>
+      </view>
+      <view class="edit-card">
         <view class="section-label">时间</view>
         <view class="schedule-row"><picker mode="date" value="{{date}}" start="{{minimumDate}}" bindchange="changeDate"><view><text>日期</text><text>{{date}}</text></view></picker><picker mode="time" value="{{startTime}}" bindchange="changeStart"><view><text>开始</text><text>{{startTime}}</text></view></picker><picker mode="time" value="{{endTime}}" bindchange="changeEnd"><view><text>结束</text><text>{{endTime}}</text></view></picker></view>
       </view>
