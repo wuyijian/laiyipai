@@ -12,30 +12,41 @@ App({
   },
 
   onLaunch() {
-    // A returning user has already opted into WeChat login. Restore that
-    // session after the first paint so message reminders work after a cold
-    // start without delaying the public home feed.
-    this.scheduleSessionRestore()
+    // Keep cold start free of account and inbox traffic. The public home
+    // feed signals restoreSessionAfterPrimary() only after its main list is
+    // already interactive.
   },
 
   onShow() {
     this.globalData.visible = true
-    messageNotifier.start({ immediate: Boolean(this.globalData.session) })
-    if (!this.globalData.session) this.scheduleSessionRestore()
+    if (this.globalData.session) messageNotifier.start({ immediate: true })
+    else this.scheduleSessionRestore()
   },
 
   onHide() {
     this.globalData.visible = false
+    if (this.sessionRestoreTimer && typeof clearTimeout === 'function') clearTimeout(this.sessionRestoreTimer)
+    this.sessionRestoreTimer = null
     messageNotifier.stop()
   },
 
-  scheduleSessionRestore(delay = 5000) {
+  scheduleSessionRestore(delay = 12000) {
     if (!loginConsent.accepted() || this.globalData.session || this.globalData.sessionPromise || this.sessionRestoreTimer) return false
     this.sessionRestoreTimer = setTimeout(() => {
       this.sessionRestoreTimer = null
+      if (this.globalData.visible === false) return
       this.restoreSession()
     }, delay)
     return true
+  },
+
+  restoreSessionAfterPrimary(delay = 250) {
+    if (!loginConsent.accepted() || this.globalData.session || this.globalData.sessionPromise) return false
+    // Replace the slow fallback used by non-home entry pages. The home feed
+    // is already interactive, so restoring account state can now start.
+    if (this.sessionRestoreTimer && typeof clearTimeout === 'function') clearTimeout(this.sessionRestoreTimer)
+    this.sessionRestoreTimer = null
+    return this.scheduleSessionRestore(delay)
   },
 
   async restoreSession() {

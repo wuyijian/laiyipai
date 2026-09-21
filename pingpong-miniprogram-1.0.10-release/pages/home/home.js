@@ -205,6 +205,11 @@ Page({
     if (loaded) {
       this.retryOnReconnect = false
       this.pendingNetworkRecovery = false
+      // Never let account bootstrap or inbox polling compete with the cold
+      // start list request. Returning-user state is restored only after the
+      // main feed has painted successfully.
+      const app = getApp()
+      if (app && typeof app.restoreSessionAfterPrimary === 'function') app.restoreSessionAfterPrimary()
       if (manual && this.manualRefresh === manual) {
         this.setData({ refreshNotice: this.data.mode === 'matches' ? '球局已更新' : this.data.mode === 'coaches' ? '教练列表已更新' : '动态已更新' })
       }

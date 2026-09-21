@@ -13,8 +13,12 @@ function deferred() {
 function failure(code) { return Object.assign(new Error(code), { code }) }
 function setup() {
   let definition, listener
-  const stats = { stops: 0, reads: 0, fresh: 0, sessionResets: 0, unsubscribed: 0 }
-  const app = { ensureSession: async () => ({}), clearSession: () => { stats.sessionResets++ } }
+  const stats = { stops: 0, reads: 0, fresh: 0, sessionResets: 0, sessionRestores: 0, unsubscribed: 0 }
+  const app = {
+    ensureSession: async () => ({}),
+    clearSession: () => { stats.sessionResets++ },
+    restoreSessionAfterPrimary: () => { stats.sessionRestores++; return true }
+  }
   global.getApp = () => app
   global.wx = {
     getStorageSync() {}, setStorageSync() {}, showShareMenu() {}, hideShareMenu() {}, showToast() {},
@@ -183,7 +187,7 @@ test('游客开屏直接进入列表加载阶段，主列表返回即停止慢�
   try {
     global.setTimeout = callback => { slowCallback = callback; return 1 }
     global.clearTimeout = () => {}
-    const { page, app, api } = setup()
+    const { page, app, api, stats } = setup()
     const matches = deferred()
     let passiveSessionChecks = 0
     app.ensureSession = () => { passiveSessionChecks++; return Promise.resolve({}) }
@@ -197,6 +201,7 @@ test('游客开屏直接进入列表加载阶段，主列表返回即停止慢�
     await work
     assert.equal(page.data.loadingSlow, false)
     assert.equal(page.data.primaryLoading, false)
+    assert.equal(stats.sessionRestores, 1)
     page.onUnload()
   } finally {
     global.setTimeout = nativeSetTimeout

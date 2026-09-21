@@ -9,7 +9,8 @@ function deferred() { let resolve, reject; const promise = new Promise((a, b) =>
 const session = () => ({ profile: { playerId: 'player_wechat', nickname: '原有昵称' }, policies: {} })
 
 function runtime() {
-  const calls = { init: 0, bootstrap: 0, privacy: 0, remembers: 0, nav: [], readsInvalidated: 0 }
+  const calls = { init: 0, bootstrap: 0, privacy: 0, remembers: 0, nav: [], notifierStarts: 0, notifierStops: 0, scheduledDelays: [], readsInvalidated: 0 }
+  let timerCallback = null
   const preference = { allowed: false }
   const consent = {
     accepted: () => preference.allowed,
@@ -29,7 +30,10 @@ function runtime() {
     showToast() {}
   }
   let app, page
-  const sandbox = { wx, Error, Promise, Object, getApp: () => app, getCurrentPages: () => [{route: 'pages/match-detail/match-detail'}, {route: 'pages/login/login'}],
+  const sandbox = { wx, Error, Promise, Object,
+    setTimeout: (callback, delay) => { timerCallback = callback; calls.scheduledDelays.push(delay); return 1 },
+    clearTimeout: () => { timerCallback = null },
+    getApp: () => app, getCurrentPages: () => [{route: 'pages/match-detail/match-detail'}, {route: 'pages/login/login'}],
     App: value => { app = value }, Page: value => { page = value },
     require(name) {
       if (name.endsWith('/api')) return api
@@ -37,7 +41,11 @@ function runtime() {
       if (name.endsWith('/login-consent')) return consent
       if (name.endsWith('/error')) return { message: error => error.message }
       if (name.endsWith('/share')) return { disable() {} }
-      if (name.endsWith('/message-notifier')) return { start() {}, stop() {}, reset() {} }
+      if (name.endsWith('/message-notifier')) return {
+        start() { calls.notifierStarts++ },
+        stop() { calls.notifierStops++ },
+        reset() {}
+      }
       throw Error(name)
     }
   }
@@ -48,7 +56,9 @@ function runtime() {
     page.onLoad()
     return page
   }
-  return { app, api, privacy, calls, preference, wx, loginPage }
+  return { app, api, privacy, calls, preference, wx, loginPage,
+    fireTimer() { const callback = timerCallback; timerCallback = null; if (callback) callback() }
+  }
 }
 
 test('未确认登录的被动检查不跳转，只有明确交互才打开一次登录页', async () => {
@@ -114,6 +124,23 @@ test('失败不显示登录成功，重试返回原账号；已确认用户再�
   r.api.bootstrap = async () => { restored++; return session() }
   await r.app.ensureSession()
   assert.equal(restored, 1)
+})
+
+test('冷启动不抢占首页请求，首屏成功后才恢复登录和消息', async () => {
+  const r = runtime()
+  r.preference.allowed = true
+  r.app.onLaunch()
+  r.app.onShow()
+  assert.equal(r.calls.bootstrap, 0)
+  assert.equal(r.calls.notifierStarts, 0)
+  assert.deepEqual(r.calls.scheduledDelays, [12000])
+  assert.equal(r.app.restoreSessionAfterPrimary(), true)
+  assert.equal(r.calls.bootstrap, 0)
+  assert.deepEqual(r.calls.scheduledDelays, [12000, 250])
+  r.fireTimer()
+  await tick()
+  assert.equal(r.calls.bootstrap, 1)
+  assert.equal(r.calls.notifierStarts, 1)
 })
 
 test('清除会话后迟到登录不能恢复账号，返回格式不正确不视为成功', async () => {
