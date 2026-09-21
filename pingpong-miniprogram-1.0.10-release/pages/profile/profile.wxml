@@ -127,11 +127,11 @@
       </view>
     </view>
 
-    <view class="friends-entry-row" role="button" aria-label="球友与可约动态" bindtap="openFriends" hover-class="profile-row-press" hover-stay-time="80">
+    <view class="friends-entry-row" role="button" aria-label="我的球友" bindtap="openFriends" hover-class="profile-row-press" hover-stay-time="80">
       <view class="friends-entry-mark" aria-hidden="true"><view></view><view></view></view>
       <view class="friends-entry-copy">
-        <text class="friends-entry-title">球友与动态</text>
-        <text class="friends-entry-subtitle">发布可约时间，或查看同场球友</text>
+        <text class="friends-entry-title">我的球友</text>
+        <text class="friends-entry-subtitle">查看同场球友，下次更好约</text>
       </view>
       <text class="row-chevron" aria-hidden="true">›</text>
     </view>

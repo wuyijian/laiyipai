@@ -1,7 +1,6 @@
 {
-  "navigationBarTitleText": "动态与回复",
-  "enablePullDownRefresh": true,
+  "navigationBarTitleText": "来一拍",
+  "enablePullDownRefresh": false,
   "backgroundTextStyle": "dark"
 }
-
 

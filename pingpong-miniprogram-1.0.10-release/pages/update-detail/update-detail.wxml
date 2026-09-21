@@ -1,28 +1,9 @@
 <view class="ui-screen">
-  <view class="update-detail-page safe-bottom">
-    <view wx:if="{{state === 'loading'}}" class="detail-loading"><view class="skeleton detail-skeleton"></view><view class="skeleton reply-skeleton" wx:for="{{[1,2,3]}}" wx:key="*this"></view></view>
-    <view wx:elif="{{state === 'error'}}" class="status-panel"><view class="status-title">动态没有加载出来</view><view class="status-copy">{{errorMessage}}</view><button class="status-action" bindtap="retry">重新加载</button></view>
-    <block wx:else>
-      <view class="detail-card">
-        <button class="detail-author" data-id="{{update.playerId}}" bindtap="openPlayer"><player-avatar src="{{update.avatarUrl}}" seed="{{update.playerId || update.displayName}}" size="84" label="{{update.displayName}}的头像" /><view class="author-copy"><view><text class="author-name">{{update.displayName}}</text><text class="kind-chip {{update.kind}}">{{update.kindText}}</text></view><text class="author-meta">{{update.metaText}}</text></view><text class="detail-chevron">›</text></button>
-        <view wx:if="{{update.kind === 'availability'}}" class="availability-block"><view class="availability-mark" aria-hidden="true"></view><view class="availability-copy"><text class="availability-title">{{update.availabilityText}}</text><text wx:if="{{update.timeNote}}" class="availability-note">{{update.timeNote}}</text><view wx:if="{{update.venueName}}" class="availability-venue"><view class="detail-venue-pin" aria-hidden="true"></view><text>{{update.venueName}}</text></view></view></view>
-        <view wx:if="{{update.content}}" class="detail-content">{{update.content}}</view>
-        <view wx:if="{{update.ratingText}}" class="detail-rating">{{update.ratingText}}</view>
-        <button wx:if="{{update.kind === 'availability'}}" class="primary-button create-match" bindtap="useUpdate">发起约球</button>
-      </view>
-
-      <view class="reply-heading"><view><text class="reply-title">回复</text><text class="reply-count">{{update.commentCount ? update.commentCount + ' 条' : ''}}</text></view><text class="reply-hint">围绕时间、球馆或技术聊几句</text></view>
-      <view wx:if="{{commentsError}}" class="reply-error" aria-role="alert"><text>{{commentsError}}</text><button bindtap="retry">重试</button></view>
-      <view wx:if="{{comments.length}}" class="reply-list">
-        <view wx:for="{{comments}}" wx:key="id" class="reply-row"><button class="reply-avatar" data-id="{{item.playerId}}" bindtap="openPlayer"><player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId || item.displayName}}" size="62" label="{{item.displayName}}的头像" /></button><view class="reply-body"><view class="reply-meta"><text class="reply-name">{{item.displayName}}</text><text>{{item.createdText}}</text></view><view class="reply-content">{{item.content}}</view></view></view>
-      </view>
-      <view wx:elif="{{commentsLoading}}" class="reply-loading">正在更新回复…</view>
-      <view wx:elif="{{!commentsError}}" class="reply-empty">还没有回复。感兴趣的话，可以直接问时间、球馆或技术细节。</view>
-      <button wx:if="{{hasMore}}" class="reply-more" bindtap="loadMoreComments" loading="{{commentsLoading}}" disabled="{{commentsLoading}}">{{commentsLoading ? '正在加载' : '查看更多回复'}}</button>
-      <view class="composer-spacer"></view>
-    </block>
+<view class="page-shell safe-bottom">
+  <view class="status-panel retired-content">
+    <view class="status-title">该功能已下线</view>
+    <view class="status-copy">来一拍专注于球局邀约。你可以查找球馆、发起球局，或在已参加的球局里沟通。</view>
+    <button class="status-action" bindtap="goHome">去找球局</button>
   </view>
-  <view wx:if="{{state === 'ready'}}" class="reply-composer safe-bottom"><textarea class="reply-input" value="{{replyText}}" maxlength="300" auto-height="true" fixed="true" cursor-spacing="18" focus="{{inputFocused}}" placeholder="说点和打球有关的…" bindinput="changeReply" bindconfirm="sendReply" disabled="{{sending}}" aria-label="回复动态"></textarea><button class="send-reply" bindtap="sendReply" loading="{{sending}}" disabled="{{sending || !canSend}}">发送</button><text wx:if="{{sendError}}" class="send-error" aria-role="alert">{{sendError}}</text></view>
 </view>
-
-
+</view>

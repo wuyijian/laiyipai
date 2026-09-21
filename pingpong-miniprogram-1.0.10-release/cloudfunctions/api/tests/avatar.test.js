@@ -69,6 +69,13 @@ async function run() {
   assert.strictEqual(pendingView.status, 'reviewing')
   assert.strictEqual(pendingView.canRetry, false)
 
+  const missingTimestamp = avatar._private.present({ _id: 'legacy_no_date', status: 'reviewing' }, now)
+  assert.strictEqual(missingTimestamp.status, 'timed_out')
+  assert.strictEqual(missingTimestamp.fileId, '')
+  assert.strictEqual(missingTimestamp.canRetry, true)
+  assert.strictEqual(avatar._private.present({ status: 'reviewing', createdAt: 'bad-date' }, now).status, 'timed_out')
+  assert.strictEqual(avatar._private.present({ status: 'reviewing', createdAt: { $date: now } }, now).status, 'reviewing')
+
   const fixture = createContext({
     _id: 'avatar_retryable',
     userId: 'avatar_owner',

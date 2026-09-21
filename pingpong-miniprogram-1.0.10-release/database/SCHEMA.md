@@ -8,8 +8,8 @@
 - `matches/{matchId}`：球局聚合根，含场馆快照、发起人快照、人数、价格、日程、约球目的 `practiceIntent`（`随便练练/切磋球技`）、协议版本和对象版本。完整球馆的场馆快照包含地址、GCJ-02 坐标和展示模式，保证球馆列表较慢时仍可导航；名称型球馆快照固定不含地址与坐标。历史记录缺少 `practiceIntent` 时按 `随便练练` 展示，旧 `skills` 字段仅用于兼容。
 - `match_members/{hash(matchId,userId)}`：每人一条成员记录，状态为 `host/joined/pending/waitlisted/rejected/cancelled`；`confirmedScheduleVersion` 支持逐人确认改期，`termsVersion/termsAcceptedAt` 保存加入时的协议留痕。
 - `player_friends/{hash(userId,friendId)}`：用户确认同场后生成的私有双向球友关系，只记录双方内部 ID、首次及最近同场球局和共同球局数；候补、待批准和被拒绝申请不生成关系。公开资料始终从当前用户记录脱敏读取，拉黑时关系继续留存但双方不可见，账号注销时双向删除。
-- `player_updates/{hash(userId,requestId)}`：全局球友动态。类型为宽泛可约时间或纯文字心得技巧，包含脱敏发布者快照、杭州地区、选填球馆/积分和回复计数。只有已登录用户可读，列表过滤双向拉黑关系；可约动态 14 天后隐藏，发布者可撤下。
-- `player_update_comments/{hash(userId,requestId)}`：动态下的纯文字回复，包含动态归属、脱敏回复者快照和内容。读取前重新校验动态可见性及双向拉黑关系，发送使用事务幂等写入并更新回复计数。
+- `player_updates/{hash(userId,requestId)}`：历史球友动态，功能已下线。保留原数据和账号注销清理，客户端不可直读直写，业务路由统一返回 `FEATURE_REMOVED`。
+- `player_update_comments/{hash(userId,requestId)}`：历史公开回复，功能已下线。与历史动态同样禁用公开读取和新增，保留账号注销清理。
 - `coaches/{coachId}`、`coach_slots/{slotId}`、`coach_bookings/{bookingId}`：教练、可售时段和用户预约。教练核验记录只供运营使用；时段库存与预约在同一事务内变化。
 - `coach_applications/{hash(OPENID)}`：用户的教练认证申请，记录真实姓名、手机号、执教年限、擅长方向、执教球馆名称、介绍和资历说明，以及状态、对象版本和绑定审核意图的请求留痕。手机号和审核信息仅本人与运营可见；审核通过后事务生成关联 `userId` 的教练档案，但保持 `active:false` 直到运营补齐时段。审核可关联任何已上架的球馆目录记录；`listingMode:name_only` 只表达授课地点，不表达场馆资料核验或合作关系。
 - `venue_favorites/{hash(userId,venueId)}`：用户收藏。

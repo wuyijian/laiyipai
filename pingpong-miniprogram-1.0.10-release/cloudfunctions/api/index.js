@@ -23,8 +23,6 @@ const files = require('./lib/files')
 const uploads = require('./lib/uploads')
 const players = require('./lib/players')
 const friends = require('./lib/friends')
-const friendUpdates = require('./lib/friend-updates')
-const updateComments = require('./lib/update-comments')
 const { createTrace } = require('./lib/timing')
 const { isPublicRead } = require('./lib/action-policy')
 
@@ -33,6 +31,10 @@ const db = cloud.database()
 
 const API_VERSION = 2
 const SUPPORTED_API_VERSIONS = [1, API_VERSION]
+const RETIRED_FEED_ACTIONS = new Set([
+  'friendUpdates.list', 'friendUpdates.get', 'friendUpdates.publish', 'friendUpdates.remove',
+  'updateComments.list', 'updateComments.send'
+])
 let invoked = false
 
 const routes = {
@@ -73,12 +75,6 @@ const routes = {
   'profile.get': profile.get,
   'players.get': players.get,
   'friends.list': friends.list,
-  'friendUpdates.list': friendUpdates.list,
-  'friendUpdates.get': friendUpdates.get,
-  'friendUpdates.publish': friendUpdates.publish,
-  'friendUpdates.remove': friendUpdates.remove,
-  'updateComments.list': updateComments.list,
-  'updateComments.send': updateComments.send,
   'profile.update': profile.update,
   'profile.avatar.status': avatar.status,
   'profile.avatar.register': avatar.register,
@@ -152,6 +148,10 @@ exports.main = async (event = {}) => {
       throw new ApiError('API_VERSION_UNSUPPORTED', message, { supportedVersion: API_VERSION })
     }
     const action = validate.text(event.action, '操作名称', { min: 2, max: 60 })
+    if (RETIRED_FEED_ACTIONS.has(action)) {
+      routeName = action
+      throw new ApiError('FEATURE_REMOVED', '动态与公开回复已下线，请使用球局邀约')
+    }
     const handler = Object.prototype.hasOwnProperty.call(routes, action) ? routes[action] : null
     if (!handler) throw new ApiError('ACTION_NOT_FOUND', '请求的操作不存在')
     routeName = action

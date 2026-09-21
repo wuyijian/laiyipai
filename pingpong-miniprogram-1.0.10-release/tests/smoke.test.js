@@ -488,7 +488,7 @@ test('新版客户端连到旧云函数时提示服务更新，不再透出旧�
     clearModule(apiPath)
     const api = require(apiPath)
     await assert.rejects(
-      () => api.friendUpdates.publish({ kind: 'tip', content: '练球心得' }),
+      () => api.matches.update({ matchId: 'match_legacy', title: '晚间约球' }),
       error => error.code === 'API_VERSION_UNSUPPORTED' &&
         error.message === '服务正在更新，请稍后重新打开小程序' &&
         !error.message.includes('日期')

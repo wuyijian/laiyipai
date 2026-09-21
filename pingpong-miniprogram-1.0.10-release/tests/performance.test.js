@@ -14,6 +14,12 @@ global.wx = {
   cloud: { init() {}, callFunction: async () => ok({}) }
 }
 
+test('头像审核状态使用短超时的只读策略，不干扰首页和资料的并发加载', () => {
+  assert.equal(policy.isRead('profile.avatar.status'), true)
+  assert.equal(policy.canRetry('profile.avatar.status'), true)
+  assert.equal(policy.timeoutMs('profile.avatar.status', {}), 8000)
+  assert.equal(policy.isRead('profile.avatar.retry'), false)
+})
 test('相同并发读合并为一次云调用，结果相互隔离且完成后不缓存', async () => {
   cloud.invalidateReads(); const waiting = deferred(); let calls = 0
   wx.cloud.callFunction = async () => { calls++; return waiting.promise }

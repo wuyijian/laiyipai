@@ -127,6 +127,21 @@ test('用户收藏等私有写操作继续强制身份检查', async () => {
   assert.equal(calls.handlers.at(-1).action, 'favorites')
 })
 
+test('公开动态与回复永久下线，旧版与新版均不读取或写入历史内容', async () => {
+  const { api, calls } = loadApi()
+  const actions = ['friendUpdates.list', 'friendUpdates.get', 'friendUpdates.publish', 'friendUpdates.remove', 'updateComments.list', 'updateComments.send']
+  for (const apiVersion of [1, 2]) {
+    for (const action of actions) {
+      const response = await api.main(event(action, {}, true, apiVersion))
+      assert.equal(response.ok, false)
+      assert.equal(response.error.code, 'FEATURE_REMOVED')
+    }
+  }
+  assert.equal(calls.handlers.length, 0)
+  assert.equal(calls.identity.length, 0)
+  assert.equal(calls.rateLimit.length, 0)
+})
+
 ;(async () => {
   for (const item of tests) {
     await item.run()

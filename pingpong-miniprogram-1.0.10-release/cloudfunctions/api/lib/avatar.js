@@ -33,7 +33,8 @@ function effectiveStatus(document, now = Date.now()) {
   if (!document) return ''
   if (document.status !== 'reviewing') return document.status
   const deadline = deadlineFor(document)
-  return Number.isFinite(deadline) && now >= deadline ? 'timed_out' : 'reviewing'
+  // Malformed legacy timestamps must not trap a user in reviewing forever.
+  return !Number.isFinite(deadline) || now >= deadline ? 'timed_out' : 'reviewing'
 }
 
 function present(document, now = Date.now()) {

@@ -47,7 +47,7 @@
 
 `mediaCallback` 是头像异步审核链路的一部分。部署后启用 `event/wxa_media_check → mediaCallback` 消息订阅；回调只根据可信 `trace_id` 更新本人头像审核记录，审核通过后才公开新的 `avatarFileId`。
 
-本次客户端使用 API v2，并保留 API v1 的滚动升级兼容。新版 `api` 同时保留动态、回复、头像与教练能力，并增加 `matches.update`、`messages.inbox/read` 等路由。必须先部署云函数再上传新版小程序，避免客户端调用尚未上线的 action。
+本次客户端使用 API v2，并保留 API v1 的滚动升级兼容。新版 `api` 停用公开动态与回复，保留头像与教练能力，并提供 `matches.update`、`messages.inbox/read` 等路由。必须先部署云函数再上传新版小程序，避免客户端调用尚未上线的 action。
 
 `api/config.json` 已声明 `security.msgSecCheck` 与 `security.mediaCheckAsync`。用户文字使用 `msgSecCheck` 并失败关闭；头像登记后调用 `mediaCheckAsync`，结果由 `mediaCallback` 收敛。上传后若内容检测遇到 `-604101`，先确认云调用权限已生效。
 
@@ -69,7 +69,7 @@
 
 - 启动：`api.bootstrap`
 - 首页：`api.venues.*`、`api.matches.list`、`api.coaches.list`
-- 球友与动态：`api.friends.list`、`api.friendUpdates.*`、`api.updateComments.*`；`api.matches.list` 的 `friendsOnly:true` 只允许登录用户使用
+- 同场球友：`api.friends.list`；公开动态与回复路由统一返回 `FEATURE_REMOVED`；`api.matches.list` 的 `friendsOnly:true` 只允许登录用户使用
 - 发布与球局详情：`api.matches.*`
 - 预约：`api.appointments.list`、`api.coachBookings.*`
 - 对话与提醒：`api.messages.list/send/inbox/read`；`messages.inbox` 驱动“我的”页及第 4 个自定义 Tab 的未读红点
@@ -89,7 +89,7 @@
 - 新消息只为有效成员维护每人每局一条 `message_inboxes` 指针；收件箱总未读数正确驱动“我的”页与自定义 Tab 红点，进入最新消息后用 `messages.read` 清零，旧消息 ID 不能误清新消息。
 - 内容安全不可用时，用户内容不落库。
 - 头像选择、上传、审核中、通过、拒绝、超时重试和删除链路均通过真机验证；未通过的头像不得公开。比赛视频和新增场馆照片仍无上传入口。
-- 球友动态支持发布可约信息或文字心得、查看详情、公开回复和本人删除；内容安全失败时不落库，图片与视频入口仍关闭。
+- 首页与球友页无动态/心得/公开回复入口；旧动态详情链接仅展示下线提示；云端旧客户端直接调用同样被拒绝，不读取、写入或删除历史动态。
 - 教练申请完整跑通未提交、审核中、通过和退回四态；运营审核通过后生成的教练必须保持下架，补齐真实球馆与可约时段后再上架。
 - 新球馆完整跑通即时可用、同名并发复用、文本安全拒绝不落库，以及历史待审记录的审核与申请人注销撤回。
 - `app.json` 不声明未使用的第三方插件，客户端不存在对应的运行时加载代码。

@@ -7,14 +7,12 @@ const share = require('../../utils/share')
 const diagnostics = require('../../utils/diagnostics')
 const mapHelper = require('../../utils/map')
 const tabBar = require('../../utils/tab-bar')
-const playerUpdates = require('../../utils/player-updates')
 
 const DISTRICTS = ['全杭州', '西湖区', '拱墅区', '上城区', '滨江区', '余杭区', '萧山区']
 const BALL_AGES = ['不限球龄', '新手友好', '球龄 1 年以内', '球龄 2—5 年', '球龄 5 年以上']
 const MEDIA_BATCH_SIZE = 20
 const MATCH_PAGE_SIZE = 50
 const COACH_PAGE_SIZE = 30
-const UPDATE_PAGE_SIZE = 20
 const RECOVERABLE_ERRORS = new Set(['NETWORK_ERROR', 'REQUEST_TIMEOUT', 'SERVICE_UNAVAILABLE'])
 const SESSION_ERRORS = new Set(['BOOTSTRAP_REQUIRED', 'UNAUTHENTICATED', 'CONSENT_REQUIRED', 'CONSENT_VERSION_MISMATCH'])
 const ACCESS_ERRORS = new Set(['LOGIN_REQUIRED', ...SESSION_ERRORS, 'ACCOUNT_DELETED', 'ACCOUNT_SUSPENDED', 'FORBIDDEN'])
@@ -71,13 +69,10 @@ Page({
     venues: [],
     matches: [],
     coaches: [],
-    updates: [],
     matchesPage: 0,
     matchesHasMore: false,
     coachesPage: 0,
     coachesHasMore: false,
-    updatesPage: 0,
-    updatesHasMore: false,
     loadingMore: false,
     paginationError: ''
   },
@@ -96,9 +91,9 @@ Page({
     const dateOptions = dateUtil.dateTabs(7)
     const savedDate = preferences.date === undefined ? dateUtil.today() : preferences.date
     const selectedDate = dateOptions.some((item) => item.value === savedDate) ? savedDate : dateUtil.today()
-    const requestedMode = ['matches', 'coaches', 'updates'].includes(options.mode) ? options.mode : 'matches'
+    const requestedMode = ['matches', 'coaches'].includes(options.mode) ? options.mode : 'matches'
     const patch = {
-      // 普通冷启动默认找球局；分享链接可明确落到教练或动态内容。
+      // 普通冷启动默认找球局；旧动态分享链接回到找球局，不再加载公开动态。
       mode: requestedMode,
       districtIndex,
       districtLabel: districtIndex ? DISTRICTS[districtIndex] : '',
@@ -211,7 +206,7 @@ Page({
       const app = getApp()
       if (app && typeof app.restoreSessionAfterPrimary === 'function') app.restoreSessionAfterPrimary()
       if (manual && this.manualRefresh === manual) {
-        this.setData({ refreshNotice: this.data.mode === 'matches' ? '球局已更新' : this.data.mode === 'coaches' ? '教练列表已更新' : '动态已更新' })
+        this.setData({ refreshNotice: this.data.mode === 'matches' ? '球局已更新' : '教练列表已更新' })
       }
     }
     if (manual && this.manualRefresh === manual) this.finishManualRefresh(loaded)
@@ -230,7 +225,6 @@ Page({
     const append = options.append === true
     const startedAt = Date.now()
     const mode = this.data.mode
-    if (mode === 'updates') return this.loadUpdatesContent(options)
     const hasMore = mode === 'matches' ? this.data.matchesHasMore : this.data.coachesHasMore
     if (append && (this.data.state !== 'ready' || this.data.refreshing || this.data.loadingMore || !hasMore)) return false
 
@@ -487,63 +481,6 @@ Page({
     }
   },
 
-  async loadUpdatesContent(options = {}) {
-    const startedAt = Date.now()
-    const append = options.append === true
-    if (append && (this.data.state !== 'ready' || this.data.refreshing || this.data.loadingMore || !this.data.updatesHasMore)) return false
-    if (this.manualRefresh && this.manualRefresh !== options.manual) this.finishManualRefresh(false)
-    clearTimeout(this.slowLoadingTimer)
-    const requestSequence = Number(this.contentRequestSequence || 0) + 1
-    this.contentRequestSequence = requestSequence
-    const page = append ? this.data.updatesPage + 1 : 1
-    const showSkeleton = !append && (options.showSkeleton === true || this.data.state !== 'ready')
-    if (append) this.setData({ loadingMore: true, paginationError: '' })
-    else {
-      this.setData({ primaryLoading: true, loadingSlow: false, loadingStage: 'session', refreshError: '', refreshNotice: '', loginRequired: false })
-      this.setData(showSkeleton
-        ? { state: 'loading', refreshing: false, loadingMore: false, paginationError: '', errorMessage: '' }
-        : { refreshing: true, loadingMore: false, paginationError: '', errorMessage: '' })
-      this.slowLoadingTimer = setTimeout(() => {
-        if (requestSequence === this.contentRequestSequence && this.visible !== false && this.data.primaryLoading) this.setData({ loadingSlow: true })
-      }, 3500)
-    }
-    try {
-      if (options.fresh && api.invalidateReads) api.invalidateReads()
-      const session = await getApp().ensureSession({ interactive: false })
-      if (requestSequence !== this.contentRequestSequence) return false
-      this.setData({ loggedIn: Boolean(session), loadingStage: 'list' })
-      const result = await api.friendUpdates.list({ page, pageSize: UPDATE_PAGE_SIZE })
-      const rawItems = result.items || []
-      const avatarIds = rawItems.map(item => item.author && item.author.avatarFileId).filter(Boolean)
-      const urls = await resolveMediaUrls(avatarIds)
-      if (requestSequence !== this.contentRequestSequence) return false
-      const incoming = rawItems.map(item => playerUpdates.presentUpdate(item, urls[item.author && item.author.avatarFileId] || ''))
-      this.setData({ state: 'ready', refreshing: false, loadingMore: false, paginationError: '', errorMessage: '', loginRequired: false,
-        updates: append ? mergeById(this.data.updates, incoming) : incoming,
-        updatesPage: Number(result.page || page), updatesHasMore: result.hasMore === true })
-      diagnostics.record({ action: 'page.home.updates.ready', durationMs: Date.now() - startedAt })
-      this.finishPrimaryLoad(requestSequence, options.manual, true)
-      return true
-    } catch (error) {
-      if (requestSequence !== this.contentRequestSequence) return false
-      this.retryOnReconnect = RECOVERABLE_ERRORS.has(error.code)
-      const app = getApp()
-      if (SESSION_ERRORS.has(error.code) && app.clearSession) app.clearSession()
-      this.finishPrimaryLoad(requestSequence, options.manual, false)
-      if (append) {
-        this.setData({ loadingMore: false, paginationError: errors.message(error, '更多动态加载失败') })
-        return false
-      }
-      const loginRequired = ACCESS_ERRORS.has(error.code)
-      if (!showSkeleton && this.data.state === 'ready' && !loginRequired) {
-        this.setData({ refreshing: false, refreshError: `未能更新，当前显示上次结果。${errors.message(error)}` })
-      } else {
-        this.setData({ state: 'error', refreshing: false, errorMessage: loginRequired ? '登录后可浏览、发布并回复球友动态。' : errors.message(error), loginRequired })
-      }
-      return false
-    }
-  },
-
   loadMore() {
     return this.loadContent({ append: true })
   },
@@ -559,7 +496,7 @@ Page({
 
   switchMode(event) {
     const mode = event.currentTarget.dataset.mode
-    if (!['matches', 'coaches', 'updates'].includes(mode)) return
+    if (!['matches', 'coaches'].includes(mode)) return
     if (mode === this.data.mode) return
     this.setData({ mode }, () => {
       this.savePreferences()
@@ -786,39 +723,7 @@ Page({
   },
 
   openPrimaryAction(event) {
-    if (this.data.mode === 'updates') return this.openUpdateComposer()
     return this.openPublish(event)
-  },
-
-  openUpdateComposer() {
-    wx.navigateTo({ url: '/pages/friends/friends?composer=1&from=home' })
-  },
-
-  openUpdateDetail(event) {
-    const id = event.currentTarget.dataset.id
-    if (id) wx.navigateTo({ url: `/pages/update-detail/update-detail?id=${encodeURIComponent(id)}` })
-  },
-
-  openUpdate(event) {
-    const id = event.currentTarget.dataset.id
-    if (id) wx.navigateTo({ url: `/pages/update-detail/update-detail?id=${encodeURIComponent(id)}&reply=1` })
-  },
-
-  openUpdatePlayer(event) {
-    const id = event.currentTarget.dataset.id
-    if (id) wx.navigateTo({ url: `/pages/player-detail/player-detail?id=${encodeURIComponent(id)}` })
-  },
-
-  useUpdate(event) {
-    const item = this.data.updates.find(update => update.id === event.currentTarget.dataset.id)
-    if (!item || item.kind !== 'availability') return
-    const prepared = clientState.setPublishPrefill({ source: 'player-update', district: item.district,
-      availabilityText: item.availabilityText, timeNote: item.timeNote, venueName: item.venueName })
-    if (!prepared) {
-      wx.showToast({ title: '暂时无法准备发布内容，请稍后重试', icon: 'none' })
-      return
-    }
-    wx.switchTab({ url: '/pages/publish/publish' })
   },
 
   openPublish(event = {}) {
@@ -846,14 +751,14 @@ Page({
   onShareAppMessage() {
     const path = this.data.mode === 'matches' ? '/pages/home/home' : `/pages/home/home?mode=${this.data.mode}`
     return share.appMessage({
-      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜来一拍' : this.data.mode === 'updates' ? '杭州球友动态｜来一拍' : '杭州乒乓球约球｜来一拍',
+      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜来一拍' : '杭州乒乓球约球｜来一拍',
       path
     })
   },
 
   onShareTimeline() {
     return share.timeline({
-      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜来一拍' : this.data.mode === 'updates' ? '杭州球友动态｜来一拍' : '杭州乒乓球约球｜来一拍',
+      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜来一拍' : '杭州乒乓球约球｜来一拍',
       params: this.data.mode === 'matches' ? undefined : { mode: this.data.mode }
     })
   }

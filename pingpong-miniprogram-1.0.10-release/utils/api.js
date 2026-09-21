@@ -65,16 +65,6 @@ module.exports = {
   },
   players: { get: action('players.get') },
   friends: { list: action('friends.list') },
-  friendUpdates: {
-    list: action('friendUpdates.list'),
-    get: action('friendUpdates.get'),
-    publish: action('friendUpdates.publish'),
-    remove: action('friendUpdates.remove')
-  },
-  updateComments: {
-    list: action('updateComments.list'),
-    send: action('updateComments.send')
-  },
   messages: {
     list: action('messages.list'),
     send: action('messages.send'),
