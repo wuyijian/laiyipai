@@ -140,12 +140,38 @@ async function send(context, payload) {
 
 async function inbox(context, payload) {
   const pageSize = validate.integer(payload.pageSize === undefined ? 5 : payload.pageSize, '每页数量', { min: 1, max: 10 })
-  const result = await context.db.collection(COLLECTIONS.messageInboxes)
-    .where({ userId: context.openid, unread: true })
-    .orderBy('updatedAt', 'desc')
-    .limit(INBOX_BATCH_SIZE)
-    .get()
-  const records = result.data || []
+  const collection = context.db.collection(COLLECTIONS.messageInboxes)
+  let result
+  let filterUnreadInMemory = false
+  try {
+    result = await collection
+      .where({ userId: context.openid, unread: true })
+      .orderBy('updatedAt', 'desc')
+      .limit(INBOX_BATCH_SIZE)
+      .get()
+  } catch (error) {
+    const reason = String(error && (error.errMsg || error.message) || error)
+    if (!/index|索引|-502005|query.+require/i.test(reason)) throw error
+    // Some production environments were created before the
+    // user_unread_updated composite index was added. Keep reminders working
+    // while that index is being built; equality-only reads are bounded and
+    // sorted in memory.
+    console.warn('MESSAGE_INBOX_INDEX_FALLBACK', context.requestId, reason.slice(0, 160))
+    try {
+      result = await collection
+        .where({ userId: context.openid, unread: true })
+        .limit(INBOX_BATCH_SIZE)
+        .get()
+    } catch (fallbackError) {
+      const fallbackReason = String(fallbackError && (fallbackError.errMsg || fallbackError.message) || fallbackError)
+      if (!/index|索引|-502005|query.+require/i.test(fallbackReason)) throw fallbackError
+      result = await collection.where({ userId: context.openid }).limit(INBOX_BATCH_SIZE).get()
+      filterUnreadInMemory = true
+    }
+  }
+  const records = (result.data || []).filter((item) => !filterUnreadInMemory || item.unread === true).sort((left, right) => (
+    new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime()
+  ))
   if (!records.length) return { items: [], unreadCount: 0, hasMore: false, recoveryPending: false }
 
   const classified = await classifyInboxRecords(context, records)

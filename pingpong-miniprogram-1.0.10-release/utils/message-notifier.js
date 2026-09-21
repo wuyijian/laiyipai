@@ -135,13 +135,18 @@ async function poll(token = generation) {
   }
 }
 
-function start() {
-  if (!sessionReady()) return false
-  if (running) return true
+function start(options = {}) {
+  const ready = sessionReady()
+  if (running) {
+    // Login restoration may finish after the notifier has entered its idle
+    // cycle. Wake it immediately instead of waiting up to 15 seconds.
+    if (ready && options.immediate === true) schedule(0)
+    return ready
+  }
   running = true
   generation += 1
-  schedule(1200)
-  return true
+  schedule(ready && options.immediate === true ? 0 : 1200)
+  return ready
 }
 
 function stop() {

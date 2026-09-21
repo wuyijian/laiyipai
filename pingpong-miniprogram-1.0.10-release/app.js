@@ -8,19 +8,49 @@ function loginError(code, message) { return Object.assign(new Error(message), { 
 App({
   globalData: {
     city: '杭州', session: null, sessionPromise: null, sessionGeneration: 0,
-    loginVisible: false, loginPrompted: false
+    loginVisible: false, loginPrompted: false, visible: false
   },
 
   onLaunch() {
-    // No cloud identity request until the user has opted into WeChat login.
+    // A returning user has already opted into WeChat login. Restore that
+    // session after the first paint so message reminders work after a cold
+    // start without delaying the public home feed.
+    this.scheduleSessionRestore()
   },
 
   onShow() {
-    if (this.globalData.session) messageNotifier.start()
+    this.globalData.visible = true
+    messageNotifier.start({ immediate: Boolean(this.globalData.session) })
+    if (!this.globalData.session) this.scheduleSessionRestore()
   },
 
   onHide() {
+    this.globalData.visible = false
     messageNotifier.stop()
+  },
+
+  scheduleSessionRestore(delay = 600) {
+    if (!loginConsent.accepted() || this.globalData.session || this.globalData.sessionPromise || this.sessionRestoreTimer) return false
+    this.sessionRestoreTimer = setTimeout(() => {
+      this.sessionRestoreTimer = null
+      this.restoreSession()
+    }, delay)
+    return true
+  },
+
+  async restoreSession() {
+    if (!loginConsent.accepted()) return null
+    if (this.globalData.session) return this.globalData.session
+    try {
+      // The stored preference is scoped to this AppID and privacy/terms
+      // version. It is only a signal to attempt a trusted cloud bootstrap;
+      // the server still validates OPENID, account state and consent.
+      return await this.authenticateWechat({ skipPrivacy: true })
+    } catch (_) {
+      // A passive restore must never block public browsing or show a login
+      // error. The next explicit action/onShow can retry.
+      return null
+    }
   },
 
   async ensureSession(options = {}) {
@@ -69,7 +99,7 @@ App({
       if (!session || !session.profile || !session.profile.playerId) throw loginError('INVALID_SERVER_RESPONSE', '未能确认微信登录，请重试')
       this.globalData.session = session
       loginConsent.remember()
-      messageNotifier.start()
+      if (this.globalData.visible !== false) messageNotifier.start({ immediate: true })
       return session
     })()
     this.globalData.sessionPromise = pending
@@ -87,6 +117,8 @@ App({
   },
 
   clearSession() {
+    if (this.sessionRestoreTimer && typeof clearTimeout === 'function') clearTimeout(this.sessionRestoreTimer)
+    this.sessionRestoreTimer = null
     messageNotifier.reset()
     this.globalData.sessionGeneration = Number(this.globalData.sessionGeneration || 0) + 1
     if (api.invalidateReads) api.invalidateReads()

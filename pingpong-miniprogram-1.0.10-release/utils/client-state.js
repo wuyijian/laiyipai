@@ -19,9 +19,12 @@ function consumeHomeDestination() {
 
 const KEYS = Object.freeze({
   homeFilters: 'laiyipai_ui_home_filters_v1',
+  homeSnapshot: 'laiyipai_ui_home_snapshot_v1',
   publishDraft: 'laiyipai_ui_publish_draft_v2',
   publishPrefill: 'laiyipai_ui_publish_prefill_v2'
 })
+
+const HOME_SNAPSHOT_MAX_AGE_MS = 30 * 60 * 1000
 
 function readObject(key, fallback = {}) {
   const value = storage.read(key, fallback)
@@ -34,6 +37,35 @@ function getHomeFilters() {
 
 function saveHomeFilters(filters) {
   return storage.write(KEYS.homeFilters, Object.assign({}, filters))
+}
+
+function homeSnapshotSignature(filters = {}) {
+  return JSON.stringify([
+    String(filters.district || ''),
+    String(filters.date || ''),
+    String(filters.ballAge || ''),
+    Boolean(filters.friendsOnly)
+  ])
+}
+
+function getHomeSnapshot(filters = {}, now = Date.now()) {
+  const value = readObject(KEYS.homeSnapshot, null)
+  if (!value || value.signature !== homeSnapshotSignature(filters)) return null
+  const savedAt = Number(value.savedAt || 0)
+  if (!savedAt || now - savedAt > HOME_SNAPSHOT_MAX_AGE_MS || now < savedAt) return null
+  if (!Array.isArray(value.matches) || !Array.isArray(value.venues)) return null
+  return value
+}
+
+function saveHomeSnapshot(filters = {}, snapshot = {}) {
+  const clean = {
+    signature: homeSnapshotSignature(filters),
+    savedAt: Date.now(),
+    matches: Array.isArray(snapshot.matches) ? snapshot.matches.slice(0, 50) : [],
+    venues: Array.isArray(snapshot.venues) ? snapshot.venues.slice(0, 30).map((item) => Object.assign({}, item, { coverUrl: '' })) : [],
+    matchesHasMore: snapshot.matchesHasMore === true
+  }
+  return storage.write(KEYS.homeSnapshot, clean)
 }
 
 function getPublishDraft() {
@@ -102,6 +134,8 @@ module.exports = {
   consumeHomeDestination,
   getHomeFilters,
   saveHomeFilters,
+  getHomeSnapshot,
+  saveHomeSnapshot,
   getPublishDraft,
   hasPublishDraft,
   savePublishDraft,

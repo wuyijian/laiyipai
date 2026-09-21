@@ -97,7 +97,7 @@ Page({
     const savedDate = preferences.date === undefined ? dateUtil.today() : preferences.date
     const selectedDate = dateOptions.some((item) => item.value === savedDate) ? savedDate : dateUtil.today()
     const requestedMode = ['matches', 'coaches', 'updates'].includes(options.mode) ? options.mode : 'matches'
-    this.setData({
+    const patch = {
       // 普通冷启动默认找球局；分享链接可明确落到教练或动态内容。
       mode: requestedMode,
       districtIndex,
@@ -105,7 +105,24 @@ Page({
       dateOptions,
       selectedDate,
       ballAgeIndex
-    })
+    }
+    if (requestedMode === 'matches') {
+      const snapshot = clientState.getHomeSnapshot({
+        district: districtIndex ? DISTRICTS[districtIndex] : '',
+        date: selectedDate,
+        ballAge: ballAgeIndex ? BALL_AGES[ballAgeIndex] : '',
+        friendsOnly: false
+      })
+      if (snapshot) Object.assign(patch, {
+        state: 'ready',
+        matches: snapshot.matches,
+        venues: snapshot.venues,
+        matchesPage: 1,
+        matchesHasMore: snapshot.matchesHasMore === true,
+        venuesLoading: false
+      })
+    }
+    this.setData(patch)
   },
 
   onShow() {
@@ -394,6 +411,19 @@ Page({
         patch.coachesHasMore = coachResult.hasMore === true
       }
       this.setData(patch)
+
+      if (mode === 'matches' && !this.data.friendsOnly && !append && !venueResult.loadFailed) {
+        clientState.saveHomeSnapshot({
+          district,
+          date: selectedDate,
+          ballAge: ballAgeIndex ? BALL_AGES[ballAgeIndex] : '',
+          friendsOnly: false
+        }, {
+          matches,
+          venues: displayedVenues,
+          matchesHasMore: matchResult.hasMore === true
+        })
+      }
 
       const mediaIds = []
       if (!venueResult.reused) venueItems.forEach((item) => {
