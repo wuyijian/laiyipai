@@ -180,7 +180,6 @@ Page({
     tabBar.sync(this, 'pages/profile/profile')
     this.active = true
     messageNotifier.start()
-    messageNotifier.poll()
     const resumingInFlightLoad = Boolean(this.loading)
     const task = this.loadProfile()
     if (resumingInFlightLoad) this.loadVenueSubmissions()
@@ -234,17 +233,19 @@ Page({
         let session
         let rawProfile
         if (hasCachedSession) {
-          // Refresh server-derived capabilities whenever the account page is
-          // shown. Role grants and revocations must not wait for WeChat to
-          // destroy the whole mini-program process. Run the profile read in
-          // parallel so this check does not add another serial round trip.
-          ;[session, rawProfile] = await Promise.all([
-            app.ensureSession({ refresh: true }),
-            api.profile.get()
-          ])
+          // A cold start already validated the signed-in session. Do not run
+          // another bootstrap in parallel with the profile read: on the
+          // experience build that doubled cloud-function cold starts and made
+          // both the home and account pages time out together.
+          session = app.globalData.session
+          rawProfile = await api.profile.get()
         } else {
           session = await app.ensureSession()
-          rawProfile = await api.profile.get()
+          // bootstrap returns the same public profile shape as profile.get;
+          // avoid a second serial cloud call on first entry.
+          rawProfile = session && session.profile && session.profile.playerId
+            ? session.profile
+            : await api.profile.get()
         }
         const previousProfile = this.data.profile
         const profile = formatProfile(rawProfile, previousProfile)
@@ -263,7 +264,6 @@ Page({
           profile
         })
         messageNotifier.start()
-        messageNotifier.poll()
 
         await Promise.all([
           this.loadAvatarDetails(rawProfile),

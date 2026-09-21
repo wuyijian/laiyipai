@@ -29,7 +29,7 @@ App({
     messageNotifier.stop()
   },
 
-  scheduleSessionRestore(delay = 600) {
+  scheduleSessionRestore(delay = 5000) {
     if (!loginConsent.accepted() || this.globalData.session || this.globalData.sessionPromise || this.sessionRestoreTimer) return false
     this.sessionRestoreTimer = setTimeout(() => {
       this.sessionRestoreTimer = null

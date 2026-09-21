@@ -2519,7 +2519,7 @@ test('个人资料先展示基础资料，不等待标记球馆接口', async ()
   assert.strictEqual(profile.data.venuesState, 'ready')
 })
 
-test('我的页面每次显示都会刷新服务端管理员能力', async () => {
+test('我的页面复用已验证会话，避免与资料请求重复冷启动', async () => {
   resetRuntime()
   let sessionOptions = null
   activeApp.ensureSession = async (options) => {
@@ -2532,13 +2532,18 @@ test('我的页面每次显示都会刷新服务端管理员能力', async () =>
     activeApp.globalData.session = session
     return session
   }
+  activeApp.globalData.session = {
+    profile: { playerId: 'player-admin' },
+    policies: {},
+    capabilities: { adminVenueReview: true, adminCoachReview: true }
+  }
   installApi({
     profile: { get: async () => profileFixture() },
     favorites: { list: async () => ({ items: [], page: 1, pageSize: 20, total: 0, hasMore: false }) }
   })
   const profile = loadPage('pages/profile/profile.js')
   await profile.loadProfile()
-  assert.deepStrictEqual(sessionOptions, { refresh: true })
+  assert.strictEqual(sessionOptions, null)
   assert.strictEqual(profile.data.isAdmin, true)
   assert.strictEqual(profile.data.canReviewCoaches, true)
 })
