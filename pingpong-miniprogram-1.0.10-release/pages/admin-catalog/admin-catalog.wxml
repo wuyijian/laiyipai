@@ -48,7 +48,7 @@
             <view class="catalog-name-row"><text class="catalog-name">{{item.name}}</text><text class="catalog-status {{item.active ? 'active' : ''}}">{{item.statusLabel}}</text></view>
             <text class="catalog-meta">{{item.subtitle}}</text>
           </view>
-          <button wx:if="{{type === 'venues'}}" class="edit-action" data-id="{{item.id}}" bindtap="openVenueEditor" disabled="{{removingId}}" aria-label="编辑{{item.name}}">编辑</button>
+          <button wx:if="{{type === 'venues'}}" class="edit-action" data-id="{{item.id}}" bindtap="openVenueEditor" disabled="{{removingId}}" aria-label="编辑并认证{{item.name}}">资料认证</button>
           <button class="delete-action" data-id="{{item.id}}" bindtap="requestRemove" loading="{{removingId === item.id}}" disabled="{{removingId}}" aria-label="删除{{item.name}}">删除</button>
         </view>
       </view>
@@ -65,20 +65,22 @@
   <view wx:if="{{editorVisible}}" class="sheet-mask" catchtap="closeVenueEditor">
     <view class="sheet venue-editor" catchtap="noop" role="dialog" aria-modal="true" aria-label="编辑球馆资料">
       <view class="sheet-handle"></view>
-      <view class="editor-head"><view><view class="sheet-title">编辑球馆</view><view class="sheet-copy">位置会用于球馆详情和地图导航。</view></view><button class="editor-close" bindtap="closeVenueEditor" disabled="{{saving}}">×</button></view>
+      <view class="editor-head"><view><view class="sheet-title">球馆资料与认证</view><view class="sheet-copy">核对名称和地址后认证，不代表已预订球台。</view></view><button class="editor-close" bindtap="closeVenueEditor" disabled="{{saving}}">×</button></view>
       <scroll-view class="editor-scroll" scroll-y="true">
-        <view class="editor-field"><text>名称</text><input value="{{editForm.name}}" maxlength="40" data-field="name" bindinput="changeEditField" /></view>
-        <view class="editor-field"><text>区域</text><picker mode="selector" range="{{districts}}" value="{{editDistrictIndex}}" bindchange="changeEditDistrict"><view class="editor-control"><text>{{districts[editDistrictIndex]}}</text><text>›</text></view></picker></view>
+        <view class="editor-field"><text>名称</text><input value="{{editForm.name}}" maxlength="60" data-field="name" bindinput="changeEditField" /></view>
+        <view class="editor-field"><text>区域</text><picker mode="selector" range="{{editDistricts}}" value="{{editDistrictIndex}}" bindchange="changeEditDistrict"><view class="editor-control"><text>{{editDistricts[editDistrictIndex]}}</text><text>›</text></view></picker></view>
         <view class="editor-field"><text>详细地址</text><input value="{{editForm.address}}" maxlength="120" data-field="address" bindinput="changeEditField" placeholder="道路、门牌号或商场楼层" /></view>
-        <view class="coordinate-row"><view class="editor-field"><text>经度</text><input type="digit" value="{{editForm.longitude}}" data-field="longitude" bindinput="changeEditField" placeholder="120.000000" /></view><view class="editor-field"><text>纬度</text><input type="digit" value="{{editForm.latitude}}" data-field="latitude" bindinput="changeEditField" placeholder="30.000000" /></view></view>
-        <view class="editor-help">经纬度可从腾讯地图地点详情复制；保存后“导航”会使用这里的位置。</view>
         <view class="editor-field"><text>认证与上架状态</text><picker mode="selector" range="{{verificationOptions}}" range-key="label" value="{{verificationIndex}}" bindchange="changeVerification"><view class="editor-control"><text>{{verificationOptions[verificationIndex].label}}</text><text>›</text></view></picker></view>
-        <block wx:if="{{verificationOptions[verificationIndex].status === 'verified'}}">
-          <view class="editor-field"><text>核验日期</text><picker mode="date" value="{{editForm.verificationDate}}" bindchange="changeEditField" data-field="verificationDate"><view class="editor-control"><text>{{editForm.verificationDate || '选择日期'}}</text><text>›</text></view></picker></view>
-          <view class="editor-field"><text>资料来源</text><input value="{{editForm.sourceUrl}}" data-field="sourceUrl" bindinput="changeEditField" placeholder="https:// 开头的核验页面" /></view>
+        <view class="editor-help">公开可用与认证分开管理。未认证球馆仍可约球；认证操作会记录管理员和时间。</view>
+        <button class="editor-more" bindtap="toggleEditMore" disabled="{{saving}}">{{editMore ? '收起选填资料' : '更多资料（选填）'}} {{editMore ? '⌃' : '⌄'}}</button>
+        <block wx:if="{{editMore}}">
+          <view class="coordinate-row"><view class="editor-field"><text>经度 · 选填</text><input type="digit" value="{{editForm.longitude}}" data-field="longitude" bindinput="changeEditField" placeholder="留空即可" /></view><view class="editor-field"><text>纬度 · 选填</text><input type="digit" value="{{editForm.latitude}}" data-field="latitude" bindinput="changeEditField" placeholder="留空即可" /></view></view>
+          <view class="editor-help">仅填写地址也可认证，不需要定位；如填写经纬度，请确认与地址一致。</view>
+          <view wx:if="{{verificationOptions[verificationIndex].certified}}" class="editor-field"><text>核验日期 · 选填</text><picker mode="date" value="{{editForm.verificationDate}}" bindchange="changeEditField" data-field="verificationDate"><view class="editor-control"><text>{{editForm.verificationDate || '保存时自动记录今天'}}</text><text>›</text></view></picker></view>
+          <view class="editor-field"><text>资料来源 · 选填</text><input value="{{editForm.sourceUrl}}" data-field="sourceUrl" bindinput="changeEditField" placeholder="可留空，或填写 https:// 链接" /></view>
         </block>
         <view wx:if="{{saveError}}" class="editor-error">{{saveError}}</view>
-        <button class="primary-button editor-save" bindtap="saveVenue" loading="{{saving}}" disabled="{{saving}}">保存球馆资料</button>
+        <button class="primary-button editor-save" bindtap="saveVenue" loading="{{saving}}" disabled="{{saving}}">{{verificationOptions[verificationIndex].certified ? '保存并确认认证' : '保存球馆资料'}}</button>
         <view class="editor-bottom"></view>
       </scroll-view>
     </view>

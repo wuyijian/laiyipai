@@ -18,11 +18,16 @@
         <view class="hero-actions"><button wx:if="{{match.canEdit}}" class="share-button" bindtap="editMatch" hover-class="soft-press">编辑</button><button wx:if="{{match.shareable}}" class="share-button" open-type="share" hover-class="soft-press">邀请球友<text class="share-arrow">↗</text></button></view>
       </view>
       <view class="detail-title">{{match.title}}</view>
-      <view class="intent-tags"><text>{{match.practiceIntentLabel}}</text><text>{{match.expectedBallAge}}</text></view>
+      <view class="intent-tags"><text wx:if="{{match.district}}">{{match.district}}</text><text>{{match.practiceIntentLabel}}</text><text>{{match.expectedBallAge}}</text></view>
       <view class="schedule-block">
         <view class="schedule-date">{{match.dateLabel}}</view>
         <view class="schedule-time"><text>{{match.startTime}}</text><text class="time-dash">—</text><text>{{match.endTime}}</text></view>
         <view wx:if="{{match.durationLabel}}" class="schedule-duration">一起打 {{match.durationLabel}}</view>
+      </view>
+      <view class="arrangement-glance">
+        <view class="glance-venue">{{match.venueName}}</view>
+        <view class="glance-address">{{match.address || '地址未填写，参加前请与发起人确认'}}</view>
+        <view class="glance-facts"><text>{{match.feeText}}{{match.feePerPerson > 0 ? '/人' : ''}}</text><text>{{match.courtStatusText}}</text></view>
       </view>
     </view>
 
@@ -31,6 +36,7 @@
       <view class="membership-copy">{{match.statusCopy}}</view>
       <view wx:if="{{match.hasReservation}}" class="membership-actions">
         <button bindtap="goOrders" hover-class="soft-press">{{match.isHost && match.capacity > 1 ? '查看加入申请' : match.isHost ? '预约与管理' : '查看预约 / 取消'}}<text>›</text></button>
+        <button wx:if="{{match.isHost || membership.status === 'joined'}}" bindtap="copyArrangement" hover-class="soft-press">复制安排</button>
       </view>
     </view>
 
@@ -40,7 +46,7 @@
         <view class="communication-title">球局沟通</view>
         <view class="communication-caption">确认球台、集合位置和时间</view>
       </view>
-      <view class="communication-action">打开对话 <text>›</text></view>
+      <view class="communication-action"><text wx:if="{{messageUnreadCount}}" class="conversation-unread">{{messageUnreadCount}}</text>打开对话 <text>›</text></view>
     </button>
 
     <view class="detail-section venue-section">
@@ -117,13 +123,14 @@
       <view class="summary-date">{{match.dateLabel}}</view>
       <view class="summary-time">{{match.startTime}} — {{match.endTime}}</view>
       <view class="summary-venue">{{match.venueName}}</view>
+      <view class="summary-address">{{match.address || '地址未填写，参加前请与发起人确认'}}</view>
       <view class="summary-facts"><text>{{match.participantCount}} / {{match.capacity}} 人</text><text>{{match.seats > 0 ? match.joinModeText : '候补申请'}}</text></view>
       <view class="summary-footer"><text>{{match.courtStatusText}}</text><text>{{match.feeText}}</text></view>
     </view>
     <view class="join-court-notice">{{match.courtBookingNotice}}</view>
     <view wx:if="{{joinError}}" class="inline-error" aria-live="polite">{{joinError}}</view>
     <view class="submit-agreement"><text>提交即表示同意</text><button bindtap="openTerms">《用户协议》</button></view>
-    <button class="primary-button confirm-join" bindtap="confirmJoin" loading="{{submitting}}" disabled="{{submitting}}" hover-class="primary-press">{{match.joinSubmitText}}</button>
+    <button class="primary-button confirm-join" bindtap="confirmJoin" loading="{{submitting}}" disabled="{{submitting}}" hover-class="primary-press"><text wx:if="{{joinNeedsRefresh}}">重新核对安排</text><text wx:else>{{match.joinSubmitText}}</text></button>
     <button class="text-button sheet-back" bindtap="closeJoin" disabled="{{submitting}}">再看看</button>
   </view>
 </view>
@@ -134,12 +141,16 @@
     <view class="result-symbol {{resultToneClass}}">{{resultToneClass === 'success' ? '✓' : '…'}}</view>
     <view class="result-label">{{resultTone}}</view>
     <view class="sheet-title">{{resultTitle}}</view>
-    <view class="result-schedule">{{match.dateLabel}} · {{match.startTime}}</view>
+    <view class="result-schedule">{{match.dateLabel}} · {{match.startTime}}—{{match.endTime}}</view>
     <view class="result-venue">{{match.venueName}}</view>
+    <view class="summary-address">{{match.address || '地址未填写，参加前请与发起人确认'}}</view>
+    <view class="result-arrangement"><text>{{match.feeText}}{{match.feePerPerson > 0 ? '/人' : ''}}</text><text>{{match.courtStatusText}}</text></view>
     <view class="sheet-copy">{{resultCopy}}</view>
     <button wx:if="{{resultCanChat}}" class="primary-button confirm-join" bindtap="goChat" hover-class="primary-press">{{resultActionText}}</button>
     <button wx:else class="primary-button confirm-join" bindtap="goOrders" hover-class="primary-press">{{resultActionText}}</button>
+    <button wx:if="{{resultStatus === 'joined'}}" class="text-button" bindtap="copyArrangement">复制约球安排</button>
     <button class="text-button sheet-back" bindtap="closeResult">完成</button>
   </view>
 </view>
 </view>
+<canvas id="match-share-canvas" type="2d" class="match-share-canvas" aria-hidden="true"></canvas>

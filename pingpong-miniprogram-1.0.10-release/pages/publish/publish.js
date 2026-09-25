@@ -18,7 +18,7 @@ const CAPACITY_MAX = 8
 const VENUE_PAGE_SIZE = 50
 const VENUE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000
 const VENUE_SEARCH_CACHE_MAX_ENTRIES = 8
-const DRAFT_FIELDS = ['title', 'venueId', 'date', 'startTime', 'endTime', 'courtStatus', 'capacity', 'ballAgeIndex', 'practiceIntent', 'joinMode', 'feePerPerson', 'note', 'termsAccepted', 'rebookMode', 'rebookTimeConfirmed', 'rebookVenueUnavailable']
+const DRAFT_FIELDS = ['title', 'venueId', 'district', 'districtVenueId', 'date', 'startTime', 'endTime', 'courtStatus', 'capacity', 'ballAgeIndex', 'practiceIntent', 'joinMode', 'feePerPerson', 'note', 'termsAccepted', 'rebookMode', 'rebookTimeConfirmed', 'rebookVenueUnavailable']
 
 function isOutcomeUnknown(error) {
   return Boolean(error && error.details && error.details.outcomeUnknown) ||
@@ -101,6 +101,9 @@ function rebookDraft(prefill) {
     dateLabel: dateUtil.displayDate(schedule.date),
     publishedMatch: null,
     title: typeof prefill.title === 'string' ? prefill.title.slice(0, 30) : '',
+    district: matchOptions.districtValue(prefill.district),
+    districtVenueId: prefill.venueId || '',
+    districtIndex: Math.max(0, matchOptions.DISTRICT_OPTIONS.indexOf(prefill.district)),
     venueId: typeof prefill.venueId === 'string' ? prefill.venueId : '',
     venueIndex: 0,
     selectedVenue: null,
@@ -112,7 +115,7 @@ function rebookDraft(prefill) {
     feePerPerson: Number.isInteger(fee) && fee > 0 ? String(Math.min(999, fee)) : '',
     note: '',
     noteLength: 0,
-    showMoreOptions: Boolean(prefill.title || fee > 0),
+    showMoreOptions: Boolean(fee > 0),
     termsAccepted: false,
     submitError: '',
     submitting: false,
@@ -150,6 +153,10 @@ Page({
     endTime: '',
     courtStatus: 'unbooked',
     title: '',
+    district: '',
+    districtVenueId: '',
+    districtIndex: 0,
+    districtOptions: matchOptions.DISTRICT_OPTIONS,
     capacityMin: CAPACITY_MIN,
     capacityMax: CAPACITY_MAX,
     capacity: matchOptions.DEFAULT_CAPACITY,
@@ -181,6 +188,8 @@ Page({
     const storedAttempt = rawAttempt && rawAttempt.requestId && rawAttempt.payload ? rawAttempt : null
     delete draft.publishAttempt
     draft.title = String(draft.title || '').slice(0, 30)
+    draft.district = matchOptions.districtValue(draft.district)
+    draft.districtIndex = Math.max(0, matchOptions.DISTRICT_OPTIONS.indexOf(draft.district))
     draft.note = String(draft.note || '').slice(0, 200)
     draft.noteLength = draft.note.length
     this.publishAttempt = draft.publishOutcomeUnknown && storedAttempt ? storedAttempt : null
@@ -209,7 +218,7 @@ Page({
           ? '上次的球馆当前不可选择，请换一家球馆，并确认本次时间。'
           : '已复用上次的球馆和练习设置。请确认本次时间；球台状态已重置。'
         : '',
-      showMoreOptions: Boolean(draft.showMoreOptions || draft.title || draft.note || Number(draft.feePerPerson) > 0)
+      showMoreOptions: Boolean(draft.showMoreOptions || draft.note || Number(draft.feePerPerson) > 0)
     }))
     if (prefill) this.applyPrefill(prefill)
     this.loadVenues()
@@ -618,6 +627,20 @@ Page({
   },
   changeEndTime(event) { this.commitScheduleChange({ endTime: event.detail.value }) },
 
+  selectDuration(event) {
+    if (this.data.submitting || this.data.publishOutcomeUnknown) return
+    const duration = Number(event.currentTarget.dataset.minutes)
+    if (![60, 90, 120].includes(duration)) return
+    const [hour, minute] = String(this.data.startTime).split(':').map(Number)
+    const end = hour * 60 + minute + duration
+    if (!Number.isFinite(end) || end >= 24 * 60) {
+      wx.showToast({ title: '这个时长会跨天，请调整开始时间', icon: 'none' })
+      return
+    }
+    const endTime = `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`
+    if (endTime !== this.data.endTime) this.commitScheduleChange({ endTime })
+  },
+
   changeField(event) {
     const field = event.currentTarget.dataset.field
     const value = event.detail.value
@@ -696,6 +719,14 @@ Page({
   },
 
   persistDraft() {
+    // A manually selected district belongs to one venue, not to the next venue.
+    const knownDistrict = this.data.selectedVenue && this.data.selectedVenue.district
+    const district = matchOptions.districtValue(knownDistrict ||
+      (this.data.districtVenueId === this.data.venueId ? this.data.district : ''))
+    const districtIndex = Math.max(0, matchOptions.DISTRICT_OPTIONS.indexOf(district))
+    if (district !== this.data.district || districtIndex !== this.data.districtIndex || this.data.districtVenueId !== this.data.venueId) {
+      this.setData({ district, districtVenueId: this.data.venueId, districtIndex })
+    }
     const draft = {}
     DRAFT_FIELDS.forEach((field) => { draft[field] = this.data[field] })
     draft.termsVersion = cloudConfig.termsVersion
@@ -704,6 +735,13 @@ Page({
       ? this.publishAttempt
       : null
     clientState.savePublishDraft(draft)
+  },
+
+  changeDistrict(event) {
+    if (this.data.submitting || this.data.publishOutcomeUnknown || !this.data.venueId ||
+      this.data.selectedVenue && this.data.selectedVenue.district) return
+    const district = matchOptions.districtValue(matchOptions.DISTRICT_OPTIONS[Number(event.detail.value)])
+    this.setData({ district, districtVenueId: this.data.venueId }, () => this.changed())
   },
 
   validateSchedule() {
@@ -736,7 +774,8 @@ Page({
     const patch = Object.assign({ submitError: message }, extraPatch)
     if (message.includes('球馆')) selector = '#publish-venue'
     else if (message.includes('时间') || message.includes('小时') || message.includes('分钟')) selector = '#publish-schedule'
-    else if (message.includes('名称') || message.includes('费用')) {
+    else if (message.includes('名称')) selector = '#publish-title'
+    else if (message.includes('费用')) {
       selector = '#publish-more'
       patch.showMoreOptions = true
     } else if (message.includes('协议') || message.includes('隐私')) selector = '#publish-terms'
@@ -759,6 +798,7 @@ Page({
     this.setData({ submitting: true, submitError: '' })
     const payload = existingAttempt ? existingAttempt.payload : {
       venueId: this.data.venueId,
+      district: this.data.district,
       title: this.data.title.trim() || '轻松练一场',
       date: this.data.date,
       startTime: this.data.startTime,
@@ -836,6 +876,7 @@ Page({
     this.setData(Object.assign({}, schedule, {
       publishedMatch: null,
       title: '',
+      district: '', districtVenueId: '', districtIndex: 0,
       venueId: '',
       selectedVenue: null,
       venueIndex: 0,

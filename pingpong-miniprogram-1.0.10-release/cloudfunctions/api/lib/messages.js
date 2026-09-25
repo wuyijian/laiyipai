@@ -22,7 +22,8 @@ function recipientIds(match) {
 }
 
 async function updateInboxes(context, transaction, match, messageId) {
-  for (const userId of recipientIds(match)) {
+  // Distinct recipients can be updated concurrently in the same transaction.
+  await Promise.all(recipientIds(match).map(async (userId) => {
     const inboxRef = transaction.collection(COLLECTIONS.messageInboxes).doc(inboxId(match._id, userId))
     const current = await getDocument(inboxRef)
     const mine = userId === context.openid
@@ -36,7 +37,7 @@ async function updateInboxes(context, transaction, match, messageId) {
       createdAt: current && current.createdAt || context.serverDate(),
       updatedAt: context.serverDate()
     } })
-  }
+  }))
 }
 
 async function blockedUserIds(context, candidateUserIds) {
@@ -108,8 +109,10 @@ async function send(context, payload) {
   const messageId = stableId('match-message', context.openid, validate.id(context.requestId, '请求 ID'))
   let idempotent = false
   await context.db.runTransaction(async (transaction) => {
-    const match = await requireMatch(context, matchId, transaction)
-    const membership = await getMembership(context, matchId, context.openid, transaction)
+    const [match, membership] = await Promise.all([
+      requireMatch(context, matchId, transaction),
+      getMembership(context, matchId, context.openid, transaction)
+    ])
     assert(membership && ['host', 'joined'].includes(membership.status), 'FORBIDDEN', '仅当前球局成员可发送消息')
     assert(match.status !== 'cancelled', 'MATCH_CLOSED', '球局已取消，无法继续发送消息')
     assert(new Date(match.endAt).getTime() + 24 * 60 * 60 * 1000 > Date.now(), 'CHAT_CLOSED', '球局结束 24 小时后群聊已关闭')

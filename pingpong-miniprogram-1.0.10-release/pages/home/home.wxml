@@ -46,7 +46,9 @@
   <view wx:if="{{mode === 'matches'}}" class="match-tools">
     <view class="tool-heading">
       <text class="tool-title">哪天有空</text>
-      <text wx:if="{{refreshing}}" class="refresh-copy">正在更新</text>
+      <picker mode="date" value="{{selectedDate || minimumDate}}" start="{{minimumDate}}" bindchange="changeCustomDate" aria-label="选择约球日期">
+        <view class="calendar-filter {{customDateLabel ? 'active' : ''}}">{{customDateLabel || '选其他日期'}}<text>⌄</text></view>
+      </picker>
     </view>
     <scroll-view class="date-scroll" scroll-x="true" show-scrollbar="false" enhanced="true">
       <view class="date-track">
@@ -78,7 +80,7 @@
   </view>
 
   <view wx:elif="{{state === 'error'}}" class="status-panel home-status">
-    <view class="status-title">{{loginRequired ? '登录来一拍' : '暂时无法载入'}}</view>
+    <view class="status-title">{{loginRequired ? '登录搭拍子' : '暂时无法载入'}}</view>
     <view class="status-copy">{{errorMessage}}</view>
     <button class="status-action" bindtap="retry">{{loginRequired ? '微信登录' : '重新加载'}}</button>
     <button wx:if="{{friendsOnly && !loginRequired}}" class="empty-publish-link" bindtap="expandMatchSearch">查看全部球局</button>
@@ -90,7 +92,7 @@
         <view>
           <view class="section-title">{{friendsOnly ? '球友正在参与' : '开放球局'}}</view>
         </view>
-        <text wx:if="{{state === 'ready'}}" class="result-count match-result-count">{{matches.length ? matches.length + ' 场' : matchesHasMore ? '还有更多' : '0 场'}}</text>
+        <text wx:if="{{state === 'ready'}}" class="result-count match-result-count">{{refreshing ? '更新中' : matches.length ? matches.length + ' 场' + (matchesHasMore ? ' · 还有更多' : '') : matchesHasMore ? '还有更多' : '0 场'}}</text>
       </view>
 
       <view wx:if="{{matches.length}}" class="match-list">
@@ -118,6 +120,7 @@
             <text class="join-mode">{{item.joinModeText}}</text>
             <view class="match-commitment">
               <text class="match-fee">{{item.feeText}}</text>
+              <text class="match-next-step">{{item.soloPractice ? '查看练习' : item.full ? '查看候补' : item.joinMode === 'confirm' ? '查看并申请' : '查看并加入'}}</text>
               <text class="card-chevron">›</text>
             </view>
           </view>
@@ -169,7 +172,7 @@
                   <view wx:if="{{item.activityTags.length}}" class="venue-activity-tags">
                     <text wx:for="{{item.activityTags}}" wx:for-item="tag" wx:key="*this" class="venue-activity-tag">{{tag}}</text>
                   </view>
-                  <view wx:if="{{item.verified && !item.nameOnly}}" class="venue-verified">资料已核验</view>
+                  <view wx:if="{{item.verified && !item.nameOnly}}" class="venue-verified">管理员已认证</view>
                 </view>
                 <text class="venue-chevron">›</text>
               </view>

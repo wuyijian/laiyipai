@@ -25,7 +25,7 @@
     "venue-avatar": "/components/venue-avatar/venue-avatar"
   },
   "window": {
-    "navigationBarTitleText": "来一拍",
+    "navigationBarTitleText": "搭拍子",
     "navigationBarBackgroundColor": "#ffffff",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#ffffff",

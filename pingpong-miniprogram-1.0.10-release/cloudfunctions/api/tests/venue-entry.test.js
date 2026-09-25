@@ -149,8 +149,8 @@ async function run() {
   const db = database()
   const applicant = context(db)
   const submitted = await entry.create(applicant, payload({
-    city: '上海', address: '私人地址', location: { latitude: 1, longitude: 2 },
-    listingMode: 'full', active: true, verificationStatus: 'verified', status: 'approved', userId: 'forged'
+    city: '上海', address: '江南大道 88 号 2 楼', district: '滨江区', location: { latitude: 1, longitude: 2 },
+    listingMode: 'full', active: true, verificationStatus: 'verified', adminVerified: true, verifiedBy: 'forged', status: 'approved', userId: 'forged'
   }))
   assert.strictEqual(submitted.created, true)
   assert.strictEqual(submitted.venueCreated, true)
@@ -164,7 +164,14 @@ async function run() {
   assert.strictEqual(stored.status, 'approved')
   assert.strictEqual(stored.publicationMode, 'instant')
   assert.strictEqual(stored.venueId, submitted.venue.id)
-  assert.strictEqual(stored.address, undefined)
+  assert.strictEqual(stored.address, '江南大道 88 号 2 楼')
+  assert.strictEqual(submitted.venue.address, stored.address)
+  assert.strictEqual(submitted.venue.district, '滨江区')
+  assert.strictEqual(submitted.venue.listingMode, 'full')
+  assert.strictEqual(submitted.venue.verified, false)
+  assert.strictEqual(submitted.venue.location, null)
+  assert.strictEqual(db.stores.venues.get(submitted.venue.id).adminVerified, false)
+  assert.strictEqual(db.stores.venues.get(submitted.venue.id).verifiedBy, undefined)
   assert.strictEqual(stored.active, undefined)
   assert.strictEqual(stored.verificationStatus, undefined)
   assert.strictEqual(submitted.submission.userId, undefined)
@@ -176,10 +183,11 @@ async function run() {
     termsAccepted: true, termsVersion: terms.currentVersion()
   })
   assert.strictEqual(immediateMatch.match.venueId, submitted.venue.id)
+  assert.strictEqual(immediateMatch.match.venue.address, stored.address)
   console.log('PASS 普通用户录入后立即公开可用，且不能伪造目录字段')
 
   const invalidDB = database()
-  for (const patch of [{ name: '' }, { name: '球' }, { name: '馆'.repeat(61) }, { activityTags: ['广告'] }, { activityTags: '训练' }]) {
+  for (const patch of [{ name: '' }, { name: '球' }, { name: '馆'.repeat(61) }, { activityTags: ['广告'] }, { activityTags: '训练' }, { address: '街道' }, { address: '址'.repeat(121) }, { district: '错误区域' }]) {
     await rejectsCode(() => entry.create(context(invalidDB), payload(patch)), 'INVALID_ARGUMENT')
   }
   await rejectsCode(() => entry.create(context(invalidDB), payload({ confirmPublic: false })), 'PUBLIC_CONFIRMATION_REQUIRED')
@@ -189,6 +197,20 @@ async function run() {
   assert.strictEqual(invalidDB.stores.venue_submissions.size, 0)
   assert.strictEqual(invalidDB.stores.venues.size, 0)
   console.log('PASS 名称、标签、公开确认与内容安全校验')
+  const addressDB = database()
+  const moderated = []
+  const safeAddressContext = context(addressDB, 'address_player', {
+    cloud: { openapi: { security: { msgSecCheck: async ({ content }) => { moderated.push(content); return { result: { suggest: 'pass' } } } } } }
+  })
+  await entry.create(safeAddressContext, payload({ address: '滨江区长河路 123 号' }))
+  assert(moderated.some(text => text.includes('滨江区长河路 123 号')), '地址必须参与文本内容安全校验')
+  const legacyName = await entry.create(context(addressDB, 'legacy_name'), payload({ name: '仅名称测试馆' }))
+  assert.strictEqual(legacyName.venue.nameOnly, true)
+  assert.strictEqual(legacyName.venue.verified, false)
+  const reusedAddress = await entry.create(context(addressDB, 'another_player'), payload({ address: '不应覆盖的另一地址', adminVerified: true }))
+  assert.strictEqual(reusedAddress.venue.address, '滨江区长河路 123 号')
+  assert.strictEqual(reusedAddress.venue.verified, false)
+  console.log('PASS 地址随球馆和球局返回，文本检查必经；同名复用不覆盖地址，旧版名称录入兼容')
 
   const mine = await entry.listMine(applicant, { page: 1, pageSize: 20 })
   assert.strictEqual(mine.items.length, 1)

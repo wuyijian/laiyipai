@@ -1,4 +1,4 @@
-# 来一拍云数据库部署清单
+# 搭拍子云数据库部署清单
 
 ## 集合
 
@@ -51,6 +51,8 @@
 球局只允许真实用户通过 `matches.create` 创建，生产库不导入预制球局。
 
 ## 数据约束
+
+球馆地址与管理员认证：`venues` 新增可选 `adminVerified`、`verifiedBy`、`verifiedAt`；`venue_submissions` 记录选填 `address/district`。不新增集合或索引，也不批量改写历史数据。`verificationStatus:verified/active:true` 保留目录可用语义，是否显示认证由公开 `verified` 单独判断；用户新增球馆一律 `adminVerified:false`。认证入口为「我的 → 球馆与教练管理 → 资料认证」，完整地址必填，坐标与资料链接选填，日期可由服务端生成。细节以 `docs/VENUE_ENTRY.md` 的新流程为准。
 
 - 所有用户归属字段由服务端依据 `OPENID` 写入，不接受客户端的 `userId/openid/hostId`。
 - 新 `venue_submissions.status` 由服务端直接写为 `approved`；历史记录仍允许 `reviewing → approved/rejected`、`rejected → approved`，申请人注销时历史待审记录转为终态 `withdrawn`。客户端传入的 `status/active/verificationStatus` 均不入库。

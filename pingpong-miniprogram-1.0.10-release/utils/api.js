@@ -57,6 +57,7 @@ module.exports = {
   },
   profile: {
     get: action('profile.get'),
+    stats: action('profile.stats.get'),
     update: action('profile.update'),
     uploadAvatar: cloud.uploadAvatar,
     avatarStatus: action('profile.avatar.status'),

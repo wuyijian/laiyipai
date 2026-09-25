@@ -17,6 +17,15 @@ const RECOVERABLE_ERRORS = new Set(['NETWORK_ERROR', 'REQUEST_TIMEOUT', 'SERVICE
 const SESSION_ERRORS = new Set(['BOOTSTRAP_REQUIRED', 'UNAUTHENTICATED', 'CONSENT_REQUIRED', 'CONSENT_VERSION_MISMATCH'])
 const ACCESS_ERRORS = new Set(['LOGIN_REQUIRED', ...SESSION_ERRORS, 'ACCOUNT_DELETED', 'ACCOUNT_SUSPENDED', 'FORBIDDEN'])
 
+function dateSelection(value = '') {
+  const minimumDate = dateUtil.today()
+  const dateOptions = dateUtil.dateTabs(7)
+  const selectedDate = value === '' ? '' : dateUtil.dateTab(value) && value >= minimumDate ? value : minimumDate
+  const customDateLabel = selectedDate && !dateOptions.some((item) => item.value === selectedDate)
+    ? dateUtil.displayDate(selectedDate) : ''
+  return { dateOptions, selectedDate, minimumDate, customDateLabel }
+}
+
 function mergeById(current, incoming) {
   const merged = new Map()
   ;(current || []).concat(incoming || []).forEach((item) => {
@@ -60,6 +69,8 @@ Page({
     districtLabel: '',
     dateOptions: [],
     selectedDate: '',
+    minimumDate: '',
+    customDateLabel: '',
     ballAgeOptions: BALL_AGES,
     ballAgeIndex: 0,
     friendsOnly: false,
@@ -88,9 +99,8 @@ Page({
     const preferences = clientState.getHomeFilters()
     const districtIndex = Math.max(0, DISTRICTS.indexOf(preferences.district || '全杭州'))
     const ballAgeIndex = Math.max(0, BALL_AGES.indexOf(preferences.ballAge || '不限球龄'))
-    const dateOptions = dateUtil.dateTabs(7)
-    const savedDate = preferences.date === undefined ? dateUtil.today() : preferences.date
-    const selectedDate = dateOptions.some((item) => item.value === savedDate) ? savedDate : dateUtil.today()
+    const selection = dateSelection(preferences.date || '')
+    const { dateOptions, selectedDate } = selection
     const requestedMode = ['matches', 'coaches'].includes(options.mode) ? options.mode : 'matches'
     const patch = {
       // 普通冷启动默认找球局；旧动态分享链接回到找球局，不再加载公开动态。
@@ -99,6 +109,8 @@ Page({
       districtLabel: districtIndex ? DISTRICTS[districtIndex] : '',
       dateOptions,
       selectedDate,
+      minimumDate: selection.minimumDate,
+      customDateLabel: selection.customDateLabel,
       ballAgeIndex
     }
     if (requestedMode === 'matches') {
@@ -134,11 +146,10 @@ Page({
     if (discoverVenues) {
       this.setData({ mode: 'matches', districtIndex: 0, districtLabel: '' })
     }
-    const dateOptions = dateUtil.dateTabs(7)
-    const selectedDate = dateOptions.some((item) => item.value === this.data.selectedDate)
-      ? this.data.selectedDate : dateUtil.today()
+    const selection = dateSelection(this.data.selectedDate)
+    const { selectedDate } = selection
     const dateChanged = selectedDate !== this.data.selectedDate
-    this.setData({ dateOptions, selectedDate })
+    this.setData(selection)
     this.savePreferences()
     return this.loadContent({ showSkeleton: dateChanged || discoverVenues }).then(async (loaded) => {
       if (loaded && discoverVenues && this.data.mode === 'matches' && this.data.venues.length) {
@@ -515,10 +526,16 @@ Page({
   selectDate(event) {
     const selectedDate = event.currentTarget.dataset.value || ''
     if (selectedDate === this.data.selectedDate) return
-    this.setData({ selectedDate }, () => {
+    this.setData(dateSelection(selectedDate), () => {
       this.savePreferences()
       this.loadContent({ showSkeleton: true })
     })
+  },
+
+  changeCustomDate(event) {
+    const value = event.detail.value
+    if (!dateUtil.dateTab(value) || value < dateUtil.today()) return
+    return this.selectDate({ currentTarget: { dataset: { value } } })
   },
 
   changeBallAge(event) {
@@ -549,7 +566,7 @@ Page({
     const patch = this.data.friendsOnly
       ? { friendsOnly: false }
       : this.data.selectedDate || this.data.ballAgeIndex
-      ? { selectedDate: '', ballAgeIndex: 0 }
+      ? { selectedDate: '', customDateLabel: '', ballAgeIndex: 0 }
       : { districtIndex: 0, districtLabel: '' }
     this.setData(patch)
     this.savePreferences()
@@ -751,14 +768,14 @@ Page({
   onShareAppMessage() {
     const path = this.data.mode === 'matches' ? '/pages/home/home' : `/pages/home/home?mode=${this.data.mode}`
     return share.appMessage({
-      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜来一拍' : '杭州乒乓球约球｜来一拍',
+      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜搭拍子' : '杭州乒乓球约球｜搭拍子',
       path
     })
   },
 
   onShareTimeline() {
     return share.timeline({
-      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜来一拍' : '杭州乒乓球约球｜来一拍',
+      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜搭拍子' : '杭州乒乓球约球｜搭拍子',
       params: this.data.mode === 'matches' ? undefined : { mode: this.data.mode }
     })
   }

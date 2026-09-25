@@ -28,6 +28,11 @@ Page({
     this._pollBoost = false
     this._lastSendAt = 0
     this.atBottom = true
+    this.unsubscribeInbox = messageNotifier.subscribe((state) => {
+      if (!this.visible || this.destroyed || this.data.state !== 'ready') return
+      const item = state.items.find((entry) => entry.matchId === this.data.id)
+      if (item && !this.data.messages.some((entry) => entry.id === item.messageId)) this.refreshMessages()
+    })
     this.setData({ id: options && options.id || '', minimumDate: dateUtil.today() })
     if (!this.data.id) this.setData({ state: 'error', forbidden: true, errorMessage: '对话不存在或链接不完整' })
   },
@@ -52,6 +57,7 @@ Page({
     this.visible = false
     messageNotifier.setActiveMatch('')
     this.stopPolling()
+    if (this.unsubscribeInbox) this.unsubscribeInbox()
   },
 
   applyArrangement(result) {
@@ -109,7 +115,7 @@ Page({
     const incoming = (result.items || []).map(present.message)
     const previous = this.data.messages
     const sentSinceFetch = Array.from(this.localSends || []).filter((entry) => entry[1] > revision).map((entry) => entry[0])
-    const merged = initial ? chatState.mergeMessages(previous.filter((item) => sentSinceFetch.includes(item.id)), incoming)
+    const merged = initial ? chatState.mergeMessages(previous.filter((item) => item.deliveryState || sentSinceFetch.includes(item.id)), incoming)
       : chatState.reconcileMessages(previous, incoming, result.nextCursor, sentSinceFetch)
     const ids = new Set(previous.map((item) => item.id))
     const added = incoming.filter((item) => !ids.has(item.id) && !item.mine && item.type !== 'system').length
@@ -120,13 +126,14 @@ Page({
     if (!result.nextCursor) patch.nextCursor = null
     if (!this.atBottom && !initial) patch.newMessageCount = this.data.newMessageCount + added
     this.setData(patch)
-    if (initial || this.atBottom) this.markLatestIncomingRead(merged)
+    if (this.visible !== false && (initial || this.atBottom)) this.markLatestIncomingRead(merged)
     if (initial || (this.atBottom && incoming.some((item) => !ids.has(item.id)))) this.scrollToLatest()
     ;(this.localSends || new Map()).forEach((value, id) => { if (value <= revision) this.localSends.delete(id) })
     return { addedCount }
   },
 
   markLatestIncomingRead(messages = this.data.messages) {
+    if (this.visible === false || this.destroyed) return
     const latest = messages.slice().reverse().find((item) => item && !item.mine && item.type !== 'system')
     if (latest) messageNotifier.markRead(this.data.id, latest.id)
   },
@@ -192,7 +199,7 @@ Page({
   _getPollInterval() {
     const fast = this._pollBoost || this.data.newMessageCount > 0 || Date.now() - this._lastSendAt < 90000
     this._pollBoost = false
-    return fast ? 6000 : 14000
+    return fast ? 3000 : 6000
   },
 
   _schedulePoll() {
@@ -210,16 +217,17 @@ Page({
     const revision = this.messageRevision
     const syncVersion = ++this.syncVersion
     try {
-      const [result, matchResult] = await Promise.all([
-        api.messages.list({ matchId: this.data.id, pageSize: 50 }),
-        api.matches.get({ matchId: this.data.id })
+      await Promise.all([
+        api.messages.list({ matchId: this.data.id, pageSize: 50 }).then((result) => {
+          if (this.destroyed || syncVersion !== this.syncVersion) return
+          const merged = this.applyMessageResult(result, revision)
+          if (merged.addedCount > 0) this._quickPoll()
+          this.enrichConversation()
+        }),
+        api.matches.get({ matchId: this.data.id }).then((result) => {
+          if (!this.destroyed && syncVersion === this.syncVersion) this.applyArrangement(result)
+        })
       ])
-      if (this.destroyed || syncVersion !== this.syncVersion) return
-      // Refresh schedule and membership too: a conversation must not show stale arrangements.
-      this.applyArrangement(matchResult)
-      const mergeResult = this.applyMessageResult(result, revision)
-      if (mergeResult && mergeResult.addedCount > 0) this._quickPoll()
-      this.enrichConversation()
     } catch (error) {
       if (!this.destroyed && syncVersion === this.syncVersion && !this.handleAccessError(error)) this.setData({ syncError: '网络不稳定，消息暂未同步' })
     } finally { this.refreshing = false }
@@ -290,31 +298,50 @@ Page({
 
   blurInput() { this.setData({ inputFocus: false }) },
 
-  async sendMessage() {
+  async sendMessage(event) {
+    const retryId = event && event.currentTarget && event.currentTarget.dataset.requestId
+    const retryMessage = retryId && this.data.messages.find((item) => item.clientRequestId === retryId && item.deliveryState === 'failed')
+    if (retryId && !retryMessage) return
     const draft = this.data.inputValue
-    const text = draft.trim()
+    const text = retryMessage ? retryMessage.text : draft.trim()
     if (!text || this.data.sending || this.data.state !== 'ready' || !this.data.membership || !this.data.membership.canChat) return
-    this.setData({ sending: true, sendError: '' })
-    const requestId = this.messageRequestId || api.createRequestId()
-    this.messageRequestId = requestId
+    const requestId = retryId || this.messageRequestId || api.createRequestId()
+    if (!retryId) this.messageRequestId = requestId
+    const localId = 'local_' + requestId
+    const app = getApp()
+    const profile = app.globalData && app.globalData.session && app.globalData.session.profile || {}
+    const pending = {
+      id: localId, clientRequestId: requestId, text, mine: true, type: 'text',
+      sender: { playerId: profile.playerId || '', displayName: profile.nickname || '我' },
+      createdAt: new Date().toISOString(), deliveryState: 'sending'
+    }
+    this.setData({ sending: true, sendError: '', messages: this.decorate(chatState.mergeMessages(this.data.messages, [pending])) })
+    this.scrollToLatest()
     try {
       const result = await api.messages.send({ matchId: this.data.id, text }, { requestId })
       if (this.destroyed) return
-      const message = present.message(result.message)
+      const message = present.message(Object.assign({}, result.message, { clientRequestId: requestId }))
       this._lastSendAt = Date.now()
       this._quickPoll()
       this.messageRevision += 1
       this.localSends.set(message.id, this.messageRevision)
-      const patch = { sending: false, messages: this.decorate(chatState.mergeMessages(this.data.messages, [message])) }
+      const patch = { sending: false, messages: this.decorate(chatState.mergeMessages(this.data.messages.filter((item) => item.id !== localId), [message])) }
       // A response to the previous message must never erase the next draft.
-      if (this.data.inputValue === draft) Object.assign(patch, { inputValue: '', canSend: false })
+      if (this.data.inputValue === draft && draft.trim() === text) Object.assign(patch, { inputValue: '', canSend: false })
       if (this.messageRequestId === requestId) this.messageRequestId = ''
       this.setData(patch)
       this.scrollToLatest()
       this.enrichConversation()
     } catch (error) {
       if (this.destroyed) return
-      this.setData({ sending: false })
+      const confirmed = this.data.messages.some((item) => item.clientRequestId === requestId && !item.deliveryState)
+      this.setData({ sending: false, messages: this.decorate(this.data.messages.map((item) =>
+        item.id === localId ? Object.assign({}, item, { deliveryState: 'failed' }) : item)) })
+      if (confirmed) {
+        if (this.messageRequestId === requestId) this.messageRequestId = ''
+        if (this.data.inputValue.trim() === text) this.setData({ inputValue: '', canSend: false })
+        return
+      }
       if (!this.handleAccessError(error)) this.setData({ sendError: errors.message(error) + '。内容已保留，可修改或重试。' })
     }
   },

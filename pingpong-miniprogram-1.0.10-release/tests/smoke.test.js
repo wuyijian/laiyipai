@@ -770,6 +770,25 @@ test('所有页面模板标签、事件绑定及 WXSS 结构有效', () => {
   })
 })
 
+test('搭拍子品牌覆盖页面与分享，保留现有小程序身份', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'))
+  const project = JSON.parse(fs.readFileSync(path.join(projectRoot, 'project.config.json'), 'utf8'))
+  assert.strictEqual(config.window.navigationBarTitleText, '搭拍子')
+  assert.strictEqual(project.appid, 'wxdbcd8fd8a8014055')
+  assert.strictEqual(project.projectname, 'dapaizi-pingpong')
+  const checkDirectory = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filename = path.join(directory, entry.name)
+      if (entry.isDirectory()) checkDirectory(filename)
+      else if (/\.(js|json|wxml|wxss)$/.test(entry.name)) {
+        assert(!fs.readFileSync(filename, 'utf8').includes('来一拍'), `${filename} 仍有旧品牌文案`)
+      }
+    }
+  }
+  checkDirectory(path.join(projectRoot, 'pages'))
+  checkDirectory(path.join(projectRoot, 'utils'))
+})
+
 test('朋友圈分享只开放给首页和三类公开资源详情页', async () => {
   resetRuntime()
   installApi()
@@ -987,6 +1006,33 @@ test('首页忽略旧教练入口记忆，默认找球局并保留筛选条件',
   assert.strictEqual(wx.getStorageSync('laiyipai_ui_home_filters_v1').mode, undefined)
 })
 
+test('首次找球展示近期场次，远期日期可选择、记住并带到发起页', async () => {
+  resetRuntime()
+  const payloads = []
+  installApi({ matches: { list: async (payload) => { payloads.push(payload); return { items: [] } } } })
+  const home = loadPage('pages/home/home.js')
+  home.onLoad()
+  await home.onShow()
+  assert.strictEqual(home.data.selectedDate, '')
+  assert.strictEqual(payloads[0].date, undefined, '不默认只看今天而遗漏后续球局')
+  const future = dateString(20)
+  home.changeCustomDate({ detail: { value: future } })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.strictEqual(home.data.selectedDate, future)
+  assert(home.data.customDateLabel)
+  assert.strictEqual(payloads.at(-1).date, future)
+  home.changeCustomDate({ detail: { value: dateString(-1) } })
+  assert.strictEqual(home.data.selectedDate, future)
+  const reopened = loadPage('pages/home/home.js')
+  reopened.onLoad()
+  await reopened.onShow()
+  assert.strictEqual(reopened.data.selectedDate, future)
+  reopened.openPublish()
+  assert.strictEqual(wx.getStorageSync('laiyipai_ui_publish_prefill_v2').date, future)
+  await reopened.expandMatchSearch()
+  assert.strictEqual(reopened.data.customDateLabel, '')
+})
+
 test('手动约教练后返回保留选择，重新创建首页仍默认找球局', async () => {
   resetRuntime()
   const home = loadPage('pages/home/home.js')
@@ -1003,6 +1049,25 @@ test('手动约教练后返回保留选择，重新创建首页仍默认找球�
   const reopened = loadPage('pages/home/home.js')
   reopened.onLoad()
   assert.strictEqual(reopened.data.mode, 'matches')
+})
+
+test('发起快捷时长保留开球时间，跨天不静默调整且不覆盖未知结果', () => {
+  resetRuntime()
+  installApi()
+  const page = loadPage('pages/publish/publish.js')
+  page.setData({ date: dateString(2), startTime: '19:00', endTime: '20:00', courtStatus: 'booked', rebookMode: true, rebookTimeConfirmed: true })
+  page.selectDuration({ currentTarget: { dataset: { minutes: 90 } } })
+  assert.strictEqual(page.data.endTime, '20:30')
+  assert.strictEqual(page.data.startTime, '19:00')
+  assert.strictEqual(page.data.courtStatus, 'unbooked')
+  assert.strictEqual(page.data.rebookTimeConfirmed, false)
+  assert.strictEqual(wx.getStorageSync('laiyipai_ui_publish_draft_v2').endTime, '20:30')
+  page.setData({ startTime: '23:00', endTime: '23:45' })
+  page.selectDuration({ currentTarget: { dataset: { minutes: 120 } } })
+  assert.strictEqual(page.data.endTime, '23:45')
+  page.setData({ publishOutcomeUnknown: true, startTime: '19:00', endTime: '20:00' })
+  page.selectDuration({ currentTarget: { dataset: { minutes: 120 } } })
+  assert.strictEqual(page.data.endTime, '20:00')
 })
 
 test('首页持久化的过期日期会回退到今天并使用当天查询', async () => {
@@ -1587,7 +1652,7 @@ test('无结果时主动放宽日期球龄并保留地区，再次放宽才查�
   })
   const home = loadPage('pages/home/home.js')
   home.onLoad()
-  home.setData({ districtIndex: 1, districtLabel: '西湖区', ballAgeIndex: 2 })
+  home.setData({ districtIndex: 1, districtLabel: '西湖区', ballAgeIndex: 2, selectedDate: dateString(0) })
   await home.loadContent()
   assert.strictEqual(payloads[0].date, dateString(0))
   assert.strictEqual(payloads[0].expectedBallAge, '球龄 1 年以内')
@@ -2221,6 +2286,8 @@ test('加入有空位球局时不请求候补并开放对话', async () => {
   assert.deepStrictEqual(joinCall.payload, {
     matchId: rawMatch.id,
     allowWaitlist: false,
+    expectedScheduleVersion: 1,
+    expectedFeePerPerson: 0,
     termsAccepted: true,
     termsVersion: require(cloudConfigPath).termsVersion
   })
@@ -2254,6 +2321,8 @@ test('满员球局明确请求候补且候补期间不开放对话', async () =>
   assert.deepStrictEqual(joinPayload, {
     matchId: rawMatch.id,
     allowWaitlist: true,
+    expectedScheduleVersion: 1,
+    expectedFeePerPerson: 0,
     termsAccepted: true,
     termsVersion: require(cloudConfigPath).termsVersion
   })
@@ -2783,84 +2852,58 @@ test('个人资料按 files.resolve 契约显示头像并提交球龄、技术�
   assert(template.includes('仅作约球参考，不影响加入球局'))
 })
 
-test('微信 chooseAvatar 事件保留临时路径且仅修改头像时不重复提交资料', async () => {
+test('暂停头像功能，昵称可独立保存且不查询审核状态', async () => {
   resetRuntime()
-  const avatarUploads = []
-  const profileUpdates = []
-  let authorizeCount = 0
-  installPrivacy(async () => { authorizeCount += 1 })
-  installApi({
-    profile: {
-      get: async () => profileFixture(),
-      update: async (payload) => { profileUpdates.push(clone(payload)); return payload },
-      uploadAvatar: async (path, options) => {
-        avatarUploads.push({ path, requestId: options.requestId })
-        options.onProgress({ progress: 64 })
-        return { avatar: { status: 'reviewing' } }
-      },
-      avatarStatus: async () => ({ avatar: null })
-    }
-  })
-  const profile = loadPage('pages/profile/profile.js')
-  await profile.loadProfile()
-  profile.openEdit()
-  profile.chooseAvatar({ detail: {} })
-  assert.strictEqual(profile.data.editDirty, false, '取消选择头像不应制造未保存修改')
-  const temporaryPath = 'wxfile://tmp/choose-avatar-without-extension'
-  profile.chooseAvatar({ detail: { avatarUrl: temporaryPath } })
-  assert.strictEqual(profile.pendingAvatarPath, temporaryPath)
-  assert.strictEqual(profile.data.editProfile.avatarPreviewUrl, temporaryPath)
-  assert.strictEqual(profile.data.avatarDirty, true)
-
-  await profile.saveProfile()
-  assert.strictEqual(authorizeCount, 1)
-  assert.strictEqual(avatarUploads.length, 1)
-  assert.strictEqual(avatarUploads[0].path, temporaryPath)
-  assert(/^req_client_\d+$/.test(avatarUploads[0].requestId))
-  assert.strictEqual(profileUpdates.length, 0, '只换头像时不应重写未修改的文字资料')
-  assert.strictEqual(profile.pendingAvatarPath, '')
-  assert.strictEqual(profile.data.uploadProgress, 0)
-  assert.strictEqual(profile.data.editVisible, false)
-})
-
-test('我的头像可直接选择，且只改头像不会被旧资料校验或整表保存阻断', async () => {
-  resetRuntime()
-  const uploads = []
-  let updateCount = 0
-  let authorizeCount = 0
-  const rawProfile = profileFixture({ ratingPlatform: '开球网', ratingValue: '' })
-  installPrivacy(async () => { authorizeCount += 1 })
-  installApi({
-    profile: {
-      get: async () => clone(rawProfile),
-      update: async () => { updateCount += 1 },
-      uploadAvatar: async (path, options) => {
-        uploads.push({ path, requestId: options.requestId })
-        return { avatar: { status: 'reviewing' } }
-      },
-      avatarStatus: async () => ({ avatar: { status: uploads.length ? 'reviewing' : 'passed' } })
-    }
-  })
+  const updates = []
+  let avatarCalls = 0
+  const raw = profileFixture()
+  installPrivacy(async () => {})
+  installApi({ profile: {
+    get: async () => clone(raw),
+    update: async (payload) => { updates.push(clone(payload)); Object.assign(raw, payload); return clone(raw) },
+    avatarStatus: async () => { avatarCalls++; throw new Error('审核不可用') },
+    uploadAvatar: async () => { avatarCalls++; throw new Error('头像已暂停') }
+  } })
   const page = loadPage('pages/profile/profile.js')
   await page.loadProfile()
-
-  page.chooseAvatar({ detail: { avatarUrl: 'wxfile://tmp/new-avatar.jpg' } })
-  assert.strictEqual(page.data.editVisible, true)
-  assert.strictEqual(page.data.avatarDirty, true)
-  assert.strictEqual(page.data.profileDirty, false)
-  assert.strictEqual(page.data.editProfile.avatarPreviewUrl, 'wxfile://tmp/new-avatar.jpg')
-
+  page.openEdit()
+  page.changeNickname({ detail: { value: '  周末练球  ' } })
   await page.saveProfile()
-  assert.strictEqual(authorizeCount, 1)
-  assert.strictEqual(uploads.length, 1)
-  assert.strictEqual(uploads[0].path, 'wxfile://tmp/new-avatar.jpg')
-  assert(uploads[0].requestId)
-  assert.strictEqual(updateCount, 0)
+  assert.strictEqual(updates.length, 1)
+  assert.strictEqual(updates[0].nickname, '周末练球')
+  assert.strictEqual(page.data.profile.nickname, '周末练球')
   assert.strictEqual(page.data.editVisible, false)
+  assert.strictEqual(avatarCalls, 0)
+  assert.strictEqual(page.chooseAvatar, undefined)
+  assert.strictEqual(page.retryAvatarReview, undefined)
+  const template = fs.readFileSync(path.join(projectRoot, 'pages/profile/profile.wxml'), 'utf8')
+  assert(!template.includes('chooseAvatar'))
+  assert(!template.includes('avatarReview'))
+  assert(template.includes('type="nickname"'))
+  assert(template.includes('bindblur="changeNickname"'))
+})
 
-  const template = fs.readFileSync(path.join(projectRoot, 'pages', 'profile', 'profile.wxml'), 'utf8')
-  assert(/avatar-edit-trigger[\s\S]*open-type="chooseAvatar"[\s\S]*bindchooseavatar="chooseAvatar"/.test(template))
-  assert(template.includes('保存新头像'))
+test('空昵称不提交，保存失败保留昵称草稿', async () => {
+  resetRuntime()
+  let writes = 0
+  installPrivacy(async () => {})
+  installApi({ profile: {
+    get: async () => profileFixture(),
+    update: async () => { writes++; throw new Error('网络断开') }
+  } })
+  const page = loadPage('pages/profile/profile.js')
+  await page.loadProfile()
+  page.openEdit()
+  page.changeNickname({ detail: { value: '   ' } })
+  await page.saveProfile()
+  assert.strictEqual(writes, 0)
+  assert.strictEqual(page.data.editError, '请填写昵称')
+  page.changeNickname({ detail: { value: '新昵称' } })
+  await page.saveProfile()
+  assert.strictEqual(writes, 1)
+  assert.strictEqual(page.data.editProfile.nickname, '新昵称')
+  assert.strictEqual(page.data.editVisible, true)
+  assert.strictEqual(page.data.editDirty, true)
 })
 
 test('标记球馆刷新失败时保留已展示内容', async () => {

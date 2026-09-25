@@ -109,3 +109,6 @@ page { background: var(--surface-muted); }
 .ui-screen .chat-page .sync-retry { margin: 0; min-height: 64rpx; line-height: 1.4; }
 .ui-screen .option-caption, .ui-screen .sheet-footnote { font-size: 23rpx; }
 .ui-screen .chat-sheet .sheet-submit.danger-button { background: #fff1f0; color: var(--danger); }
+.ui-screen .delivery-status { display: block; margin-top: 8rpx; color: #79857f; font-size: 21rpx; text-align: right; }
+.ui-screen .delivery-failed { width: auto; min-height: 44rpx; padding: 0; margin: 4rpx 0 0; background: transparent; color: #a9483d; line-height: 44rpx; }
+.ui-screen .delivery-failed::after { border: none; }

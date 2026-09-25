@@ -47,9 +47,11 @@ async function run() {
   assert(tabTemplate.includes('class="message-badge"'))
   assert(profileTemplate.includes('球局消息'))
   assert(profileTemplate.includes('bindtap="openMessageConversation"'), '我的页应能按球局进入未读会话')
+  assert(fs.readFileSync(path.join(root, 'pages/orders/orders.wxml'), 'utf8').includes('messageCounts[item.matchId]'), '预约内按球局显示未读')
+  assert(fs.readFileSync(path.join(root, 'pages/match-detail/match-detail.wxml'), 'utf8').includes('messageUnreadCount'), '球局详情有未读标记')
   assert.strictEqual(notifier._private.recommendedPollDelay({ recoveryPending: true }), 800, '清理失效指针后应短间隔继续推进')
-  assert.strictEqual(notifier._private.recommendedPollDelay({ recoveryPending: true }, 6), 15000, '连续恢复失败必须退避，避免请求放大')
-  assert.strictEqual(notifier._private.recommendedPollDelay({ items: Array(10).fill({}), hasMore: true, recoveryPending: false }), 15000, '只是预览分页时保持正常轮询，避免请求放大')
+  assert.strictEqual(notifier._private.recommendedPollDelay({ recoveryPending: true }, 6), 6000, '连续恢复失败必须退避，避免请求放大')
+  assert.strictEqual(notifier._private.recommendedPollDelay({ items: Array(10).fill({}), hasMore: true, recoveryPending: false }), 6000, '只是预览分页时保持正常轮询，避免请求放大')
 
   const snapshots = []
   const unsubscribe = notifier.subscribe((state) => snapshots.push(state))
@@ -75,6 +77,43 @@ async function run() {
   notifier.setActiveMatch('match_notice')
   assert.strictEqual(await notifier.poll(), true)
   assert.strictEqual(calls.modals.length, 1, '当前正在查看的球局不得再次弹窗')
+  notifier.reset()
+  inboxUnread = true
+  notifier.start()
+  notifier.setActiveMatch('match_notice')
+  const readCount = calls.read.length
+  await notifier.poll()
+  assert.strictEqual(calls.read.length, readCount, '当前聊天页未加载的新消息不能自动标记已读')
+  assert.strictEqual(notifier.getSnapshot().unreadCount, 2)
+  const api = require('../utils/api')
+  const originalRead = api.messages.read
+  let finishRead
+  api.messages.read = () => new Promise((resolve) => { finishRead = resolve })
+  const reading = notifier.markRead('match_notice', 'message_notice')
+  notifier._private.publishInbox({ unreadCount: 3, items: [{ matchId: 'match_notice', messageId: 'new_message', unreadCount: 3 }] })
+  finishRead({ read: true })
+  await reading
+  assert.strictEqual(notifier.getSnapshot().unreadCount, 3, '旧消息的已读响应不能清掉后来消息')
+  await notifier.poll()
+  assert.strictEqual(notifier.getSnapshot().unreadCount, 0, '晚到的旧收件箱响应不能恢复已读红点')
+  const staleRead = notifier.markRead('match_notice', 'new_message')
+  notifier.reset()
+  notifier._private.publishInbox({ unreadCount: 1, items: [{ matchId: 'match_notice', messageId: 'new_message', unreadCount: 1 }] })
+  finishRead({ read: true })
+  await staleRead
+  assert.strictEqual(notifier.getSnapshot().unreadCount, 1, '切换账号后旧的已读响应无效')
+  api.messages.read = originalRead
+  notifier.reset()
+  notifier.start()
+  let completeBackgroundRead
+  api.messages.read = () => new Promise((resolve) => { completeBackgroundRead = resolve })
+  const backgroundRead = notifier.markRead('background_match', 'background_message')
+  notifier.stop()
+  notifier.start()
+  completeBackgroundRead({ read: true })
+  await backgroundRead
+  api.messages.read = originalRead
+  assert.strictEqual(await notifier.markRead('background_match', 'background_message'), true, '切后台时失效的已读请求回前台可重试')
   notifier.reset()
   signedIn = false
   assert.strictEqual(notifier.start(), false, '未登录时不应启动消息请求')

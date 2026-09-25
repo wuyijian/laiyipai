@@ -106,6 +106,7 @@ function setRebookPrefill(match = {}) {
     kind: 'rebook',
     venueId: typeof match.venueId === 'string' ? match.venueId : '',
     title: typeof match.title === 'string' ? match.title.slice(0, 30) : '',
+    district: typeof match.district === 'string' ? match.district : '',
     capacity,
     expectedBallAge: typeof match.expectedBallAge === 'string' ? match.expectedBallAge : '不限球龄',
     practiceIntent: matchOptions.normalizePracticeIntent(match.practiceIntent, match.skills),

@@ -226,6 +226,69 @@ test('最新窗口内已撤下消息被剔除，头像沿用球友公开标识',
   assert.strictEqual(decorated[2].showTime, true)
 })
 
+test('慢请求即时展示待发送气泡，刷新不吞气泡，成功只留一条', async () => {
+  const sent = deferred()
+  const { page } = setup({ messages: { send: () => sent.promise } })
+  await page.loadChat()
+  page.changeInput({ detail: { value: '三号台见' } })
+  const task = page.sendMessage()
+  assert.strictEqual(page.data.messages.length, 1)
+  assert.strictEqual(page.data.messages[0].deliveryState, 'sending')
+  await page.refreshMessages()
+  assert.strictEqual(page.data.messages[0].deliveryState, 'sending')
+  sent.resolve({ message: message(10, { mine: true, text: '三号台见' }) })
+  await task
+  assert.strictEqual(page.data.messages.length, 1)
+  assert.strictEqual(page.data.messages[0].deliveryState, undefined)
+})
+
+test('发送响应丢失时，通过轮询确认同一请求不重复显示或误报失败', async () => {
+  const sent = deferred()
+  const { page, api } = setup({ messages: { send: () => sent.promise } })
+  await page.loadChat()
+  page.changeInput({ detail: { value: '到馆了' } })
+  const task = page.sendMessage()
+  const requestId = page.messageRequestId
+  api.messages.list = async () => ({ items: [message(10, { mine: true, clientRequestId: requestId })] })
+  await page.refreshMessages()
+  sent.reject(new Error('响应超时'))
+  await task
+  assert.strictEqual(page.data.messages.length, 1)
+  assert.strictEqual(page.data.messages[0].deliveryState, undefined)
+  assert.strictEqual(page.data.sendError, '')
+})
+
+test('失败气泡可单独重试，不覆盖下一条草稿', async () => {
+  const { page, api } = setup({ messages: { send: async () => { throw new Error('网络断开') } } })
+  await page.loadChat()
+  page.changeInput({ detail: { value: '第一条' } })
+  await page.sendMessage()
+  const requestId = page.data.messages[0].clientRequestId
+  assert.strictEqual(page.data.messages[0].deliveryState, 'failed')
+  page.changeInput({ detail: { value: '第二条草稿' } })
+  api.messages.send = async (payload, options) => {
+    assert.strictEqual(payload.text, '第一条')
+    assert.strictEqual(options.requestId, requestId)
+    return { message: message(10, { mine: true }) }
+  }
+  await page.sendMessage({ currentTarget: { dataset: { requestId } } })
+  assert.strictEqual(page.data.inputValue, '第二条草稿')
+  assert.strictEqual(page.data.messages.length, 1)
+})
+
+test('新消息显示不等待球局详情慢请求', async () => {
+  const details = deferred()
+  const { page, api } = setup()
+  await page.loadChat()
+  api.matches.get = () => details.promise
+  api.messages.list = async () => ({ items: [message(11)] })
+  const refreshing = page.refreshMessages()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.strictEqual(page.data.messages[0].id, 'm11')
+  details.resolve({ match: rawMatch(), membership: { status: 'joined', canChat: true } })
+  await refreshing
+})
+
 ;(async () => {
   for (const item of tests) { await item.fn(); console.log('PASS ' + item.name) }
   console.log(tests.length + ' chat experience checks passed')

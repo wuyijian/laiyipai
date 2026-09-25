@@ -4,6 +4,9 @@ const errors = require('../../utils/error')
 const clientState = require('../../utils/client-state')
 const cloudConfig = require('../../utils/cloud-config')
 const share = require('../../utils/share')
+const matchShare = require('../../utils/match-share')
+const arrangement = require('../../utils/match-arrangement')
+const messageNotifier = require('../../utils/message-notifier')
 const mapHelper = require('../../utils/map')
 const { detailState } = require('../../utils/match-detail-state')
 
@@ -19,6 +22,7 @@ Page({
     resultSheet: false,
     submitting: false,
     joinError: '',
+    joinNeedsRefresh: false,
     resultTone: '已提交',
     resultToneClass: 'pending',
     resultTitle: '',
@@ -27,6 +31,7 @@ Page({
     resultCanChat: false,
     resultStatus: '',
     canChat: false,
+    messageUnreadCount: '',
     favoriteSaving: false,
     favoriteStatus: 'unknown',
     loggedIn: false
@@ -35,6 +40,30 @@ Page({
   onLoad(options) {
     share.disable()
     this.setData({ id: options && options.id || '' })
+    this.unsubscribeMessages = messageNotifier.subscribe((state) => {
+      const item = state.items.find((entry) => entry.matchId === this.data.id)
+      this.setData({ messageUnreadCount: item ? (item.unreadCount > 99 ? '99+' : String(item.unreadCount || 1)) : '' })
+    })
+  },
+
+  onUnload() { if (this.unsubscribeMessages) this.unsubscribeMessages() },
+
+  onReady() { this.prepareShareCard() },
+
+  prepareShareCard() {
+    const match = this.data.match
+    if (!match || !match.shareable) return Promise.resolve('')
+    const key = JSON.stringify([match.id, matchShare.details(match)])
+    if (this.shareCardKey === key && (this.shareCardImage || this.shareCardTask)) return this.shareCardTask || Promise.resolve(this.shareCardImage)
+    this.shareCardKey = key
+    this.shareCardImage = ''
+    const previous = this.shareCardTask || Promise.resolve()
+    const task = previous.then(() => matchShare.render(this, match)).then((image) => {
+      if (this.shareCardKey === key) this.shareCardImage = image
+      return image
+    }).finally(() => { if (this.shareCardTask === task) this.shareCardTask = null })
+    this.shareCardTask = task
+    return task
   },
 
   async onShow() {
@@ -92,6 +121,7 @@ Page({
           venueFavorited: Boolean(previousMatch && previousMatch.venueFavorited)
         })
         this.setData({ state: 'ready', match, membership, canChat: match.canChat, favoriteStatus: loggedIn ? 'unknown' : 'login', loggedIn })
+        this.prepareShareCard()
         if (match.shareable) share.enable()
         else share.disable()
         const [venueResult, favoriteResult] = await Promise.all([
@@ -122,6 +152,7 @@ Page({
           : venue && venue.location || match.location || previousMatch && previousMatch.location || null
         match = Object.assign(match, {
           venueName: venue && venue.name || match.venueName,
+          district: venue && venue.district || match.district || '',
           address: nameOnlyVenue ? '' : venue && venue.address || match.address,
           venueLocationText: nameOnlyVenue ? '' : venue && venue.locationText || match.venueLocationText,
           venueActivityTags: venue && venue.activityTags && venue.activityTags.length ? venue.activityTags : match.venueActivityTags,
@@ -151,13 +182,14 @@ Page({
           patch.resultActionText = canChat ? '沟通时间和球台' : '查看预约状态'
         }
         this.setData(patch)
+        this.prepareShareCard()
         if (['recruiting', 'full', 'changed'].includes(match.status)) share.enable()
         return true
       } catch (error) {
         if (isStale()) return false
         if (keepContent) {
           this.setData({ state: 'ready' })
-          wx.showToast({ title: '状态已提交，页面暂未刷新', icon: 'none' })
+          wx.showToast({ title: '暂未刷新，仍显示上次安排', icon: 'none' })
           return false
         }
         share.disable()
@@ -275,23 +307,29 @@ Page({
 
   async confirmJoin() {
     if (this.data.submitting) return
+    if (this.data.joinNeedsRefresh) return this.retryJoinArrangement()
     if (this.data.match && this.data.match.capacity === 1) {
       this.setData({ joinSheet: false, joinError: '' })
       return wx.showToast({ title: '单人练习不开放加入', icon: 'none' })
     }
-    if (!(await this.ensureInteractiveSession())) return
     this.setData({ submitting: true, joinError: '' })
+    if (!(await this.ensureInteractiveSession())) {
+      this.setData({ submitting: false })
+      return
+    }
     this.joinRequestId = this.joinRequestId || api.createRequestId()
     try {
       const result = await api.matches.join({
         matchId: this.data.id,
         allowWaitlist: this.data.match.seats === 0,
+        expectedScheduleVersion: Number(this.data.match.scheduleVersion || 1),
+        expectedFeePerPerson: Number(this.data.match.feePerPerson || 0),
         termsAccepted: true,
         termsVersion: cloudConfig.termsVersion
       }, { requestId: this.joinRequestId })
-      this.joinRequestId = ''
-      const status = result.membership.status
+      const status = result && result.membership && result.membership.status
       if (!['joined', 'pending', 'waitlisted'].includes(status)) throw new Error('加入状态暂时无法确认，请到预约页查看')
+      this.joinRequestId = ''
       const canChat = status === 'joined' && Boolean(result.membership.canChat)
       const courtBookingNotice = this.data.match.courtBookingNotice || '加入球局不等于向球馆预订，球台请与发起人确认。'
       const outcome = status === 'joined'
@@ -299,7 +337,7 @@ Page({
             tone: '名额已确认',
             toneClass: 'success',
             title: '加入成功',
-            copy: `${canChat ? '可以进入球局对话，和发起人核对球台、时间与集合位置。' : '名额已经确认，可到预约页查看最新安排。'}${courtBookingNotice}`,
+            copy: `${canChat ? '已为你保留名额，不用再发加入申请。需要确认球台或临时有变化时，再进入球局沟通。' : '名额已经确认，可到预约页查看最新安排。'}${courtBookingNotice}`,
             actionText: canChat ? '沟通时间和球台' : '查看预约状态'
           }
         : status === 'waitlisted'
@@ -338,8 +376,39 @@ Page({
       })
       await this.loadMatch({ keepContent: true, force: true })
     } catch (error) {
+      if (['MATCH_FULL', 'MATCH_CLOSED', 'ARRANGEMENT_CHANGED'].includes(error.code)) {
+        // These are explicit rejections before any join write. Refresh the
+        // arrangement, but never turn the same tap into a waitlist application.
+        this.joinRequestId = ''
+        const refreshed = await this.loadMatch({ keepContent: true, force: true })
+        const joinSheet = !refreshed || this.data.match.actionKind === 'join'
+        this.setData({ submitting: false, joinSheet, joinNeedsRefresh: !refreshed, joinError: errors.message(error) + (refreshed ? '，请核对最新信息后再决定。' : '，请先重新加载球局。') })
+        if (!joinSheet) errors.toast(error)
+        return
+      }
       this.setData({ submitting: false, joinError: errors.message(error) })
     }
+  },
+
+  async retryJoinArrangement() {
+    if (this.data.submitting) return
+    this.setData({ submitting: true })
+    const refreshed = await this.loadMatch({ keepContent: true, force: true })
+    this.setData({
+      submitting: false,
+      joinNeedsRefresh: !refreshed,
+      joinSheet: !refreshed || this.data.match.actionKind === 'join',
+      joinError: refreshed ? '已更新安排，请核对后再确认。' : '仍未能核对最新安排，请稍后重试。'
+    })
+  },
+
+  copyArrangement() {
+    if (!this.data.match || this.data.state !== 'ready') return
+    wx.setClipboardData({
+      data: arrangement.text(this.data.match),
+      success: () => wx.showToast({ title: '安排已复制', icon: 'success' }),
+      fail: () => wx.showToast({ title: '复制失败，请重试', icon: 'none' })
+    })
   },
 
   closeResult() {
@@ -494,17 +563,23 @@ Page({
 
   onShareAppMessage() {
     const match = this.data.match
-    return share.appMessage({
-      title: match ? `${match.title} · ${match.dateLabel} ${match.startTime}` : '来一拍乒乓球局',
+    const payload = share.appMessage({
+      title: match ? matchShare.title(match) : '搭拍子乒乓球局',
+      titleLimit: 128,
       path: `/pages/match-detail/match-detail?id=${encodeURIComponent(this.data.id)}`,
-      imageUrl: match && match.shareImageUrl
+      imageUrl: this.shareCardImage
     })
+    if (!this.shareCardImage && match && match.shareable) {
+      payload.promise = this.prepareShareCard().then((imageUrl) => Object.assign({}, payload, imageUrl ? { imageUrl } : {}, { promise: undefined }))
+    }
+    return payload
   },
 
   onShareTimeline() {
     const match = this.data.match
     return share.timeline({
-      title: match ? `${match.title} · ${match.dateLabel} ${match.startTime}` : '来一拍乒乓球局',
+      title: match ? matchShare.title(match) : '搭拍子乒乓球局',
+      titleLimit: 128,
       params: { id: this.data.id },
       imageUrl: match && match.shareImageUrl
     })

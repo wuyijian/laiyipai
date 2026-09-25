@@ -156,6 +156,72 @@ async function run() {
   assert(booked.joinSheetCopy.includes('名额确认后即可进入球局对话'))
   assert.strictEqual(booked.practiceIntentLabel, '随便练练')
 
+  const fillingMatch = rawMatch({ scheduleVersion: 2 })
+  const fullApi = apiFor(fillingMatch, 'waitlisted', false)
+  const joinPayloads = []
+  const originalJoin = fullApi.matches.join
+  fullApi.matches.join = async (payload) => {
+    joinPayloads.push(payload)
+    if (joinPayloads.length === 1) {
+      Object.assign(fillingMatch, { seats: 0, participantCount: 4, status: 'full' })
+      throw Object.assign(new Error('球局已满'), { code: 'MATCH_FULL' })
+    }
+    return originalJoin(payload)
+  }
+  const fullPage = loadDetail(fullApi)
+  fullPage.onLoad({ id: fillingMatch.id })
+  await fullPage.loadMatch()
+  await fullPage.confirmJoin()
+  assert.strictEqual(joinPayloads.length, 1, '临时满员不自动提交候补')
+  assert.strictEqual(joinPayloads[0].expectedScheduleVersion, 2)
+  assert.strictEqual(joinPayloads[0].expectedFeePerPerson, 30)
+  assert.strictEqual(joinPayloads[0].allowWaitlist, false)
+  assert.strictEqual(fullPage.data.match.joinSubmitText, '确认加入候补')
+  assert(fullPage.data.joinError.includes('请核对'))
+  await fullPage.confirmJoin()
+  assert.strictEqual(joinPayloads.length, 2)
+  assert.strictEqual(joinPayloads[1].allowWaitlist, true)
+  assert.strictEqual(fullPage.data.resultStatus, 'waitlisted')
+
+  const changedApi = apiFor(rawMatch(), 'joined', true)
+  let changedWrites = 0
+  changedApi.matches.join = async () => { changedWrites++; throw Object.assign(new Error('球局费用已调整'), { code: 'ARRANGEMENT_CHANGED' }) }
+  const changedPage = loadDetail(changedApi)
+  changedPage.onLoad({ id: 'changed_match' })
+  await changedPage.loadMatch()
+  changedApi.matches.get = async () => { throw new Error('刷新断网') }
+  await changedPage.confirmJoin()
+  assert.strictEqual(changedPage.data.joinNeedsRefresh, true)
+  await changedPage.confirmJoin()
+  assert.strictEqual(changedWrites, 1, '未核对最新安排时按钮只读刷新，不重复写入')
+  assert.strictEqual(changedPage.data.resultSheet, false)
+
+  let completeJoin
+  let duplicateCalls = 0
+  const doubleApi = apiFor(rawMatch(), 'joined', true)
+  doubleApi.matches.join = () => { duplicateCalls++; return new Promise((resolve) => { completeJoin = resolve }) }
+  const doublePage = loadDetail(doubleApi)
+  doublePage.onLoad({ id: 'double_click_match' })
+  await doublePage.loadMatch()
+  const first = doublePage.confirmJoin()
+  const second = doublePage.confirmJoin()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.strictEqual(duplicateCalls, 1, '在会话检查期间连点也只有一次提交')
+  completeJoin({ match: rawMatch(), membership: { status: 'joined', canChat: true } })
+  await Promise.all([first, second])
+  let copiedArrangement = ''
+  wx.setClipboardData = ({ data, success }) => { copiedArrangement = data; success() }
+  doublePage.copyArrangement()
+  assert(copiedArrangement.includes('19:00—20:30'), '仅在主动点击后复制完整时间')
+  assert(copiedArrangement.includes('黄龙路 1 号'))
+  assert.strictEqual(notices[notices.length - 1].title, '安排已复制')
+  const copy = require('../utils/match-arrangement').text(present.match(rawMatch()))
+  assert(copy.includes('19:00—20:30'))
+  assert(copy.includes('黄龙路 1 号'))
+  assert(copy.includes('加入球局不等于预订球台'))
+  assert(!copy.includes('host-1'))
+  assert(require('../utils/match-arrangement').text({}).includes('未填写，请与发起人确认'))
+
   const legacyCompetitive = present.match(rawMatch({ skills: ['实战对抗'] }))
   assert.strictEqual(legacyCompetitive.practiceIntentLabel, '切磋球技')
   const explicitCompetitive = present.match(rawMatch({ practiceIntent: '切磋球技', skills: ['基本功'] }))

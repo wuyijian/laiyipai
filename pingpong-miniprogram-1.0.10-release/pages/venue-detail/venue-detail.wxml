@@ -19,7 +19,7 @@
       <view class="venue-title-row">
         <venue-avatar src="{{venue.imageUrls[0] || ''}}" seed="{{venue.id || venue.name}}" size="88" label="{{venue.name}}的球馆头像" />
         <view class="venue-title-main">
-          <view wx:if="{{!venue.nameOnly}}" class="verified-row"><text wx:if="{{venue.verified}}">资料已核验</text><text>更新于 {{venue.updatedText}}</text></view>
+          <view class="verified-row"><text>{{venue.verified ? '管理员已认证' : '未认证'}}</text><text wx:if="{{!venue.nameOnly}}">更新于 {{venue.updatedText}}</text></view>
           <view class="venue-title">{{venue.name}}</view>
           <button wx:if="{{venue.locationText || venue.hasLocation}}" class="venue-location" bindtap="openMap" hover-class="venue-location-press" aria-label="{{venue.hasLocation ? '导航到' : '复制地址：'}}{{venue.name}}">
             <view class="venue-location-copy"><text class="venue-location-label">位置</text><text>{{venue.locationText || '查看地图位置'}}</text></view>
@@ -47,7 +47,7 @@
         <view wx:if="{{venue.bookingNotice}}"><text>场地预约</text><text>{{venue.bookingNotice}}</text></view>
       </view>
 
-      <view class="venue-notice">{{venue.userContributed ? '球友补充，未经平台实地核验。名称可用于约球，场地与球台请自行确认。' : venue.nameOnly ? '可在这里发起球局，具体场地与时间请加入后确认。' : '发起球局不会自动预订球台，请向球馆确认场地。'}}</view>
+      <view class="venue-notice">{{venue.verified ? '名称和地址已由管理员核对，认证不代表已预订球台，请向球馆确认场地。' : venue.userContributed ? '球友补充，尚未经管理员认证。地址及场地情况请在到馆前确认。' : '尚未经管理员认证，具体地址和球台请在到馆前确认。'}}</view>
 
       <view class="venue-photos">
         <view class="photos-heading">

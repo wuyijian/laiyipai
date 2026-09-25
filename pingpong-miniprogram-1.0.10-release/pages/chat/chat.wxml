@@ -57,6 +57,8 @@
               <view class="message-stack">
                 <view wx:if="{{!item.mine}}" class="sender-name">{{item.senderName}}<text wx:if="{{item.isHost}}" class="sender-host">发起人</text></view>
                 <view class="bubble"><text user-select="true">{{item.text}}</text></view>
+                <text wx:if="{{item.deliveryState === 'sending'}}" class="delivery-status">发送中…</text>
+                <button wx:elif="{{item.deliveryState === 'failed'}}" class="delivery-status delivery-failed" data-request-id="{{item.clientRequestId}}" bindtap="sendMessage" disabled="{{sending}}">未确认发送 · 点击重试</button>
               </view>
             </view>
           </view>

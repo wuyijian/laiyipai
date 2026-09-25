@@ -3,7 +3,7 @@ const READS = new Set([
   'venues.list', 'venues.nearby', 'venues.get', 'venues.submissions.list', 'venues.submissions.get', 'venuePhotos.list',
   'matches.list', 'matches.get', 'matches.pending', 'coaches.list', 'coaches.get',
   'coachApplications.get', 'appointments.list', 'favorites.list', 'favorites.status',
-  'profile.get', 'profile.avatar.status', 'players.get', 'friends.list', 'messages.list', 'messages.inbox',
+  'profile.get', 'profile.stats.get', 'profile.avatar.status', 'players.get', 'friends.list', 'messages.list', 'messages.inbox',
   'safety.blocks.list', 'files.resolve', 'admin.venueSubmissions.pending', 'admin.venueSubmissions.get', 'admin.venuePhotos.pending',
   'admin.coachApplications.pending', 'admin.coachApplications.get', 'admin.venues.list', 'admin.coaches.list'
 ])

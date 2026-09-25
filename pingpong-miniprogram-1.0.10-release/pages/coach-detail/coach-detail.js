@@ -280,7 +280,7 @@ Page({
   onShareAppMessage() {
     const coach = this.data.coach
     return share.appMessage({
-      title: coach ? `${coach.displayName} · ${coach.specialtyText}｜来一拍` : '杭州乒乓球教练｜来一拍',
+      title: coach ? `${coach.displayName} · ${coach.specialtyText}｜搭拍子` : '杭州乒乓球教练｜搭拍子',
       path: `/pages/coach-detail/coach-detail?id=${encodeURIComponent(this.data.id)}`,
       imageUrl: coach && coach.avatarUrl
     })
@@ -289,7 +289,7 @@ Page({
   onShareTimeline() {
     const coach = this.data.coach
     return share.timeline({
-      title: coach ? `${coach.displayName} · ${coach.specialtyText}｜来一拍` : '杭州乒乓球教练｜来一拍',
+      title: coach ? `${coach.displayName} · ${coach.specialtyText}｜搭拍子` : '杭州乒乓球教练｜搭拍子',
       params: { id: this.data.id },
       imageUrl: coach && coach.avatarUrl
     })

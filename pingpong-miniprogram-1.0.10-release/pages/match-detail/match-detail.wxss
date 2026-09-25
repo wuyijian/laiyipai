@@ -124,3 +124,11 @@ page { background: #fff; }
 
 .ui-screen .join-button, .ui-screen .confirm-join { background: var(--brand); margin-left: 0; margin-right: 0; }
 .ui-screen .bottom-hint, .ui-screen .price-caption { font-size: 21rpx; }
+.match-share-canvas { position: fixed; left: -1200px; top: 0; width: 500px; height: 400px; pointer-events: none; }
+.ui-screen .conversation-unread { display: inline-flex; min-width: 30rpx; height: 30rpx; padding: 0 6rpx; margin-right: 10rpx; align-items: center; justify-content: center; border-radius: 18rpx; background: #c6463e; color: #fff; font-size: 20rpx; line-height: 1; }
+.ui-screen .arrangement-glance { margin-top: 24rpx; padding-top: 22rpx; border-top: 1rpx solid var(--line); }
+.ui-screen .glance-venue { color: var(--text); font-size: 29rpx; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.ui-screen .glance-address, .ui-screen .summary-address { color: var(--text-secondary); font-size: 23rpx; line-height: 1.6; margin-top: 8rpx; overflow-wrap: anywhere; }
+.ui-screen .glance-facts, .ui-screen .result-arrangement { display: flex; flex-wrap: wrap; gap: 12rpx 22rpx; margin-top: 14rpx; color: var(--brand); font-size: 23rpx; line-height: 1.5; }
+.ui-screen .result-arrangement { justify-content: center; }
+.ui-screen .membership-actions { display: flex; flex-wrap: wrap; gap: 10rpx 24rpx; }

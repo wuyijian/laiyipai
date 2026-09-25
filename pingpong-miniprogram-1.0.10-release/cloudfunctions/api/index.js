@@ -13,6 +13,7 @@ const coachBookings = require('./lib/coach-bookings')
 const coachApplications = require('./lib/coach-applications')
 const favorites = require('./lib/favorites')
 const profile = require('./lib/profile')
+const profileStats = require('./lib/profile-stats')
 const appointments = require('./lib/appointments')
 const messages = require('./lib/messages')
 const videos = require('./lib/videos')
@@ -73,6 +74,7 @@ const routes = {
   'favorites.status': favorites.status,
   'favorites.set': favorites.set,
   'profile.get': profile.get,
+  'profile.stats.get': profileStats.get,
   'players.get': players.get,
   'friends.list': friends.list,
   'profile.update': profile.update,

@@ -149,7 +149,7 @@ async function run() {
     items: [
       verifiedVenue(),
       verifiedVenue('venue_name_only', { name: '社区球馆', listingMode: 'name_only', nameOnly: true, verified: false }),
-      verifiedVenue('venue_community', { name: '社区完整馆', userContributed: true }),
+      verifiedVenue('venue_community', { name: '社区完整馆', userContributed: true, verified: false, address: '江南大道 88 号' }),
       verifiedVenue('venue_unverified', { name: '待核验球馆', verified: false })
     ]
   })
@@ -165,7 +165,7 @@ async function run() {
   assert(template.includes("state === 'error'"))
   assert(template.includes("state === 'forbidden'"))
   assert(template.includes('待审申请已清空'))
-  console.log('PASS 待审状态完整，已上架名称型球馆可关联，未核验完整球馆不会进入候选')
+  console.log('PASS 已公开名称馆及球友补充地址馆可关联，不伪称管理员认证')
 
   const venuePages = []
   venuesHandler = async (payload) => {

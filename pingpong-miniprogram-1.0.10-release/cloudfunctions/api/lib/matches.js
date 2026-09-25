@@ -10,6 +10,11 @@ const matchOptions = require('./match-options')
 const terms = require('./terms')
 const friends = require('./friends')
 
+function requestedDistrict(payload) {
+  if (payload.district === undefined) return undefined
+  return validate.oneOf(payload.district, [''].concat(matchOptions.DISTRICTS), '行政区')
+}
+
 function sameVersion(document, expectedVersion) {
   assert(Number(document.version || 0) === expectedVersion, 'VERSION_CONFLICT', '球局信息已更新，请刷新后重试', {
     currentVersion: Number(document.version || 0)
@@ -140,6 +145,7 @@ async function get(context, payload) {
 }
 
 async function create(context, payload) {
+  const district = requestedDistrict(payload)
   const termsVersion = terms.requireAcceptance(payload)
   const requestId = validate.id(context.requestId, '请求 ID')
   const venueId = validate.id(payload.venueId, '球馆 ID')
@@ -176,7 +182,7 @@ async function create(context, payload) {
     const match = {
       title,
       city: venue.city,
-      district: venue.district,
+      district: venue.district || district || '',
       venueId,
       venueSnapshot: {
         id: venueId,
@@ -237,6 +243,12 @@ async function join(context, payload) {
   const termsVersion = terms.requireAcceptance(payload)
   const matchId = validate.id(payload.matchId, '球局 ID')
   const allowWaitlist = payload.allowWaitlist === true
+  // Optional for 1.0.7 clients. New clients confirm the arrangement they saw,
+  // not changes made by the host between opening the sheet and submitting.
+  const expectedScheduleVersion = payload.expectedScheduleVersion === undefined ? null
+    : validate.integer(payload.expectedScheduleVersion, '安排版本', { min: 1 })
+  const expectedFeePerPerson = payload.expectedFeePerPerson === undefined ? null
+    : validate.integer(payload.expectedFeePerPerson, '预计费用', { min: 0, max: 999 })
   const snapshot = presenters.playerSnapshot(context.user)
   let resultState = ''
   await context.db.runTransaction(async (transaction) => {
@@ -257,6 +269,10 @@ async function join(context, payload) {
       resultState = member.status
       return
     }
+    assert(expectedScheduleVersion === null || expectedScheduleVersion === Number(match.scheduleVersion || 1),
+      'ARRANGEMENT_CHANGED', '球局时间或球馆已调整')
+    assert(expectedFeePerPerson === null || expectedFeePerPerson === Number(match.feePerPerson || 0),
+      'ARRANGEMENT_CHANGED', '球局费用已调整')
     const full = Number(match.participantCount || 0) >= Number(match.capacity || 0)
     if (full) {
       assert(allowWaitlist, 'MATCH_FULL', '球局已满，可选择加入候补')
@@ -508,6 +524,7 @@ function structuredMatchTitle(venueName, practiceIntent) {
 }
 
 async function update(context, payload) {
+  const district = requestedDistrict(payload)
   const matchId = validate.id(payload.matchId, '球局 ID')
   const expectedVersion = validate.integer(payload.expectedVersion, '球局版本', { min: 1 })
   const requestId = validate.id(context.requestId, '请求 ID')
@@ -546,6 +563,8 @@ async function update(context, payload) {
     courtStatus: requestedCourtStatus,
     joinMode
   }
+  // Omit the new field for old clients so their retry fingerprints stay valid.
+  if (district !== undefined) submittedIntent.district = district
   const fingerprint = updateFingerprint(submittedIntent)
 
   if (current.lastUpdateRequestId === requestId) {
@@ -591,7 +610,10 @@ async function update(context, payload) {
     assert(selectableVenue || (!venueChanged && match.venueSnapshot && match.venueSnapshot.id === venueId),
       'NOT_FOUND', '球馆不存在或暂未开放，请选择其他球馆')
     const nextVenueSnapshot = selectableVenue ? venueSnapshot(venue, venueId) : match.venueSnapshot
+    const nextDistrict = (selectableVenue && venue.district) ||
+      (district !== undefined ? district : venueChanged ? '' : match.district || '')
     const intent = Object.assign({}, submittedIntent, {
+      district: nextDistrict,
       courtStatus,
       courtBookingNote,
       note
@@ -607,7 +629,7 @@ async function update(context, payload) {
     await ref.update({ data: {
       title,
       city: selectableVenue ? venue.city : match.city,
-      district: selectableVenue ? venue.district : match.district,
+      district: nextDistrict,
       venueId,
       venueSnapshot: nextVenueSnapshot,
       date: schedule.date,

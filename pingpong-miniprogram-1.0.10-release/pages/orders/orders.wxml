@@ -108,7 +108,7 @@
         <button wx:if="{{item.canChat}}" class="appointment-chat" data-match-id="{{item.matchId}}" bindtap="openChat" hover-class="appointment-chat-press" aria-label="打开{{item.title}}的球局沟通">
           <view class="appointment-chat-icon" aria-hidden="true"><text>•••</text></view>
           <view class="appointment-chat-copy"><text>球局沟通</text><text>确认球台、集合位置和时间</text></view>
-          <view class="appointment-chat-action">打开 <text>›</text></view>
+          <view class="appointment-chat-action"><text wx:if="{{messageCounts[item.matchId]}}" class="conversation-unread">{{messageCounts[item.matchId]}}</text>打开 <text>›</text></view>
         </button>
 
         <view wx:if="{{item.canCancel || item.canConfirmSchedule || item.canRebook}}" class="appointment-actions {{item.canRebook ? 'rebook-actions' : ''}}">

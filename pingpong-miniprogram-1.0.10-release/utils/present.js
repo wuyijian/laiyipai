@@ -136,7 +136,7 @@ function match(raw = {}) {
 
 function venue(raw = {}) {
   const nameOnly = raw.nameOnly === true || raw.listingMode === 'name_only'
-  const district = String(raw.district || '').trim()
+  const district = nameOnly ? matchOptions.districtValue(raw.district) : String(raw.district || '').trim()
   const address = String(raw.address || '').trim()
   const activityTags = textList(raw.activityTags)
   const location = geo.normalizePoint(raw.location)
@@ -151,13 +151,13 @@ function venue(raw = {}) {
           ? `${(distance / 1000).toFixed(1)} 公里`
           : `${Math.round(distance / 1000)} 公里`
     : ''
-  const locationText = nameOnly ? '' : [district, address].filter(Boolean).join(' · ')
+  const locationText = nameOnly ? district : [district, address].filter(Boolean).join(' · ')
   const businessHoursText = nameOnly ? '' : String(raw.openingHours || '').trim()
   const bookingNotice = nameOnly ? '' : String(raw.bookingTip || '').trim()
   const phone = nameOnly ? '' : String(raw.phone || '').trim()
   return Object.assign({}, raw, {
     nameOnly,
-    district: nameOnly ? '' : district,
+    district,
     address: nameOnly ? '' : address,
     phone,
     verified: nameOnly ? false : raw.verified,

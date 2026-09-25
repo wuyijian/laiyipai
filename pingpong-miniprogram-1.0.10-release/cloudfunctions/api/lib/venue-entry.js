@@ -48,19 +48,20 @@ function isDuplicateKeyError(error) {
 }
 
 function communityVenueDocument(submission, now) {
+  const address = String(submission.address || '').trim()
   return {
     name: submission.name,
     nameKey: submission.nameKey || nameKey(submission.name),
     city: submission.city || '杭州',
-    district: '', address: '', location: null,
+    district: submission.district || '', address, location: null,
     phone: '', openingHours: '', bookingTip: '',
     tags: [], facilityTags: [],
     activityTags: Array.isArray(submission.activityTags) ? submission.activityTags : [],
     coverFileIds: [], photoFileIds: [], featuredRank: 9999,
-    listingMode: 'name_only', source: 'community',
+    listingMode: address ? 'full' : 'name_only', source: 'community', adminVerified: false,
     // `verified` is the directory visibility state. Community venues remain
-    // visually distinguished by listingMode/source and never claim partner
-    // verification in presenters.venue().
+    // distinct from administrator certification (adminVerified), even when
+    // the contributor supplied a full address.
     verificationStatus: 'verified', verificationDate: '', sourceUrls: [],
     partnerVerified: false, partnershipReference: '', active: true,
     createdAt: now, updatedAt: now
@@ -108,6 +109,8 @@ function presentSubmission(document, options = {}) {
     venueId: document.venueId || document.targetVenueId || '',
     name: document.name || '',
     city: document.city || '杭州',
+    district: document.district || '',
+    address: document.address || '',
     activityTags: Array.isArray(document.activityTags) ? document.activityTags.filter((tag) => VENUE_ACTIVITY_TAGS.includes(tag)) : [],
     status,
     reviewReason: status === REJECTED ? document.reviewReason || '' : '',
@@ -130,6 +133,14 @@ function validateActivityTags(value) {
   const tags = validate.stringArray(value, '适合活动', { maxItems: 4, itemMax: 4 })
   tags.forEach((tag) => validate.oneOf(tag, VENUE_ACTIVITY_TAGS, '适合活动'))
   return tags
+}
+
+function venueAddress(payload) {
+  const address = validate.text(payload.address || '', '球馆地址', { required: false, max: 120 })
+  assert(!address || address.length >= 4, 'INVALID_ARGUMENT', '请填写至少 4 个字的完整球馆地址')
+  const district = validate.text(payload.district || '', '所在区域', { required: false, max: 20 })
+  if (district) validate.oneOf(district, ['滨江区', '萧山区', '上城区', '西湖区', '拱墅区', '余杭区', '临平区', '钱塘区', '富阳区', '临安区'], '所在区域')
+  return { address, district }
 }
 
 async function requireActiveUser(transaction, userId, options = {}) {
@@ -182,8 +193,9 @@ async function create(context, payload) {
   const name = normalizedName(payload.name)
   const key = nameKey(name)
   const city = '杭州'
-  assert(payload.confirmPublic === true, 'PUBLIC_CONFIRMATION_REQUIRED', '提交后球馆名称将立即公开，请确认后继续')
+  assert(payload.confirmPublic === true, 'PUBLIC_CONFIRMATION_REQUIRED', '提交后球馆名称和地址将立即公开，请确认后继续')
   const activityTags = validateActivityTags(payload.activityTags)
+  const { address, district } = venueAddress(payload)
 
   const submissionId = submissionIdFor(context.openid, city, key)
   const stableSubmission = await getDocument(context.db.collection(COLLECTIONS.venueSubmissions).doc(submissionId))
@@ -218,7 +230,7 @@ async function create(context, payload) {
   // A confirmed retry must not depend on the content-safety service being
   // available again. The transaction below still re-checks ownership/account.
   if (!stableSubmission || stableSubmission.requestId !== context.requestId) {
-    await checkText(context, [name].concat(activityTags), 2)
+    await checkText(context, [name, address, district].concat(activityTags).filter(Boolean), 2)
   }
   let result
   try {
@@ -251,6 +263,8 @@ async function create(context, payload) {
         name,
         nameKey: key,
         city,
+        address,
+        district,
         activityTags,
         status: APPROVED,
         publicationMode: 'instant',
@@ -326,12 +340,16 @@ async function resubmit(context, payload) {
   validate.id(context.requestId, '请求 ID')
   const submissionId = validate.id(payload.submissionId, '球馆提交 ID')
   const expectedVersion = validate.integer(payload.expectedVersion, '申请版本', { min: 1 })
-  assert(payload.confirmPublic === true, 'PUBLIC_CONFIRMATION_REQUIRED', '提交后球馆名称将立即公开，请确认后继续')
+  assert(payload.confirmPublic === true, 'PUBLIC_CONFIRMATION_REQUIRED', '提交后球馆名称和地址将立即公开，请确认后继续')
   const activityTags = validateActivityTags(payload.activityTags)
   const initial = await getDocument(context.db.collection(COLLECTIONS.venueSubmissions).doc(submissionId))
   assert(initial && initial.userId === context.openid, 'NOT_FOUND', '球馆提交记录不存在')
+  const { address, district } = venueAddress({
+    address: payload.address === undefined ? initial.address : payload.address,
+    district: payload.district === undefined ? initial.district : payload.district
+  })
   if (initial.requestId !== context.requestId) {
-    await checkText(context, [initial.name].concat(activityTags), 2)
+    await checkText(context, [initial.name, address, district].concat(activityTags).filter(Boolean), 2)
   }
 
   const lookup = initial.requestId === context.requestId
@@ -351,10 +369,12 @@ async function resubmit(context, payload) {
       }
       assert(document.status === REJECTED, 'VERSION_CONFLICT', '只有未通过的球馆才能重新提交')
       assert(Number(document.version || 1) === expectedVersion, 'VERSION_CONFLICT', '提交状态已更新，请刷新后重试')
-      const publication = await publishCommunityVenue(transaction, context, Object.assign({}, document, { activityTags }), lookup)
+      const publication = await publishCommunityVenue(transaction, context, Object.assign({}, document, { activityTags, address, district }), lookup)
       const now = context.serverDate()
       const patch = {
         activityTags,
+        address,
+        district,
         status: APPROVED,
         venueId: publication.venueId,
         publicationMode: 'instant',

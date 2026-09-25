@@ -127,3 +127,6 @@
 .home-page .coach-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 20rpx; padding-top: 16rpx; border-top: 1rpx solid var(--line); font-size: 22rpx; color: var(--text-secondary); }
 .home-page .coach-price { font-size: 25rpx; color: var(--text); font-weight: 600; }
 .ui-screen .venue-create-button { display: flex; align-items: center; justify-content: center; flex: none; min-height: 76rpx; margin: 0; padding: 0 10rpx; width: auto; background: transparent; color: var(--brand); font-size: 23rpx; line-height: 1.3; }
+.home-page .calendar-filter { display: flex; min-height: 64rpx; align-items: center; justify-content: center; gap: 10rpx; padding: 0 4rpx 0 16rpx; color: var(--text-secondary); font-size: 23rpx; }
+.home-page .calendar-filter.active { color: var(--brand); font-weight: 600; }
+.home-page .match-next-step { color: var(--brand); font-size: 22rpx; font-weight: 550; }

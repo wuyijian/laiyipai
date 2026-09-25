@@ -3,6 +3,7 @@ const clientState = require('../../utils/client-state')
 const present = require('../../utils/present')
 const errors = require('../../utils/error')
 const tabBar = require('../../utils/tab-bar')
+const messageNotifier = require('../../utils/message-notifier')
 
 const TYPE_OPTIONS = [
   { value: 'all', label: '全部' },
@@ -27,6 +28,7 @@ Page({
     typeOptions: TYPE_OPTIONS,
     allAppointments: [],
     appointments: [],
+    messageCounts: {},
     joinRequests: [],
     joinRequestsState: 'idle',
     joinRequestsError: '',
@@ -46,6 +48,11 @@ Page({
 
   onShow() {
     tabBar.sync(this, 'pages/orders/orders')
+    if (!this.unsubscribeMessages) this.unsubscribeMessages = messageNotifier.subscribe((state) => {
+      const messageCounts = {}
+      state.items.forEach((item) => { messageCounts[item.matchId] = item.unreadCount > 99 ? '99+' : String(item.unreadCount || 1) })
+      this.setData({ messageCounts })
+    })
     this.visible = true
     if (clientState.consumeJoinRequestsDestination()) this.setData({ period: 'upcoming', type: 'all' })
     return this.loadAppointments()
@@ -64,6 +71,8 @@ Page({
 
   onUnload() {
     this.onHide()
+    if (this.unsubscribeMessages) this.unsubscribeMessages()
+    this.unsubscribeMessages = null
   },
 
   scheduleRefresh() {

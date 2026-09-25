@@ -1,6 +1,15 @@
-# 来一拍云 API v2 契约
+# 搭拍子云 API v2 契约
 
 ## 统一调用
+
+### 球局标题与行政区（2026-09-21，已部署生产 api）
+
+- `matches.create` / `matches.update` 保留 `title`（2—30 字、文本安全校验）；可写积分范围和练球方式，不自动推断或填充积分。
+- 新增可选 `district`：空字符串或杭州十个行政区之一。球馆已有行政区时以球馆为准；球馆未填时采用本场手动选择，仅写入 `matches.district`，不更改球馆库。
+- 旧客户端不传 `district` 时：创建仍使用球馆地区；编辑同一球馆保留原地区；更换球馆后不继承旧地区。旧版更新请求的幂等指纹格式保持不变。
+- 名称型球馆可返回明确填写的有效行政区，但仍不冒充完整地址或导航坐标。
+- 不新增集合或索引。客户端分享图片、微信分享文字、朋友圈文字、复制安排统一包含地区和标题；长文优先保留地区、标题、时间。
+- 生产 `api` 已于 2026-09-21 23:03:17 更新并完成代码哈希核验和公开读取检查；对应客户端已上传为 `1.0.10`，公众平台“设为体验版”仍需用户确认。真实球局编辑保存未执行生产写入测试，详见 `docs/PRODUCTION_API_DEPLOY_2026-09-21_EDIT_SHARE.md`。
 
 所有业务请求只调用云函数 `api`：
 
@@ -40,6 +49,17 @@ wx.cloud.callFunction({
 
 ## 身份与资料
 
+### 个人约球统计（2026-09-22，本地完成，待部署）
+
+- 新增只读 `profile.stats.get`，payload `{}`。必须登录，身份仅取云函数上下文；不支持查询其他用户，不开放游客访问。
+- data：`{historyCount, monthCount, hostedCount, month, asOf, basis: 'ended_confirmed_registration_v1'}`。`month` 为北京时间 `YYYY-MM`，`asOf` 为服务器统计时点。
+- 历史参与：结束时间不晚于统计时点、非取消/删除、至少两人报名的球局，本人成员状态必须为 `host/joined`，且已确认当前日程。同场去重。
+- 本月参与：历史参与中开球时间位于本月的球局；发起成局：历史参与中本人为发起人的球局。跨月球局按开球月份归属。
+- 不计入待审、候补、拒绝、退出、未成局、尚未结束和改期未确认的记录。不推算实际到场、胜率或运动时长。旧数据没有确认版本时，仅适配未改期的首版日程。
+- 使用现有 `match_members.user_updated` 索引，按本人记录每批 100 条分页，再以球局 ID 每批 20 条关联必要字段；不是从预约页面最近 50 条推算，不扫描全部用户/球局。
+- 不新增集合、索引或存储字段；新接口不改动 `profile.get/bootstrap` 响应，兼容旧客户端。数据库异常直接失败，不把部分结果或失败返回为 0。
+- 部署顺序：先更新生产 `api`，再上传小程序。未部署接口时，客户端只显示局部“统计服务待更新”，不会阻塞个人资料、球馆和消息。
+
 | action | payload | data |
 | --- | --- | --- |
 | `bootstrap` | `{consentAccepted, consentVersion}` | `{authentication:{provider:'wechat',authenticated:true},profile,capabilities,policies,serverTime}`；`capabilities.adminVenueReview/adminCoachReview` 是服务端按当前账号角色及管理员白名单计算的入口提示；首次建档或协议升级时必须明确同意当前版本，身份只取微信云函数上下文 |
@@ -66,15 +86,15 @@ wx.cloud.callFunction({
 | `venues.list` | `{city?,district?,keyword?,page?,pageSize?}` | 已上架球馆分页；每项包含 `listingMode:'full'|'name_only'` 与受控 `activityTags`。名称型记录没有地址或位置，且 `verified/partnerVerified` 均为 `false` |
 | `venues.nearby` | `{latitude,longitude,radiusMeters?,pageSize?}` | 距离范围内已核验球馆 |
 | `venues.get` | `{venueId}` | 已上架球馆详情；名称型记录不代表平台核验 |
-| `venues.create` | `{name,activityTags?,confirmPublic:true}` | 新名称在事务中立即公开，返回 `{submission,venue,created:true,venueCreated:true,duplicateExisting:false,idempotent:false}`；同名已上架时返回 `{submission:null,venue,created:false,duplicateExisting:true,idempotent:true}` |
+| `venues.create` | `{name,address?,district?,activityTags?,confirmPublic:true}` | 地址选填，填写时 4—120 字并参与文本安全检查；新馆立即公开但未经管理员认证。返回 `{submission,venue,created:true,venueCreated:true,duplicateExisting:false,idempotent:false}`；同名已上架时直接复用，不覆盖原地址 |
 | `venues.submissions.list` | `{page?,pageSize?}` | `{items,page,pageSize}`；仅返回当前用户的球馆提交 |
 | `venues.submissions.get` | `{submissionId}` | `{submission,venue}`；仅申请人可访问，已通过且仍上架时 `venue` 才非空 |
-| `venues.submissions.resubmit` | `{submissionId,activityTags?,confirmPublic:true,expectedVersion}` | `{submission,venue,venueCreated,idempotent}`；仅申请人可将历史 `rejected` 记录按版本重提并直接公开 |
+| `venues.submissions.resubmit` | `{submissionId,address?,district?,activityTags?,confirmPublic:true,expectedVersion}` | `{submission,venue,venueCreated,idempotent}`；仅申请人可将历史 `rejected` 记录按版本重提并直接公开；省略地址时保留原值 |
 | `matches.list` | `{city?,district?,venueId?,date?,expectedBallAge?,friendsOnly?,page?,pageSize?}` | `{items,page,pageSize,hasMore}`；过滤发生在服务端，自动排除双向拉黑用户；`friendsOnly:true` 仅对登录用户开放，返回有球友确认参加的球局；传入全局唯一的 `venueId` 时忽略地区条件。新球局的 `venue` 快照包含经脱敏的位置，名称型球馆仍不返回地址或坐标 |
 | `matches.get` | `{matchId}` | `{match,membership,confirmedCount,hostVideos}`；`match.venue` 可包含地址、位置和展示模式。兼容字段 `hostVideos` 固定为空数组，不查询或返回发起人的个人视频 |
 | `matches.create` | `{venueId,title,date,startTime,endTime,capacity,feePerPerson,expectedBallAge,practiceIntent,note,joinMode,courtStatus,courtBookingNote?,termsAccepted,termsVersion}` | `{match,membership:{status:'host',canChat:true},idempotent}`；`practiceIntent` 只能为 `随便练练/切磋球技`，`capacity` 为 1—8 的整数，1 人球局不开放加入；自由文字经过内容安全检查 |
 | `matches.update` | `{matchId,expectedVersion,title?,note?,courtBookingNote?,venueId,date,startTime,endTime,capacity,feePerPerson,expectedBallAge,practiceIntent,joinMode,courtStatus}` | `{match,idempotent,noop}`；仅发起人可在开球前修改。未提交的文字字段保持原值；球馆或时段变化时订台状态重置并要求成员重新确认 |
-| `matches.join` | `{matchId,allowWaitlist?,termsAccepted,termsVersion}` | 直接加入为 `joined`，申请制为 `pending`，满员且明确允许时为 `waitlisted` |
+| `matches.join` | `{matchId,allowWaitlist?,expectedScheduleVersion?,expectedFeePerPerson?,termsAccepted,termsVersion}` | 直接加入为 `joined`，申请制为 `pending`，满员且明确允许时为 `waitlisted`。新客户端可提交看到的安排版本和人均费用，事务中若已变化则返回 `ARRANGEMENT_CHANGED`，刷新后由用户再次确认。两字段可省略以兼容旧版 |
 | `matches.pending` | `{matchId}` | 仅发起人可见的申请和候补列表 |
 | `matches.respondJoin` | `{matchId,membershipId,decision:'accept'|'reject',expectedVersion}` | 审批结果和新球局版本 |
 | `matches.cancel` | `{matchId,reason,expectedVersion}` | 发起人取消整场；成员退出释放名额 |
@@ -87,7 +107,7 @@ wx.cloud.callFunction({
 
 球馆录入要求登录且账号可用，使用发布限流桶，并在写入前执行文本安全检测。普通用户只能查看自己的 `venue_submissions`，传入的 `userId/status/active/verificationStatus` 均被忽略。新记录由服务端直接写为 `approved/publicationMode:instant`，并与名称型公共球馆在同一事务中落库；历史状态 `reviewing/rejected/withdrawn` 继续兼容。响应不包含 OPENID、内部名称键或审核员身份。
 
-名称做 NFKC、去空白和英文小写化；同一用户同名提交 ID 稳定，不同用户同名录入指向同一目标球馆 ID。新馆在事务内创建或复用 `source:community`、`listingMode:name_only` 的公开球馆；同名待审/停用目录冲突时不会自动重新上架。`venues.city_name_key` 必须建为唯一组合索引；建索引前须补齐旧数据的 `nameKey` 并清理 `city + nameKey` 重复项。上线还需要创建 `venue_submissions` 及其索引，详见 `docs/VENUE_ENTRY.md`。
+名称做 NFKC、去空白和英文小写化；同一用户同名提交 ID 稳定，不同用户同名录入指向同一目标球馆 ID。新馆来源为 `source:community`，有地址时 `listingMode:full`，否则 `name_only`；两者均为 `adminVerified:false`，不能把公开可用视作认证。同名待审/停用目录冲突不会自动重新上架。`venues.city_name_key` 为唯一组合索引，建索引前须补齐旧数据的 `nameKey` 并清理重复项；本次地址与认证升级不增加集合或索引。详见 `docs/VENUE_ENTRY.md`。
 
 ## 场地照片
 
@@ -173,7 +193,7 @@ wx.cloud.callFunction({
 
 生产环境不包含任何自动 seed。以上接口输入必须来自人工核验或有授权的数据源。
 
-`admin.venues.upsert` 的 `listingMode` 默认为 `full`，保持既有完整场馆兼容。完整场馆在 `verificationStatus:'verified'` 时强制要求地址、经纬度、`verificationDate` 与至少一个 HTTPS `sourceUrls`；`partnerVerified:true` 还必须提供内部 `partnershipReference`。`listingMode:'name_only'` 只需要名称、城市和 `activityTags`，不读取地址、经纬度、电话、图片或设施字段；即使已上架，公开响应也不会将它标记为资料已核验或合作场馆。`activityTags` 最多四项且只能为 `教学/比赛/训练/切磋`。
+`admin.venues.upsert` 仅管理员可用，`listingMode` 默认为 `full`。完整场馆需要 4—120 字地址；经纬度可同时留空，不能只填一个。`adminVerified:true` 表示管理员确认资料，核验日期省略时自动记为北京时间当天，并记录内部 `verifiedBy/verifiedAt` 和审计日志。资料来源选填，填写时必须为 HTTPS。`adminVerified:false` 可保留 `verificationStatus:verified/active:true`，表示未认证但公开可用；公开 `verified` 单独计算，认证和目录可用性不可混淆。旧管理员请求未传 `adminVerified` 时保持原完整场馆认证语义。名称型场馆不可认证，必须先补地址；普通用户不能写入任何认证字段。`partnerVerified:true` 仍需内部 `partnershipReference`。已软删除的记录不可通过编辑重新上架。公开接口不返回内部认证人员或来源。
 
 `admin.venueSubmissions.pending({page?,pageSize?})` 只返回 `reviewing` 队列及脱敏申请人快照，按最早提交优先，响应为 `{items,page,pageSize,hasMore}`。`admin.venueSubmissions.review({submissionId,expectedVersion,decision:'approve'|'reject',reason?})` 使用对象版本和请求 ID 保证并发与重试幂等；同一请求的重试必须复用原 `requestId`、`expectedVersion`、决定和理由，改变意图会返回 `IDEMPOTENCY_CONFLICT`。驳回必须填写 2—200 字理由，通过后返回 `{submission,venue,venueCreated,idempotent}`，幂等重试中的 `venueCreated` 与首次响应一致。审核人、时间、理由、请求号和版本随申请事务保存；独立 `audit_logs` 写入失败会记录 `AUDIT_WRITE_FAILED`，由运维补查申请记录。
 

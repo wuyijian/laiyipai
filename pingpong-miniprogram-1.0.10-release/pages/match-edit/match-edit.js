@@ -7,12 +7,24 @@ const matchOptions = require('../../utils/match-options')
 const BALL_AGES = ['不限球龄', '新手友好', '球龄 1 年以内', '球龄 2—5 年', '球龄 5 年以上']
 const INTENTS = matchOptions.PRACTICE_INTENTS.map((value) => ({ value }))
 
+function durationMinutes(start, end) {
+  const minutes = (value) => {
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || ''))) return NaN
+    const [hours, minute] = value.split(':').map(Number)
+    return hours * 60 + minute
+  }
+  return minutes(end) - minutes(start)
+}
+
 Page({
   data: {
     id: '', state: 'loading', errorMessage: '', saving: false, saveError: '', dirty: false,
+    saved: false, showMoreOptions: false, venuePickerOpen: false, selectedVenue: {},
+    durationMinutes: 0, durationOptions: [{ minutes: 60, label: '1 小时' }, { minutes: 90, label: '1.5 小时' }, { minutes: 120, label: '2 小时' }],
     venues: [], venueNames: [], visibleVenues: [], venueIndex: 0, venueId: '', minimumDate: '',
     currentVenueUnavailable: false, selectedVenueUnavailable: false, arrangementChanged: false, courtResetNotice: '',
     title: '', note: '', noteLength: 0,
+    district: '', venueDistrict: '', districtIndex: 0, districtOptions: matchOptions.DISTRICT_OPTIONS,
     date: '', startTime: '', endTime: '', capacity: 2, participantCount: 1,
     expectedBallAge: BALL_AGES[0], ballAges: BALL_AGES, ballAgeIndex: 0,
     practiceIntent: matchOptions.DEFAULT_PRACTICE_INTENT, intents: INTENTS,
@@ -38,6 +50,7 @@ Page({
       title: String(this.data.title || '').trim(),
       note: String(this.data.note || '').trim(),
       venueId: this.data.venueId,
+      district: this.data.district,
       date: this.data.date,
       startTime: this.data.startTime,
       endTime: this.data.endTime,
@@ -103,8 +116,14 @@ Page({
         this.originalCourtStatus = match.courtStatus
         const patch = {
           state: 'ready', venues, venueNames: venues.map((item) => item.name), venueIndex,
+          selectedVenue: venues[venueIndex], visibleVenues: venues.slice(0, 6), saved: false,
+          showMoreOptions: Boolean(match.note || match.feePerPerson > 0),
+          durationMinutes: durationMinutes(match.startTime, match.endTime),
           venueId: match.venueId, currentVenueUnavailable, selectedVenueUnavailable: currentVenueUnavailable,
           title: match.title || '', note: match.note || '', noteLength: String(match.note || '').length,
+          district: matchOptions.districtValue(venues[venueIndex].district || match.district),
+          venueDistrict: venues[venueIndex].district || '',
+          districtIndex: Math.max(0, matchOptions.DISTRICT_OPTIONS.indexOf(venues[venueIndex].district || match.district)),
           date: match.date, startTime: match.startTime, endTime: match.endTime,
           capacity: match.capacity, participantCount: match.participantCount,
           expectedBallAge: BALL_AGES[ballAgeIndex], ballAgeIndex,
@@ -130,12 +149,37 @@ Page({
     this.refreshDirty()
   },
 
+  editingLocked() { return this.data.saving || this.data.saved },
+  toggleVenuePicker() {
+    if (this.editingLocked()) return
+    this.setData({ venuePickerOpen: !this.data.venuePickerOpen })
+  },
+  toggleMoreOptions() {
+    if (this.editingLocked()) return
+    this.setData({ showMoreOptions: !this.data.showMoreOptions })
+  },
+
+  selectDuration(event) {
+    if (this.editingLocked()) return
+    const minutes = Number(event.currentTarget.dataset.minutes)
+    if (![60, 90, 120].includes(minutes)) return
+    const start = durationMinutes('00:00', this.data.startTime)
+    if (!Number.isFinite(start) || start + minutes >= 1440) {
+      return wx.showToast({ title: '这个时长会跨天，请调整开始时间', icon: 'none' })
+    }
+    const end = start + minutes
+    this.applyArrangementPatch({ endTime: `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}` })
+  },
+
   changeNumeric(event) {
+    if (this.editingLocked()) return
     this.setData({ feePerPerson: String(event.detail.value || '').replace(/\D/g, '').slice(0, 3) }, () => this.changed())
   },
 
   changeText(event) {
+    if (this.editingLocked()) return
     const field = event.currentTarget.dataset.field
+    if (!['title', 'note'].includes(field)) return
     const value = String(event.detail.value || '')
     const patch = { [field]: value }
     if (field === 'note') patch.noteLength = value.length
@@ -143,6 +187,7 @@ Page({
   },
 
   applyArrangementPatch(patch) {
+    if (this.editingLocked()) return
     const next = Object.assign({
       venueId: this.data.venueId,
       date: this.data.date,
@@ -159,25 +204,38 @@ Page({
       this.courtStatusBeforeArrangement = ''
     }
     patch.arrangementChanged = arrangementChanged
+    patch.durationMinutes = durationMinutes(next.startTime, next.endTime)
     patch.courtResetNotice = arrangementChanged ? '时间或球馆有变化，原订台状态将重置；保存后请重新确认球台。' : ''
     this.setData(patch, () => this.changed())
   },
 
   changeDate(event) { this.applyArrangementPatch({ date: event.detail.value }) },
+  changeDistrict(event) {
+    if (this.editingLocked() || this.data.venueDistrict) return
+    const district = matchOptions.districtValue(matchOptions.DISTRICT_OPTIONS[Number(event.detail.value)])
+    this.setData({ district, districtIndex: Math.max(0, matchOptions.DISTRICT_OPTIONS.indexOf(district)) }, () => this.changed())
+  },
+
+  venueDistrictPatch(venue) {
+    const district = matchOptions.districtValue(venue.district || (venue.id === this.data.venueId ? this.data.district : ''))
+    return { district, venueDistrict: venue.district || '', districtIndex: Math.max(0, matchOptions.DISTRICT_OPTIONS.indexOf(district)) }
+  },
   changeStart(event) { this.applyArrangementPatch({ startTime: event.detail.value }) },
   changeEnd(event) { this.applyArrangementPatch({ endTime: event.detail.value }) },
 
   changeVenue(event) {
+    if (this.editingLocked()) return
     const venueIndex = Number(event.detail.value)
     const venue = this.data.venues[venueIndex]
     if (!venue) return
     if (venue.unavailable && venue.id !== this.data.venueId) {
       return wx.showToast({ title: '该球馆已下架，请选择其他球馆', icon: 'none' })
     }
-    this.applyArrangementPatch({ venueIndex, venueId: venue.id, selectedVenueUnavailable: Boolean(venue.unavailable) })
+    this.selectVenueResult({ currentTarget: { dataset: { id: venue.id } } })
   },
 
   selectVenueResult(event) {
+    if (this.editingLocked()) return
     const venueId = event.currentTarget.dataset.id
     const venueIndex = this.data.venues.findIndex((item) => item.id === venueId)
     if (venueIndex < 0) return
@@ -187,7 +245,9 @@ Page({
     }
     const allVenues = this.allVenues || []
     if (!allVenues.some((item) => item.id === venueId)) this.allVenues = [selectedVenue].concat(allVenues)
-    this.applyArrangementPatch({ venueId, venueIndex, selectedVenueUnavailable: Boolean(selectedVenue.unavailable), venueSearch: '', venueSearched: false, venueSearchError: '' })
+    this.venueSearchRun = Number(this.venueSearchRun || 0) + 1
+    this.searchedVenues = []
+    this.applyArrangementPatch(Object.assign(this.venueDistrictPatch(selectedVenue), { venueId, venueIndex, selectedVenue, selectedVenueUnavailable: Boolean(selectedVenue.unavailable), venuePickerOpen: false, venueSearch: '', venueSearching: false, venueSearched: false, venueSearchError: '' }))
     this.applyVenueSearch()
   },
 
@@ -201,7 +261,7 @@ Page({
     const venues = query
       ? matched.concat((this.searchedVenues || []).filter((item) => item.id && !seen.has(item.id)))
       : matched
-    const selectedVenue = venues.find((item) => item.id === this.data.venueId)
+    const selectedVenue = this.data.selectedVenue
     this.setData({
       venues,
       venueNames: venues.map((item) => item.unavailable ? `${item.name}（已下架）` : item.name),
@@ -212,12 +272,14 @@ Page({
   },
 
   inputVenueSearch(event) {
+    if (this.editingLocked()) return
     this.searchedVenues = []
     this.venueSearchRun = Number(this.venueSearchRun || 0) + 1
     this.setData({ venueSearch: event.detail.value, venueSearching: false, venueSearched: false, venueSearchError: '' }, () => this.applyVenueSearch())
   },
 
   async searchVenues() {
+    if (this.editingLocked()) return
     const keyword = String(this.data.venueSearch || '').trim().slice(0, 30)
     if (!keyword) {
       this.searchedVenues = []
@@ -243,18 +305,24 @@ Page({
   },
 
   changeBallAge(event) {
+    if (this.editingLocked()) return
     const ballAgeIndex = Number(event.detail.value)
+    if (!BALL_AGES[ballAgeIndex]) return
     this.setData({ ballAgeIndex, expectedBallAge: BALL_AGES[ballAgeIndex] }, () => this.changed())
   },
 
   changeCapacity(event) {
+    if (this.editingLocked()) return
     const capacity = Math.max(this.data.participantCount, Math.min(8, Number(event.detail.value || 2)))
+    if (!Number.isInteger(capacity) || capacity === this.data.capacity) return
     this.setData({ capacity, joinMode: capacity === 1 ? 'direct' : this.data.joinMode }, () => this.changed())
   },
 
-  selectIntent(event) { this.setData({ practiceIntent: event.currentTarget.dataset.value }, () => this.changed()) },
-  selectJoinMode(event) { if (this.data.capacity > 1) this.setData({ joinMode: event.currentTarget.dataset.value }, () => this.changed()) },
+  previewCapacity(event) { this.changeCapacity(event) },
+  selectIntent(event) { if (!this.editingLocked()) this.setData({ practiceIntent: event.currentTarget.dataset.value }, () => this.changed()) },
+  selectJoinMode(event) { if (!this.editingLocked() && this.data.capacity > 1) this.setData({ joinMode: event.currentTarget.dataset.value }, () => this.changed()) },
   selectCourtStatus(event) {
+    if (this.editingLocked()) return
     if (this.data.arrangementChanged) return wx.showToast({ title: '保存后再确认新的订台状态', icon: 'none' })
     this.setData({ courtStatus: event.currentTarget.dataset.value }, () => this.changed())
   },
@@ -279,10 +347,18 @@ Page({
   },
 
   async save() {
-    if (this.data.saving) return
+    if (this.editingLocked()) return
     if (!this.data.dirty) return wx.showToast({ title: '没有需要保存的修改', icon: 'none' })
     const validationError = this.validate()
-    if (validationError) return this.setData({ saveError: validationError })
+    if (validationError) {
+      const selector = validationError.includes('名称') ? '#edit-title'
+        : validationError.includes('时间') || validationError.includes('时长') ? '#edit-schedule'
+          : validationError.includes('球馆') ? '#edit-venue'
+            : validationError.includes('费用') ? '#edit-more' : '#edit-play'
+      return this.setData({ saveError: validationError, showMoreOptions: this.data.showMoreOptions || selector === '#edit-more' }, () => {
+        if (wx.pageScrollTo) wx.pageScrollTo({ selector, duration: 200 })
+      })
+    }
     this.updateRequestId = this.updateRequestId || api.createRequestId()
     this.setData({ saving: true, saveError: '' })
     try {
@@ -292,7 +368,8 @@ Page({
       }, this.formValues()), { requestId: this.updateRequestId, retry: true })
       this.updateRequestId = ''
       if (this.destroyed) return
-      this.setData({ saving: false })
+      this.originalForm = this.formValues()
+      this.setData({ saving: false, saved: !(result && result.noop), dirty: false })
       wx.showToast({ title: result && result.noop ? '内容没有变化' : '球局已更新', icon: result && result.noop ? 'none' : 'success' })
       if (result && result.noop) return
       this.navigateTimer = setTimeout(() => {

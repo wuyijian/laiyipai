@@ -96,7 +96,7 @@ async function testPrivateFriendList() {
   assert(!JSON.stringify(result).includes('blocked-one'), '被屏蔽球友不得出现在列表')
 }
 
-async function testDirectJoinCreatesFriendship() {
+async function testDirectJoinCreatesFriendship(legacy = false) {
   const relationships = new Map()
   const match = {
     _id: 'match-direct-join',
@@ -153,14 +153,24 @@ async function testDirectJoinCreatesFriendship() {
     db: { collection: directCollection, runTransaction: work => work({ collection: transactionCollection }) },
     serverDate: () => new Date()
   }
-  const result = await matches.join(context, {
+  const payload = {
     matchId: match._id,
     termsAccepted: true,
     termsVersion: terms.currentVersion()
-  })
+  }
+  await assert.rejects(matches.join(context, Object.assign({}, payload, { expectedScheduleVersion: 2 })), (error) => error.code === 'ARRANGEMENT_CHANGED')
+  await assert.rejects(matches.join(context, Object.assign({}, payload, { expectedFeePerPerson: 50 })), (error) => error.code === 'ARRANGEMENT_CHANGED')
+  assert.strictEqual(membership, null, '时间、球馆或费用变更必须在加入写入前拒绝')
+  assert.strictEqual(relationships.size, 0)
+  assert.strictEqual(match.participantCount, 1)
+  const result = await matches.join(context, Object.assign({}, payload, legacy ? {} : { expectedScheduleVersion: 1, expectedFeePerPerson: 0 }))
   assert.strictEqual(result.membership.status, 'joined')
   assert.strictEqual(relationships.size, 2, '直接加入应在同一事务写入双向球友关系')
   assert.deepStrictEqual(match.participantIds, ['host-id', 'joiner-id'])
+  match.scheduleVersion = 2
+  const retried = await matches.join(context, Object.assign({}, payload, { expectedScheduleVersion: 1 }))
+  assert.strictEqual(retried.membership.status, 'joined', '已成功加入的原请求重试返回现有成员状态')
+  assert.strictEqual(match.participantCount, 2)
 }
 
 async function testApprovedJoinCreatesFriendship() {
@@ -268,6 +278,7 @@ Promise.resolve()
   .then(testAutomaticFriendship)
   .then(testPrivateFriendList)
   .then(testDirectJoinCreatesFriendship)
+  .then(() => testDirectJoinCreatesFriendship(true))
   .then(testApprovedJoinCreatesFriendship)
   .then(testFriendMatchFilter)
   .then(() => console.log('friends cloud tests passed'))

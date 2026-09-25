@@ -67,3 +67,6 @@
 .ui-screen .entry-footnote { margin-top: 12rpx; color: var(--text-tertiary); font-size: 20rpx; text-align: center; }
 .ui-screen .entry-error { margin-bottom: 14rpx; color: var(--danger); font-size: 23rpx; line-height: 1.55; }
 .ui-screen .entry-press { opacity: .72; }
+.ui-screen .entry-selector { display: flex; align-items: center; justify-content: space-between; }
+.ui-screen .entry-address { height: 166rpx; padding: 22rpx; line-height: 1.6; }
+.ui-screen .suggestion-address { margin-top: 6rpx; color: var(--text-secondary); font-size: 21rpx; line-height: 1.5; }

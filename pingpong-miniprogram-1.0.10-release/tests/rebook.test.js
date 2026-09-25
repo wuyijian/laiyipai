@@ -13,6 +13,7 @@ let modalResult = { confirm: true, cancel: false }
 let failPrefillWrite = false
 let capturedPage = null
 let createCalls = 0
+let lastCreatePayload = null
 let appointmentItems = []
 let venueItems = []
 
@@ -59,7 +60,7 @@ mockModule(apiPath, {
   },
   appointments: { list: async () => ({ items: appointmentItems }) },
   matches: {
-    create: async () => { createCalls += 1; return { match: {} } },
+    create: async (payload) => { createCalls += 1; lastCreatePayload = clone(payload); return { match: {} } },
     pending: async () => ({ items: [] }),
     respondJoin: async () => ({}),
     cancel: async () => ({}),
@@ -280,6 +281,39 @@ async function run() {
   assert.strictEqual(toasts[0].title, '暂时无法准备发布内容，请稍后重试')
 
   const publishTemplate = fs.readFileSync(path.join(projectRoot, 'pages', 'publish', 'publish.wxml'), 'utf8')
+  assert(publishTemplate.indexOf('data-field="title"') < publishTemplate.indexOf('wx:if="{{showMoreOptions}}"'), '标题无需展开补充设置即可填写')
+  resetRuntime()
+  const custom = loadPage('pages/publish/publish.js')
+  custom.selectVenue({ id: 'custom_venue', name: '未填地区球馆' })
+  custom.changeField({ currentTarget: { dataset: { field: 'title' } }, detail: { value: '开球网1500分左右，随便打打' } })
+  custom.changeDistrict({ detail: { value: '2' } })
+  assert.strictEqual(custom.data.district, '萧山区')
+  const savedDraft = clientState.getPublishDraft()
+  assert.strictEqual(savedDraft.title, '开球网1500分左右，随便打打')
+  assert.strictEqual(savedDraft.district, '萧山区')
+  venueItems = [{ id: 'custom_venue', name: '未填地区球馆', city: '杭州', listingMode: 'name_only' }]
+  const restoredCustom = loadPage('pages/publish/publish.js')
+  restoredCustom.onLoad()
+  await restoredCustom.loadVenues()
+  assert.strictEqual(restoredCustom.data.district, '萧山区', '重新打开页面恢复地区草稿')
+  assert.strictEqual(restoredCustom.data.title, savedDraft.title)
+  restoredCustom.setData({ date: '2099-01-01', startTime: '19:00', endTime: '20:30', termsAccepted: true })
+  await restoredCustom.submit()
+  assert.strictEqual(lastCreatePayload.title, savedDraft.title)
+  assert.strictEqual(lastCreatePayload.district, '萧山区', '发布请求带入用户选择的地区')
+  custom.persistDraft()
+  assert.strictEqual(custom.data.district, '萧山区', '刷新同一球馆保留补填地区')
+  custom.selectVenue({ id: 'another_venue', name: '另一家球馆' })
+  assert.strictEqual(custom.data.district, '', '换球馆后不带入旧地区')
+  custom.selectVenue(venue('known_venue'))
+  assert.strictEqual(custom.data.district, '西湖区')
+  custom.changeDistrict({ detail: { value: '1' } })
+  assert.strictEqual(custom.data.district, '西湖区', '已知地区跟随球馆')
+  custom.resetForm()
+  assert.strictEqual(custom.data.district, '')
+  assert.strictEqual(custom.data.title, '')
+  assert.strictEqual(require('../utils/present').venue({ name: '测试球馆', listingMode: 'name_only', district: '滨江区' }).district, '滨江区', '名称型球馆可保留明确提供的行政区')
+  console.log('PASS 标题直接填写、草稿保留地区、换馆不残留地区且已知地区不可改')
   assert(!publishTemplate.includes('检查云环境配置'))
   assert(publishTemplate.includes("{{errorMessage || '请检查网络后重试'}}"))
   console.log('PASS 再约一场仅复用安全字段并显式确认新时间')

@@ -39,11 +39,14 @@ function playerSnapshot(user) {
 function venue(document, distanceMeters) {
   const listingMode = document.listingMode === 'name_only' ? 'name_only' : 'full'
   const nameOnly = listingMode === 'name_only'
+  // Older admin-certified community rows predate adminVerified and carry
+  // the date/source required by the previous admin endpoint.
+  const legacyVerified = document.source !== 'community' || Boolean(document.verificationDate && Array.isArray(document.sourceUrls) && document.sourceUrls.length)
   const result = {
     id: document._id,
     name: document.name,
     city: document.city,
-    district: nameOnly ? '' : document.district || '',
+    district: nameOnly && !matchOptions.DISTRICTS.includes(document.district) ? '' : document.district || '',
     address: nameOnly ? '' : document.address || '',
     location: nameOnly ? null : document.location || null,
     coverFileIds: Array.from(new Set((nameOnly ? [] : Array.isArray(document.coverFileIds) ? document.coverFileIds : [])
@@ -57,7 +60,8 @@ function venue(document, distanceMeters) {
     listingMode,
     nameOnly,
     userContributed: document.source === 'community',
-    verified: !nameOnly && document.verificationStatus === 'verified',
+    verified: !nameOnly && document.verificationStatus === 'verified' &&
+      (document.adminVerified === true || (document.adminVerified !== false && legacyVerified)),
     verificationDate: nameOnly ? '' : document.verificationDate || '',
     partnerVerified: !nameOnly && document.partnerVerified === true,
     updatedAt: document.updatedAt
@@ -172,6 +176,7 @@ function message(document, actorId) {
     text: document.text,
     sender: participant(document.senderSnapshot),
     mine: Boolean(document.senderId && document.senderId === actorId),
+    clientRequestId: document.senderId === actorId ? document.requestId || '' : '',
     createdAt: document.createdAt
   }
 }

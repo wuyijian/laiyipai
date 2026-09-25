@@ -15,7 +15,9 @@ function mergeMessages(previous, incoming) {
 // completed after this fetch began. Removed/blocked messages in this window drop out.
 function reconcileMessages(previous, incoming, cursor, sentSinceFetch = []) {
   const boundary = cursor ? timeOf({ createdAt: cursor }) : 0
-  const retained = previous.filter((item) => (boundary && timeOf(item) < boundary) || sentSinceFetch.includes(item.id))
+  const acknowledged = new Set(incoming.map((item) => item.clientRequestId).filter(Boolean))
+  const retained = previous.filter((item) => !acknowledged.has(item.clientRequestId) &&
+    (item.deliveryState || (boundary && timeOf(item) < boundary) || sentSinceFetch.includes(item.id)))
   return mergeMessages(retained, incoming)
 }
 

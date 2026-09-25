@@ -2,7 +2,7 @@
 <view class="page-shell safe-bottom">
   <view class="status-panel retired-content">
     <view class="status-title">该功能已下线</view>
-    <view class="status-copy">来一拍专注于球局邀约。你可以查找球馆、发起球局，或在已参加的球局里沟通。</view>
+    <view class="status-copy">搭拍子专注于球局邀约。你可以查找球馆、发起球局，或在已参加的球局里沟通。</view>
     <button class="status-action" bindtap="goHome">去找球局</button>
   </view>
 </view>

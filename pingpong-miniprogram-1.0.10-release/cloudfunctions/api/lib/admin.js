@@ -104,27 +104,29 @@ async function upsertVenue(context, payload) {
   const listingMode = validate.oneOf(payload.listingMode || 'full', ['full', 'name_only'], '场馆展示模式')
   const nameOnly = listingMode === 'name_only'
   const verificationStatus = validate.oneOf(payload.verificationStatus || (nameOnly ? 'verified' : 'pending'), ['pending', 'verified', 'rejected'], '认证状态')
-  const verificationDate = nameOnly ? '' : payload.verificationDate ? validate.date(payload.verificationDate, '资料核验日期') : ''
+  const adminVerified = !nameOnly && verificationStatus === 'verified' && (payload.adminVerified === undefined ? true : validate.boolean(payload.adminVerified, '管理员认证'))
+  const verificationDate = !adminVerified ? '' : payload.verificationDate ? validate.date(payload.verificationDate, '资料核验日期') : new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const sourceUrls = nameOnly ? [] : validate.stringArray(payload.sourceUrls, '资料来源', { maxItems: 6, itemMax: 300 })
   const partnerVerified = nameOnly ? false : payload.partnerVerified === undefined ? false : validate.boolean(payload.partnerVerified, '合作关系状态')
   const partnershipReference = nameOnly ? '' : validate.text(payload.partnershipReference || '', '合作记录编号', { required: false, max: 80 })
   const active = payload.active === undefined ? verificationStatus === 'verified' : validate.boolean(payload.active, '上架状态')
   const activityTags = validate.stringArray(payload.activityTags, '适合活动', { maxItems: VENUE_ACTIVITY_TAGS.length, itemMax: 4 })
   activityTags.forEach((tag) => assert(VENUE_ACTIVITY_TAGS.includes(tag), 'INVALID_ARGUMENT', `适合活动只能填写：${VENUE_ACTIVITY_TAGS.join('、')}`))
-  if (!nameOnly && verificationStatus === 'verified') {
-    assert(verificationDate && sourceUrls.length, 'INVALID_ARGUMENT', '核验通过的球馆必须填写核验日期和资料来源')
-    sourceUrls.forEach((url) => assert(/^https:\/\//i.test(url), 'INVALID_ARGUMENT', '资料来源必须使用 HTTPS 链接'))
-  }
+  sourceUrls.forEach((url) => assert(/^https:\/\//i.test(url), 'INVALID_ARGUMENT', '资料来源必须使用 HTTPS 链接'))
   assert(!active || verificationStatus === 'verified', 'INVALID_ARGUMENT', '只有资料核验通过的球馆可以上架')
-  assert(!partnerVerified || (verificationStatus === 'verified' && partnershipReference), 'INVALID_ARGUMENT', '标记合作场馆前请填写合作记录编号')
+  assert(!partnerVerified || (adminVerified && partnershipReference), 'INVALID_ARGUMENT', '标记合作场馆前请填写合作记录编号')
   assert(!nameOnly || payload.partnerVerified === undefined || payload.partnerVerified === false, 'INVALID_ARGUMENT', '名称型场馆不能标记为平台认证或合作场馆')
+  assert(!nameOnly || payload.adminVerified !== true, 'INVALID_ARGUMENT', '请先补充球馆地址再认证')
+  const hasLongitude = payload.longitude !== undefined && payload.longitude !== null && String(payload.longitude).trim() !== ''
+  const hasLatitude = payload.latitude !== undefined && payload.latitude !== null && String(payload.latitude).trim() !== ''
+  assert(nameOnly || hasLongitude === hasLatitude, 'INVALID_ARGUMENT', '经纬度请一起填写，或都留空')
   const data = {
     name: venueEntry.normalizedName(payload.name),
     nameKey: venueEntry.nameKey(payload.name),
     city: validate.text(payload.city || '杭州', '城市', { max: 20 }),
-    district: nameOnly ? '' : validate.text(payload.district, '地区', { max: 20 }),
+    district: nameOnly ? '' : validate.text(payload.district || '', '地区', { required: false, max: 20 }),
     address: nameOnly ? '' : validate.text(payload.address, '详细地址', { min: 4, max: 120 }),
-    location: nameOnly ? null : new context.db.Geo.Point(
+    location: nameOnly || !hasLongitude ? null : new context.db.Geo.Point(
       validate.number(payload.longitude, '经度', { min: -180, max: 180 }),
       validate.number(payload.latitude, '纬度', { min: -90, max: 90 })
     ),
@@ -138,6 +140,7 @@ async function upsertVenue(context, payload) {
     featuredRank: validate.integer(payload.featuredRank === undefined ? 9999 : payload.featuredRank, '推荐排序', { min: 0, max: 9999 }),
     listingMode,
     verificationStatus,
+    adminVerified,
     verificationDate,
     sourceUrls,
     partnerVerified,
@@ -147,12 +150,16 @@ async function upsertVenue(context, payload) {
   }
   const ref = context.db.collection(COLLECTIONS.venues).doc(venueId)
   const existing = await getDocument(ref)
+  assert(!existing || existing.deleted !== true, 'NOT_FOUND', '球馆已删除，请刷新列表')
+  data.verifiedBy = adminVerified ? context.openid : ''
+  data.verifiedAt = adminVerified ? context.serverDate() : null
   if (existing) await ref.update({ data })
   else await ref.set({ data: Object.assign(data, { createdAt: context.serverDate() }) })
   await writeAudit(context, 'admin.venues.upsert', 'venue', venueId, {
     active: data.active,
     listingMode,
     verificationStatus,
+    adminVerified,
     partnerVerified
   })
   return presenters.venue(await getDocument(ref))

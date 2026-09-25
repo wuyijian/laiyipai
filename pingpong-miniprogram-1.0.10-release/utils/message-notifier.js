@@ -1,15 +1,16 @@
 const api = require('./api')
 
-const POLL_INTERVAL_MS = 15000
+const POLL_INTERVAL_MS = 6000
 const RECOVERY_POLL_INTERVAL_MS = 800
 let running = false
-let polling = false
+let polling = null
 let timer = null
 let generation = 0
 let modalVisible = false
 let activeMatchId = ''
 const announced = new Set()
 const readByMatch = Object.create(null)
+const confirmedReads = new Set()
 const listeners = new Set()
 let inboxState = { unreadCount: 0, items: [] }
 let nextPollDelay = POLL_INTERVAL_MS
@@ -109,29 +110,34 @@ function showNotice(item) {
 }
 
 async function poll(token = generation) {
-  if (!running || polling || token !== generation || !sessionReady()) return false
-  polling = true
-  nextPollDelay = POLL_INTERVAL_MS
+  if (!running || polling === token || token !== generation || !sessionReady()) return false
+  polling = token
   try {
     const result = await api.messages.inbox({ pageSize: 10 })
     if (!running || token !== generation) return false
-    publishInbox(result)
+    // A fetch begun before a successful read must not restore that old badge.
+    const alreadyRead = (result.items || []).filter((item) => confirmedReads.has(item.messageId))
+    publishInbox(Object.assign({}, result, {
+      items: (result.items || []).filter((item) => !alreadyRead.includes(item)),
+      unreadCount: Math.max(0, Number(result.unreadCount || 0) - alreadyRead.reduce((sum, item) => sum + Math.max(1, Number(item.unreadCount || 1)), 0))
+    }))
     const recovering = result.recoveryPending === true
     recoveryPollAttempts = recovering ? recoveryPollAttempts + 1 : 0
     nextPollDelay = recommendedPollDelay(result, recoveryPollAttempts)
-    const items = result.items || []
+    const items = inboxState.items
     for (const item of items) {
       if (item.matchId === activeMatchId) {
-        markRead(item.matchId, item.messageId)
+        // Only chat may acknowledge messages actually loaded and visible.
         continue
       }
       if (!announced.has(item.messageId) && showNotice(item)) break
     }
     return true
   } catch (_) {
+    nextPollDelay = Math.min(30000, Math.max(POLL_INTERVAL_MS, nextPollDelay) * 2)
     return false
   } finally {
-    polling = false
+    if (polling === token) polling = null
   }
 }
 
@@ -139,7 +145,7 @@ function start(options = {}) {
   const ready = sessionReady()
   if (running) {
     // Login restoration may finish after the notifier has entered its idle
-    // cycle. Wake it immediately instead of waiting up to 15 seconds.
+    // cycle. Wake it immediately instead of waiting for the next poll.
     if (ready && options.immediate === true) schedule(0)
     return ready
   }
@@ -152,6 +158,9 @@ function start(options = {}) {
 function stop() {
   running = false
   generation += 1
+  // In-flight acknowledgements are invalidated along with their generation.
+  // Do not let them suppress retries when the app returns to the foreground.
+  Object.keys(readByMatch).forEach((key) => delete readByMatch[key])
   clearTimeout(timer)
   timer = null
 }
@@ -160,6 +169,7 @@ function reset() {
   stop()
   announced.clear()
   Object.keys(readByMatch).forEach((key) => delete readByMatch[key])
+  confirmedReads.clear()
   activeMatchId = ''
   modalVisible = false
   nextPollDelay = POLL_INTERVAL_MS
@@ -172,6 +182,7 @@ function setActiveMatch(matchId = '') {
 }
 
 async function markRead(matchId, messageId) {
+  const token = generation
   const safeMatchId = String(matchId || '')
   const safeMessageId = String(messageId || '')
   if (!safeMatchId || !safeMessageId || readByMatch[safeMatchId] === safeMessageId) return false
@@ -179,9 +190,12 @@ async function markRead(matchId, messageId) {
   announced.add(safeMessageId)
   try {
     const result = await api.messages.read({ matchId: safeMatchId, messageId: safeMessageId })
+    if (token !== generation) return false
     if (result && result.read) {
+      confirmedReads.add(safeMessageId)
+      if (confirmedReads.size > 1000) confirmedReads.delete(confirmedReads.values().next().value)
       const item = inboxState.items.find((entry) => entry && entry.matchId === safeMatchId)
-      if (item) {
+      if (item && item.messageId === safeMessageId) {
         publishInbox({
           unreadCount: Math.max(0, inboxState.unreadCount - Math.max(1, Number(item.unreadCount || 1))),
           items: inboxState.items.filter((entry) => !entry || entry.matchId !== safeMatchId)
@@ -191,7 +205,7 @@ async function markRead(matchId, messageId) {
       return true
     }
   } catch (_) {}
-  if (readByMatch[safeMatchId] === safeMessageId) delete readByMatch[safeMatchId]
+  if (token === generation && readByMatch[safeMatchId] === safeMessageId) delete readByMatch[safeMatchId]
   return false
 }
 

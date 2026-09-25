@@ -292,7 +292,7 @@ Page({
         // correctly does not describe the venue itself as platform-verified.
         const venues = dedupe(collected
           .map(formatVenue)
-          .filter((venue) => venue.id && (venue.verified || venue.nameOnly)))
+          .filter((venue) => venue.id && (venue.verified || venue.nameOnly || venue.userContributed)))
         const selected = new Set(this.data.selectedVenueIds)
         this.setData({ venues: venues.map((venue) => Object.assign({}, venue, { selected: selected.has(venue.id) })), venuesState: 'ready', venuesError: '' })
         this.applySuggestedVenueSelection()

@@ -359,7 +359,7 @@ Page({
   onShareAppMessage() {
     const venue = this.data.venue
     return share.appMessage({
-      title: venue ? `${venue.name}｜查看近期球局` : '杭州乒乓球馆｜来一拍',
+      title: venue ? `${venue.name}｜查看近期球局` : '杭州乒乓球馆｜搭拍子',
       path: `/pages/venue-detail/venue-detail?id=${encodeURIComponent(this.data.id)}`,
       imageUrl: venue && venue.imageUrls && venue.imageUrls[0]
     })
@@ -368,7 +368,7 @@ Page({
   onShareTimeline() {
     const venue = this.data.venue
     return share.timeline({
-      title: venue ? `${venue.name}｜查看近期球局` : '杭州乒乓球馆｜来一拍',
+      title: venue ? `${venue.name}｜查看近期球局` : '杭州乒乓球馆｜搭拍子',
       params: { id: this.data.id },
       imageUrl: venue && venue.imageUrls && venue.imageUrls[0]
     })

@@ -89,6 +89,7 @@ async function run() {
   assert.strictEqual(venueSaves[0].district, '滨江区')
   assert.strictEqual(venueSaves[0].verificationStatus, 'verified')
   assert.strictEqual(venueSaves[0].longitude, 120.2)
+  assert.strictEqual(venueSaves[0].adminVerified, true)
   await catalog.switchType({ currentTarget: { dataset: { type: 'coaches' } } })
   assert.deepStrictEqual(catalog.data.items.map((item) => item.id), ['coach_1'])
 
@@ -117,6 +118,30 @@ async function run() {
   await retryCatalog.requestRemove({ currentTarget: { dataset: { id: 'venue_1' } } })
   assert.deepStrictEqual(attempts, ['request_catalog_1', 'request_catalog_1'])
   assert.strictEqual(retryCatalog.data.items.length, 0)
+
+  const communityCatalog = page()
+  venuesHandler = async () => ({ items: [{ id: 'community_1', name: '球友新馆', address: '长河路 88 号 2 楼', listingMode: 'full', verified: false, userContributed: true, verificationStatus: 'verified', active: true }], page: 1 })
+  await communityCatalog.onShow()
+  assert.strictEqual(communityCatalog.data.items[0].statusLabel, '未认证 · 公开可用')
+  communityCatalog.openVenueEditor({ currentTarget: { dataset: { id: 'community_1' } } })
+  assert.strictEqual(communityCatalog.data.verificationIndex, 3)
+  assert.strictEqual(communityCatalog.data.editDistrictIndex, 0, '不能静默把未知区域设成滨江区')
+  communityCatalog.changeVerification({ detail: { value: 1 } })
+  let certifiedPayload
+  upsertVenueHandler = async payload => { certifiedPayload = payload; return payload }
+  await communityCatalog.saveVenue()
+  assert.strictEqual(certifiedPayload.adminVerified, true)
+  assert.strictEqual(certifiedPayload.longitude, undefined)
+  assert.strictEqual(certifiedPayload.latitude, undefined)
+  assert.deepStrictEqual(certifiedPayload.sourceUrls, [])
+  assert.strictEqual(certifiedPayload.district, '')
+  assert.strictEqual(communityCatalog.data.editorVisible, false)
+  communityCatalog.openVenueEditor({ currentTarget: { dataset: { id: 'community_1' } } })
+  communityCatalog.changeVerification({ detail: { value: 1 } })
+  communityCatalog.changeEditField({ currentTarget: { dataset: { field: 'address' } }, detail: { value: '' } })
+  await communityCatalog.saveVenue()
+  assert(communityCatalog.data.saveError.includes('完整球馆地址'))
+  console.log('PASS 球友录入不会显示已认证，管理员填写地址即可认证，不自动补坐标或区域')
   console.log('admin catalog client tests passed')
 }
 

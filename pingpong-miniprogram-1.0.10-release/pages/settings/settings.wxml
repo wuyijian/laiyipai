@@ -20,17 +20,17 @@
     <button class="settings-item danger-item" bindtap="requestDelete"><view><text>注销账号</text><text>申请删除个人资料及可删除的业务数据</text></view><text>注销</text></button>
   </view>
 
-  <view class="version-copy">来一拍 · {{version}}</view>
+  <view class="version-copy">搭拍子 · {{version}}</view>
 </view>
 
 <view wx:if="{{termsVisible}}" class="sheet-mask" catchtap="closeTerms">
   <view class="sheet legal-sheet" catchtap="noop">
     <view class="sheet-handle"></view>
-    <view class="sheet-title">来一拍用户协议</view>
+    <view class="sheet-title">搭拍子用户协议</view>
     <scroll-view class="legal-content" scroll-y="true">
       <view class="legal-date">生效日期：{{termsEffectiveDate}}</view>
       <view class="legal-heading">1. 服务说明</view>
-      <view>来一拍用于查找、发布和加入乒乓球活动，查看同场球友，管理预约并与同一球局成员沟通。平台目前不代收球局费用。</view>
+      <view>搭拍子用于查找、发布和加入乒乓球活动，查看同场球友，管理预约并与同一球局成员沟通。平台目前不代收球局费用。</view>
       <view class="legal-heading">2. 信息真实性</view>
       <view>用户应如实填写球局时间、地区、球馆、场地状态、费用及个人资料；不得发布私人住宅邀约、诱导转账或违法有害内容。</view>
       <view class="legal-heading">3. 线下活动</view>

@@ -3,10 +3,12 @@ const errors = require('../../utils/error')
 
 const PAGE_SIZE = 30
 const DISTRICTS = ['全部区域', '滨江区', '萧山区', '上城区', '西湖区', '拱墅区', '余杭区', '临平区', '钱塘区', '富阳区', '临安区']
+const EDIT_DISTRICTS = ['暂不选择'].concat(DISTRICTS.slice(1))
 const VERIFICATION_OPTIONS = [
-  { label: '待认证并下架', status: 'pending', active: false },
-  { label: '已认证并上架', status: 'verified', active: true },
-  { label: '已认证但下架', status: 'verified', active: false }
+  { label: '未认证 · 已下架', status: 'pending', active: false, certified: false },
+  { label: '已认证 · 公开可用', status: 'verified', active: true, certified: true },
+  { label: '已认证 · 已下架', status: 'verified', active: false, certified: true },
+  { label: '未认证 · 公开可用', status: 'verified', active: true, certified: false }
 ]
 
 function point(raw = {}) {
@@ -22,13 +24,14 @@ function venueItem(raw = {}) {
   const nameOnly = raw.nameOnly === true || raw.listingMode === 'name_only'
   const coordinates = point(raw)
   const verificationStatus = raw.verificationStatus || (raw.verified ? 'verified' : 'pending')
+  const certified = !nameOnly && (raw.verified === undefined ? verificationStatus === 'verified' && !raw.userContributed : raw.verified === true)
   return {
     id: raw.id || raw._id || '',
     name: raw.name || '未命名球馆',
     subtitle: nameOnly ? '名称记录 · 杭州' : (raw.district || raw.address || '杭州'),
-    statusLabel: verificationStatus !== 'verified' ? '待认证' : raw.active === false ? '已认证 · 未上架' : '已认证 · 上架中',
+    statusLabel: `${certified ? '已认证' : '未认证'} · ${raw.active === false ? '已下架' : '公开可用'}`,
     active: raw.active !== false,
-    verified: verificationStatus === 'verified',
+    verified: certified,
     avatarSeed: raw.id || raw.name || 'venue',
     district: raw.district || '', address: raw.address || '', longitude: coordinates.longitude, latitude: coordinates.latitude,
     verificationStatus, verificationDate: raw.verificationDate || '', sourceUrls: raw.sourceUrls || [],
@@ -71,7 +74,7 @@ Page({
     removalError: '',
     skeletonRows: [1, 2, 3]
     ,districts: DISTRICTS, districtIndex: 0,
-    editorVisible: false, editingId: '', editForm: {}, editDistrictIndex: 1,
+    editorVisible: false, editingId: '', editForm: {}, editDistricts: EDIT_DISTRICTS, editDistrictIndex: 0, editMore: false,
     verificationOptions: VERIFICATION_OPTIONS, verificationIndex: 0, saving: false, saveError: ''
   },
 
@@ -204,14 +207,14 @@ Page({
     if (this.data.type !== 'venues' || this.data.removingId) return
     const item = this.data.items.find(candidate => candidate.id === event.currentTarget.dataset.id)
     if (!item) return
-    const verificationIndex = item.verificationStatus === 'verified' ? (item.active ? 1 : 2) : 0
+    const verificationIndex = item.verified ? (item.active ? 1 : 2) : item.active ? 3 : 0
     this.setData({
-      editorVisible: true, editingId: item.id, saving: false, saveError: '',
-      editDistrictIndex: Math.max(1, DISTRICTS.indexOf(item.district || '滨江区')),
+      editorVisible: true, editingId: item.id, saving: false, saveError: '', editMore: false,
+      editDistrictIndex: Math.max(0, EDIT_DISTRICTS.indexOf(item.district)),
       verificationIndex,
       editForm: {
         name: item.name, address: item.address, longitude: item.longitude, latitude: item.latitude,
-        verificationDate: item.verificationDate, sourceUrl: (item.sourceUrls || [])[0] || '',
+        verificationDate: item.verificationDate, sourceUrl: (item.sourceUrls || [])[0] || '', sourceUrls: item.sourceUrls,
         phone: item.phone, openingHours: item.openingHours, bookingTip: item.bookingTip,
         tags: item.tags, activityTags: item.activityTags, facilityTags: item.facilityTags,
         coverFileIds: item.coverFileIds, featuredRank: item.featuredRank
@@ -220,38 +223,49 @@ Page({
   },
 
   closeVenueEditor() { if (!this.data.saving) this.setData({ editorVisible: false, saveError: '' }) },
+  toggleEditMore() { if (!this.data.saving) this.setData({ editMore: !this.data.editMore }) },
   noop() {},
   changeEditField(event) {
+    if (this.data.saving) return
     const field = event.currentTarget.dataset.field
     if (!['name', 'address', 'longitude', 'latitude', 'verificationDate', 'sourceUrl', 'phone', 'openingHours', 'bookingTip'].includes(field)) return
-    this.setData({ [`editForm.${field}`]: String(event.detail.value || ''), saveError: '' })
+    const value = String(event.detail.value || '')
+    const editForm = Object.assign({}, this.data.editForm, { [field]: value })
+    if (field === 'address' && value !== this.data.editForm.address) Object.assign(editForm, { longitude: '', latitude: '' })
+    this.setData({ editForm, saveError: '' })
   },
-  changeEditDistrict(event) { this.setData({ editDistrictIndex: Number(event.detail.value), saveError: '' }) },
-  changeVerification(event) { this.setData({ verificationIndex: Number(event.detail.value), saveError: '' }) },
+  changeEditDistrict(event) { if (!this.data.saving) this.setData({ editDistrictIndex: Number(event.detail.value), saveError: '' }) },
+  changeVerification(event) { if (!this.data.saving) this.setData({ verificationIndex: Number(event.detail.value), saveError: '' }) },
 
   async saveVenue() {
     if (this.data.saving) return
     const form = this.data.editForm || {}
     const verification = VERIFICATION_OPTIONS[this.data.verificationIndex]
+    if (!verification) return
+    const address = String(form.address || '').trim()
+    const hasLongitude = String(form.longitude || '').trim() !== ''
+    const hasLatitude = String(form.latitude || '').trim() !== ''
     const longitude = Number(form.longitude)
     const latitude = Number(form.latitude)
     if (!String(form.name || '').trim()) return this.setData({ saveError: '请填写球馆名称' })
-    if (!String(form.address || '').trim()) return this.setData({ saveError: '请填写详细地址' })
-    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return this.setData({ saveError: '请填写有效的经纬度' })
-    if (verification.status === 'verified' && (!form.verificationDate || !String(form.sourceUrl || '').startsWith('https://'))) {
-      return this.setData({ saveError: '认证球馆需要填写核验日期和 HTTPS 资料来源' })
-    }
+    if (verification.certified && address.length < 4) return this.setData({ saveError: '认证前请补充完整球馆地址（至少 4 个字）' })
+    if (address && (address.length < 4 || address.length > 120)) return this.setData({ saveError: '请填写 4—120 个字的完整地址' })
+    if (hasLongitude !== hasLatitude || (hasLongitude && (!Number.isFinite(longitude) || !Number.isFinite(latitude) || Math.abs(longitude) > 180 || Math.abs(latitude) > 90))) return this.setData({ saveError: '经纬度请正确填写一对，或都留空' })
+    const sourceUrl = String(form.sourceUrl || '').trim()
+    if (sourceUrl && !/^https:\/\//i.test(sourceUrl)) return this.setData({ saveError: '选填的资料来源需以 https:// 开头' })
     this.setData({ saving: true, saveError: '' })
     try {
       await api.admin.upsertVenue({
-        venueId: this.data.editingId, listingMode: 'full', name: form.name, city: '杭州',
-        district: DISTRICTS[this.data.editDistrictIndex], address: form.address,
-        longitude, latitude, phone: form.phone || '', openingHours: form.openingHours || '', bookingTip: form.bookingTip || '',
+        venueId: this.data.editingId, listingMode: address ? 'full' : 'name_only', name: form.name.trim(), city: '杭州',
+        district: this.data.editDistrictIndex > 0 ? EDIT_DISTRICTS[this.data.editDistrictIndex] : '', address,
+        longitude: hasLongitude ? longitude : undefined, latitude: hasLatitude ? latitude : undefined,
+        phone: form.phone || '', openingHours: form.openingHours || '', bookingTip: form.bookingTip || '',
         tags: form.tags || [], activityTags: form.activityTags || [], facilityTags: form.facilityTags || [],
-        coverFileIds: form.coverFileIds || [], featuredRank: Number(form.featuredRank || 9999),
+        coverFileIds: form.coverFileIds || [], featuredRank: Number(form.featuredRank === undefined ? 9999 : form.featuredRank),
         verificationStatus: verification.status, active: verification.active,
-        verificationDate: verification.status === 'verified' ? form.verificationDate : '',
-        sourceUrls: verification.status === 'verified' ? [String(form.sourceUrl).trim()] : []
+        adminVerified: verification.certified,
+        verificationDate: verification.certified ? form.verificationDate : '',
+        sourceUrls: (sourceUrl ? [sourceUrl] : []).concat((form.sourceUrls || []).slice(1))
       }, { retry: false })
       this.setData({ editorVisible: false, saving: false })
       await this.load({ preserve: true, force: true })

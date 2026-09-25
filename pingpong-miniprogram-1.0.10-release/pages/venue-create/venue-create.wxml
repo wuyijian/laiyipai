@@ -3,7 +3,7 @@
     <view class="entry-heading">
       <view class="entry-eyebrow">杭州球馆库</view>
       <view class="entry-title">{{editingRejected ? '修改早期提交' : savedVenue ? (reused ? '找到已有球馆' : '球馆已添加') : submission ? '历史审核进度' : '录入新球馆'}}</view>
-      <view class="entry-subtitle">{{editingRejected ? '名称保持不变，可调整适合活动' : savedVenue ? '这家球馆现在可以直接用于约球' : submission ? '这里保留升级前提交的处理状态' : '填写名称并保存，马上就能用于发布球局'}}</view>
+      <view class="entry-subtitle">{{editingRejected ? '名称保持不变，可补充地址和适合活动' : savedVenue ? '这家球馆现在可以直接用于约球' : submission ? '这里保留升级前提交的处理状态' : '填好名称和地址，让球友更容易找到这里'}}</view>
     </view>
 
     <view wx:if="{{submissionLoading}}" class="entry-state-card entry-loading" aria-live="polite">
@@ -21,11 +21,12 @@
     <view wx:elif="{{savedVenue}}" class="entry-result entry-result-existing" aria-live="polite">
       <view class="result-topline">
         <view class="result-mark existing-mark">✓</view>
-        <text class="result-status approved">已公开</text>
+        <text class="result-status approved">{{savedVenue.verified ? '管理员已认证' : '已公开 · 未认证'}}</text>
       </view>
       <venue-avatar seed="{{savedVenue.id}}" size="92" label="{{savedVenue.name}}的球馆头像" />
       <view class="entry-result-title">{{reused ? '已有这家球馆' : '球馆已可使用'}}</view>
       <view class="entry-result-name">{{savedVenue.name}}</view>
+      <view wx:if="{{savedVenue.address}}" class="entry-result-copy">{{savedVenue.address}}</view>
       <view class="entry-result-copy">{{reused ? '直接选用已有记录，球友看到的是同一家球馆。' : '已加入球馆库，可以直接用于发布球局。'}}</view>
     </view>
 
@@ -36,6 +37,7 @@
       </view>
       <view class="entry-result-title">{{submission.title}}</view>
       <view class="entry-result-name">{{submission.name}}</view>
+      <view wx:if="{{submission.address}}" class="entry-result-copy">{{submission.address}}</view>
       <view class="entry-result-copy">{{submission.copy}}</view>
       <view wx:if="{{submission.activityTags.length}}" class="result-tags">
         <text wx:for="{{submission.activityTags}}" wx:key="*this">{{item}}</text>
@@ -74,9 +76,21 @@
         </view>
         <button wx:for="{{suggestions}}" wx:key="id" class="entry-suggestion" data-id="{{item.id}}" bindtap="useExisting" disabled="{{saving || outcomeUnknown}}" hover-class="entry-press">
           <venue-avatar seed="{{item.id || item.name}}" size="58" label="{{item.name}}的球馆头像" />
-          <view class="entry-suggestion-name">{{item.name}}</view>
+          <view class="entry-suggestion-name"><view>{{item.name}}</view><view wx:if="{{item.address}}" class="suggestion-address">{{item.address}}</view></view>
           <text class="entry-suggestion-action">{{fromPublish ? '直接选用' : '查看'}} ›</text>
         </button>
+      </view>
+
+      <view class="entry-field">
+        <view class="entry-label">所在区域<text class="entry-optional">选填</text></view>
+        <picker mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict" disabled="{{saving || outcomeUnknown}}">
+          <view class="entry-input entry-selector"><text>{{districts[districtIndex]}}</text><text>⌄</text></view>
+        </picker>
+      </view>
+      <view class="entry-field">
+        <label for="venue-address" class="entry-label">完整地址<text class="entry-optional">选填</text></label>
+        <textarea id="venue-address" class="entry-input entry-address" value="{{address}}" maxlength="120" placeholder="道路、门牌号、楼层，例如：江南大道 88 号 2 楼" placeholder-class="entry-placeholder" bindinput="changeAddress" disabled="{{saving || outcomeUnknown}}" />
+        <view class="entry-helper">填写球馆对外营业地址，请勿填写私人住址。不获取定位。</view>
       </view>
 
       <view class="entry-field entry-activities">
@@ -90,7 +104,7 @@
         <view class="notice-dot"></view>
         <view>
           <view class="notice-title">保存后立即加入球馆库</view>
-          <view class="notice-copy">名称会公开给其他球友，请确认准确，并且不要填写私人住址。</view>
+          <view class="notice-copy">名称和地址会公开给其他球友，保存后可用于约球；管理员核对后会显示认证标记。</view>
         </view>
       </view>
     </block>

@@ -4,6 +4,7 @@ const present = require('../../utils/present')
 const share = require('../../utils/share')
 
 const TAGS = ['教学', '比赛', '训练', '切磋']
+const DISTRICTS = ['暂不选择', '滨江区', '萧山区', '上城区', '西湖区', '拱墅区', '余杭区', '临平区', '钱塘区', '富阳区', '临安区']
 const SUBMISSION_STATUSES = ['reviewing', 'approved', 'rejected']
 
 function formatSubmission(raw = {}) {
@@ -41,7 +42,7 @@ function formatSubmission(raw = {}) {
 
 Page({
   data: {
-    name: '', city: '杭州', fromPublish: false, fromCoachReview: false,
+    name: '', city: '杭州', address: '', districts: DISTRICTS, districtIndex: 0, fromPublish: false, fromCoachReview: false,
     tags: TAGS.map((label) => ({ label, selected: false })),
     suggestions: [], searchState: 'idle', errorMessage: '',
     saving: false, outcomeUnknown: false,
@@ -96,6 +97,20 @@ Page({
     const label = event.currentTarget.dataset.value
     this.attempt = null
     this.setData({ tags: this.data.tags.map((item) => item.label === label ? Object.assign({}, item, { selected: !item.selected }) : item) })
+  },
+
+  changeAddress(event) {
+    if (this.formLocked()) return
+    this.attempt = null
+    this.setData({ address: event.detail.value, errorMessage: '' })
+  },
+
+  changeDistrict(event) {
+    if (this.formLocked()) return
+    const districtIndex = Number(event.detail.value)
+    if (!Number.isInteger(districtIndex) || !DISTRICTS[districtIndex]) return
+    this.attempt = null
+    this.setData({ districtIndex, errorMessage: '' })
   },
 
   async loadSubmission() {
@@ -165,6 +180,12 @@ Page({
       return
     }
     const activityTags = this.data.tags.filter((item) => item.selected).map((item) => item.label)
+    const address = String(this.data.address || '').trim()
+    if (address && (address.length < 4 || address.length > 120)) {
+      this.setData({ errorMessage: '请填写 4—120 个字的完整球馆地址' })
+      return
+    }
+    const district = this.data.districtIndex > 0 ? DISTRICTS[this.data.districtIndex] : ''
     const resubmitting = Boolean(this.data.editingRejected && this.data.submission && this.data.submission.id)
     this.searchRun = Number(this.searchRun || 0) + 1
     this.attempt = this.attempt || {
@@ -174,10 +195,12 @@ Page({
         ? {
             submissionId: this.data.submission.id,
             activityTags,
+            address,
+            district,
             confirmPublic: true,
             expectedVersion: this.data.submission.version
           }
-        : { name, activityTags, confirmPublic: true }
+        : { name, activityTags, address, district, confirmPublic: true }
     }
     this.setData({ saving: true, errorMessage: '', searchState: 'idle' })
     try {
@@ -272,6 +295,8 @@ Page({
         saving: false,
         errorMessage: '',
         name: submission.name,
+        address: submission.address || '',
+        districtIndex: Math.max(0, DISTRICTS.indexOf(submission.district)),
         tags: TAGS.map((label) => ({ label, selected: submission.activityTags.includes(label) }))
       })
       return
@@ -295,6 +320,8 @@ Page({
     this.setData({
       editingRejected: true,
       name: submission.name,
+      address: submission.address || '',
+      districtIndex: Math.max(0, DISTRICTS.indexOf(submission.district)),
       tags: TAGS.map((label) => ({ label, selected: submission.activityTags.includes(label) })),
       suggestions: [], searchState: 'idle', errorMessage: ''
     })
@@ -312,7 +339,7 @@ Page({
     this.submissionId = ''
     this.setData({
       submission: null, savedVenue: null, editingRejected: false,
-      name: '', tags: TAGS.map((label) => ({ label, selected: false })),
+      name: '', address: '', districtIndex: 0, tags: TAGS.map((label) => ({ label, selected: false })),
       suggestions: [], searchState: 'idle', errorMessage: ''
     })
   },

@@ -74,6 +74,48 @@ async function rejection(work, code) {
 
 async function run() {
   {
+    const { context } = fixture({}, [venue('venue_001', { district: '' })])
+    const edited = payload({ title: '开球网1500分左右，随便打打', district: '上城区' })
+    const result = await matches.update(context, edited)
+    assert.strictEqual(result.match.title, edited.title)
+    assert.strictEqual(result.match.district, '上城区')
+    assert.strictEqual(result.match.scheduleVersion, 3)
+    assert.strictEqual((await matches.update(context, edited)).idempotent, true)
+    await rejection(() => matches.update(context, Object.assign({}, edited, { district: '滨江区' })), 'IDEMPOTENCY_CONFLICT')
+    context.requestId = 'district_legacy_edit'
+    const legacy = await matches.update(context, payload({ expectedVersion: 4, capacity: 4 }))
+    assert.strictEqual(legacy.match.district, '上城区', '旧版未传地区时保留已填地区')
+    context.requestId = 'district_new_venue'
+    const missingVenue = venue('venue_002', { district: '' })
+    await context.db.collection('venues').doc('venue_002').set({ data: missingVenue })
+    const moved = await matches.update(context, payload({ expectedVersion: 5, venueId: 'venue_002' }))
+    assert.strictEqual(moved.match.district, '', '换到未知地区的新馆，不沿用旧区')
+  }
+  {
+    const { context } = fixture()
+    const result = await matches.update(context, payload({ title: '随便打打', district: '上城区' }))
+    assert.strictEqual(result.match.district, '滨江区', '已知球馆地区优先，客户端不能伪造')
+    await rejection(() => matches.update(context, payload({ district: '不存在区' })), 'INVALID_ARGUMENT')
+  }
+  {
+    const { context, db } = fixture()
+    context.user = { _id: hostId, profile: { displayName: '测试发起人' } }
+    const venueWithoutDistrict = venue('venue_003', { district: '', listingMode: 'name_only' })
+    await db.collection('venues').doc('venue_003').set({ data: venueWithoutDistrict })
+    const created = await matches.create(context, Object.assign(payload(), {
+      venueId: 'venue_003', district: '萧山区', title: '1500分左右，随便打打',
+      termsAccepted: true, termsVersion: require('../lib/terms').currentVersion()
+    }))
+    assert.strictEqual(created.match.district, '萧山区')
+    assert.strictEqual(created.match.title, '1500分左右，随便打打')
+    assert.strictEqual(db.record('venues', 'venue_003').district, '', '只补充本场地区，不篡改球馆库')
+    context.requestId = 'district_create_known'
+    const known = await matches.create(context, Object.assign(payload(), {
+      district: '萧山区', title: '随便打打', termsAccepted: true, termsVersion: require('../lib/terms').currentVersion()
+    }))
+    assert.strictEqual(known.match.district, '滨江区')
+  }
+  {
     const { db, context } = fixture()
     const result = await matches.update(context, payload({ capacity: 4, practiceIntent: '切磋球技' }))
     assert.strictEqual(result.noop, false)

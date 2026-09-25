@@ -34,11 +34,16 @@
     </view>
 
     <view class="form-surface">
-    <view id="publish-schedule" class="section-card first-card">
+    <view id="publish-title" class="section-card first-card">
+      <view class="field-label-row"><text class="section-title">球局标题</text><text class="optional">选填 · 最多 30 字</text></view>
+      <input class="text-input invitation-title" value="{{title}}" maxlength="30" placeholder="例如：1500分左右，随便打打" data-field="title" bindinput="changeField" />
+      <text class="invitation-hint">写下积分范围或练球方式，分享时直接展示</text>
+    </view>
+    <view id="publish-schedule" class="section-card">
       <view class="section-heading">
         <view class="section-copy">
           <text class="section-title">什么时候打</text>
-          <text class="section-caption">日期和时间之后都可以协商</text>
+          <text class="section-caption">先定好开球时间，再选打多久</text>
         </view>
       </view>
 
@@ -67,6 +72,12 @@
         </view>
       </view>
 
+      <view class="duration-shortcuts" aria-label="快速选择练球时长">
+        <text>打多久</text>
+        <button data-minutes="60" bindtap="selectDuration" disabled="{{submitting || publishOutcomeUnknown}}" hover-class="button-press">1 小时</button>
+        <button data-minutes="90" bindtap="selectDuration" disabled="{{submitting || publishOutcomeUnknown}}" hover-class="button-press">1.5 小时</button>
+        <button data-minutes="120" bindtap="selectDuration" disabled="{{submitting || publishOutcomeUnknown}}" hover-class="button-press">2 小时</button>
+      </view>
       <view wx:if="{{prefillNotice}}" class="prefill-notice"><view class="prefill-check">✓</view><text>{{prefillNotice}}</text></view>
 
       <view wx:if="{{rebookNotice}}" class="rebook-notice {{rebookVenueUnavailable ? 'warning' : ''}}">
@@ -88,6 +99,10 @@
         </view>
       </view>
 
+      <picker wx:if="{{selectedVenue}}" mode="selector" range="{{districtOptions}}" value="{{districtIndex}}" disabled="{{!!selectedVenue.district || submitting || publishOutcomeUnknown}}" bindchange="changeDistrict">
+        <view class="district-select"><text>行政区</text><view><text>{{district || '选择行政区'}}</text><text class="district-source">{{selectedVenue.district ? '随球馆' : '›'}}</text></view></view>
+      </picker>
+      <text wx:if="{{selectedVenue && !selectedVenue.district}}" class="invitation-hint district-hint">补选球馆所在区，方便球友筛选和查看分享</text>
       <view wx:if="{{loadState === 'loading'}}" class="venue-state">
         <view class="venue-skeleton"></view>
         <text>正在加载球馆</text>
@@ -237,21 +252,13 @@
         <view class="more-plus {{showMoreOptions ? 'open' : ''}}"><view></view><view></view></view>
         <view class="more-copy">
           <text class="more-title">补充设置</text>
-          <text class="more-caption">标题、费用和见面备注，都可以不填</text>
+          <text class="more-caption">费用和见面备注，都可以不填</text>
         </view>
         <view class="more-arrow {{showMoreOptions ? 'open' : ''}}"></view>
       </button>
 
       <view wx:if="{{showMoreOptions}}" class="more-content">
         <view class="field-group first-field">
-          <view class="field-label-row">
-            <text class="field-label">球局标题</text>
-            <text class="optional">选填</text>
-          </view>
-          <input class="text-input" value="{{title}}" maxlength="30" placeholder="例如：周末轻松练一场" data-field="title" bindinput="changeField" />
-        </view>
-
-        <view class="field-group">
           <view class="field-label-row">
             <text class="field-label">人均费用</text>
             <text class="optional">到店支付</text>

@@ -21,17 +21,9 @@
   <block wx:else>
     <view class="profile-hero">
       <view class="profile-header">
-        <button
-          class="avatar-wrap avatar-edit-trigger"
-          open-type="chooseAvatar"
-          bindchooseavatar="chooseAvatar"
-          aria-label="更换我的头像"
-          hover-class="profile-avatar-press"
-          hover-stay-time="80"
-        >
+        <view class="avatar-wrap">
           <player-avatar src="{{profile.avatarUrl}}" seed="{{profile.playerId || profile.nickname}}" size="98" label="我的头像" />
-          <text class="avatar-edit-badge" aria-hidden="true">换</text>
-        </button>
+        </view>
         <view class="profile-identity">
           <view class="profile-name">{{profile.nickname}}</view>
           <view class="profile-location">微信已登录 · {{profile.locationText}}</view>
@@ -39,18 +31,33 @@
         <button class="edit-button" bindtap="openEdit" hover-class="profile-ghost-press" hover-stay-time="80">编辑</button>
       </view>
 
-      <view wx:if="{{profile.avatarReviewMessage}}" class="avatar-reviewing avatar-review-{{profile.avatarReviewState}}">
-        <view class="review-dot"></view>
-        <text class="avatar-review-copy">{{profile.avatarReviewMessage}}</text>
-        <button
-          wx:if="{{profile.avatarReviewCanRetry}}"
-          class="avatar-review-retry"
-          bindtap="retryAvatarReview"
-          loading="{{avatarRetrying}}"
-          disabled="{{avatarRetrying}}"
-          hover-class="profile-ghost-press"
-        >重新提交</button>
+    </view>
+
+    <view class="match-stats" aria-label="我的约球统计">
+      <view class="match-stats-head">
+        <text class="match-stats-title">我的约球</text>
+        <button class="match-stats-help" bindtap="showStatsHelp" aria-label="查看约球统计口径" hover-class="profile-text-press">统计说明 <text class="stats-info-icon" aria-hidden="true">i</text></button>
       </view>
+      <view class="match-stats-grid" aria-live="polite">
+        <view class="match-stat">
+          <text class="match-stat-value">{{matchStats ? matchStats.historyCount : '—'}}</text>
+          <text class="match-stat-label">历史参与</text>
+        </view>
+        <view class="match-stat">
+          <text class="match-stat-value">{{matchStats ? matchStats.monthCount : '—'}}</text>
+          <text class="match-stat-label">本月参与</text>
+        </view>
+        <view class="match-stat">
+          <text class="match-stat-value">{{matchStats ? matchStats.hostedCount : '—'}}</text>
+          <text class="match-stat-label">发起成局</text>
+        </view>
+      </view>
+      <view wx:if="{{matchStatsState === 'error' || matchStatsState === 'unavailable'}}" class="match-stats-notice">
+        <text>{{matchStatsState === 'unavailable' ? '统计服务待更新' : matchStats ? '更新失败，显示上次统计' : '统计暂未载入'}}</text>
+        <button class="match-stats-retry" bindtap="loadMatchStats" hover-class="profile-text-press">重试</button>
+      </view>
+      <text wx:elif="{{matchStatsState === 'loading'}}" class="match-stats-note">{{matchStats ? '正在更新统计…' : '正在同步约球记录…'}}</text>
+      <text wx:else class="match-stats-note">{{matchStats && matchStats.historyCount === 0 ? '还没有符合统计条件的球局' : '按已结束的报名记录统计，不代表实际到场'}}</text>
     </view>
 
     <view wx:if="{{!profile.complete}}" class="complete-card">
@@ -292,20 +299,11 @@
       <button class="sheet-close {{saving ? 'is-disabled' : ''}}" bindtap="closeEdit" disabled="{{saving}}" aria-label="关闭编辑" hover-class="profile-soft-press" hover-stay-time="80">×</button>
     </view>
 
-    <button class="avatar-picker {{saving ? 'is-disabled' : ''}}" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{saving}}" hover-class="profile-row-press" hover-stay-time="80">
-      <player-avatar src="{{editProfile.avatarPreviewUrl}}" seed="{{profile.playerId || profile.nickname}}" size="74" label="头像预览" />
-      <view class="avatar-picker-copy">
-        <text class="avatar-picker-title">头像</text>
-        <text class="avatar-picker-hint">{{avatarDirty ? '已选择，保存后提交审核' : profile.avatarReviewing ? '新头像审核中，仍可再次更换' : profile.avatarReviewCanRetry ? '上次审核未完成，可返回页面直接重新提交' : '点击更换，保存后提交审核'}}</text>
-      </view>
-      <text class="row-chevron" aria-hidden="true">›</text>
-    </button>
-
     <view class="edit-group">
       <view class="edit-group-title">基本资料</view>
       <view class="edit-field">
         <text class="edit-label">昵称</text>
-        <input class="edit-input {{saving ? 'is-disabled' : ''}}" type="nickname" aria-label="昵称" value="{{editProfile.nickname}}" maxlength="20" placeholder="请输入昵称" disabled="{{saving}}" bindinput="changeNickname" />
+        <input class="edit-input {{saving ? 'is-disabled' : ''}}" type="nickname" aria-label="昵称" value="{{editProfile.nickname}}" maxlength="20" placeholder="请输入昵称" disabled="{{saving}}" bindinput="changeNickname" bindblur="changeNickname" />
       </view>
       <view class="edit-field">
         <text class="edit-label">所在地区</text>
@@ -346,7 +344,7 @@
 
     <view class="edit-actions">
       <view wx:if="{{editError}}" class="inline-error">{{editError}}</view>
-      <button class="primary-button save-profile {{saving || !editDirty ? 'is-disabled' : ''}}" bindtap="saveProfile" loading="{{saving}}" disabled="{{saving || !editDirty}}" hover-class="profile-primary-press" hover-stay-time="80">{{saving ? (avatarDirty ? '头像上传中' : '保存中') : avatarDirty && !profileDirty ? '保存新头像' : editDirty ? '保存修改' : '暂无修改'}}</button>
+      <button class="primary-button save-profile {{saving || !editDirty ? 'is-disabled' : ''}}" bindtap="saveProfile" loading="{{saving}}" disabled="{{saving || !editDirty}}" hover-class="profile-primary-press" hover-stay-time="80">{{saving ? '保存中' : editDirty ? '保存修改' : '暂无修改'}}</button>
       <button class="text-button cancel-edit {{saving ? 'is-disabled' : ''}}" bindtap="closeEdit" disabled="{{saving}}" hover-class="profile-text-press" hover-stay-time="80">取消</button>
     </view>
   </view>

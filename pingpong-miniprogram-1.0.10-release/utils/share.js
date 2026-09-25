@@ -20,9 +20,9 @@ function disable() {
   callMenu('hideShareMenu')
 }
 
-function cleanTitle(value, fallback = '来一拍') {
+function cleanTitle(value, fallback = '搭拍子', limit = 32) {
   const normalized = String(value || '').replace(/\s+/g, ' ').trim() || fallback
-  return Array.from(normalized).slice(0, 32).join('')
+  return Array.from(normalized).slice(0, limit).join('')
 }
 
 function query(params = {}) {
@@ -37,8 +37,8 @@ function approvedImageUrl(value) {
   return /^https:\/\//i.test(imageUrl) ? imageUrl : ''
 }
 
-function timeline({ title, params, imageUrl } = {}) {
-  const payload = { title: cleanTitle(title) }
+function timeline({ title, params, imageUrl, titleLimit = 32 } = {}) {
+  const payload = { title: cleanTitle(title, '搭拍子', titleLimit) }
   const encodedQuery = query(params)
   const approvedImage = approvedImageUrl(imageUrl)
   if (encodedQuery) payload.query = encodedQuery
@@ -46,10 +46,10 @@ function timeline({ title, params, imageUrl } = {}) {
   return payload
 }
 
-function appMessage({ title, path, imageUrl } = {}) {
-  const payload = { title: cleanTitle(title) }
+function appMessage({ title, path, imageUrl, titleLimit = 32 } = {}) {
+  const payload = { title: cleanTitle(title, '搭拍子', titleLimit) }
   if (typeof path === 'string' && /^\/pages\//.test(path)) payload.path = path
-  const approvedImage = approvedImageUrl(imageUrl)
+  const approvedImage = approvedImageUrl(imageUrl) || (/^(?:wxfile:\/\/|http:\/\/tmp\/|\/tmp\/)/.test(String(imageUrl || '')) ? imageUrl : '')
   if (approvedImage) payload.imageUrl = approvedImage
   return payload
 }

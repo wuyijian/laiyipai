@@ -115,6 +115,26 @@ async function run() {
   assert.strictEqual(senderDb.record('message_inboxes', messages._private.inboxId(matchId, sender)).unread, false)
   assert.strictEqual(senderDb.record('message_inboxes', messages._private.inboxId(matchId, receiver)).unread, true)
 
+  // Hold every read until all eight have started: serial fanout would stall here.
+  const deferredReads = []
+  const written = []
+  const eight = Array.from({ length: 8 }, (_, index) => 'user_' + index)
+  const fanout = messages._private.updateInboxes({ openid: eight[0], serverDate: () => new Date() }, {
+    collection: () => ({ doc: (id) => ({
+      get: () => new Promise((resolve) => deferredReads.push(resolve)),
+      set: async ({ data }) => { written.push({ id, data }) }
+    }) })
+  }, { _id: 'eight_person_match', hostId: eight[0], participantIds: eight }, 'fanout_message')
+  assert.strictEqual(deferredReads.length, 8, '八位成员的独立收件箱并发读取，不串行等候')
+  deferredReads.forEach((resolve) => resolve({ data: null }))
+  await fanout
+  assert.strictEqual(written.length, 8)
+  assert.strictEqual(written.filter((item) => item.data.unread).length, 7)
+  const presenters = require('../lib/presenters')
+  const ownMessage = { _id: 'm1', senderId: sender, requestId: 'client-request' }
+  assert.strictEqual(presenters.message(ownMessage, sender).clientRequestId, 'client-request')
+  assert.strictEqual(presenters.message(ownMessage, receiver).clientRequestId, '', '请求编号只向发送者返回')
+
   const emptyDb = createDatabase({ message_inboxes: [], user_blocks: [] })
   const empty = await messages.inbox({ openid: receiver, db: emptyDb, command: context.command }, { pageSize: 10 })
   assert.deepStrictEqual(empty, { items: [], unreadCount: 0, hasMore: false, recoveryPending: false })
