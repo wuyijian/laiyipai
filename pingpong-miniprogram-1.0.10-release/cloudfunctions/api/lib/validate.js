@@ -142,6 +142,7 @@ function playingProfile(value) {
 function profilePatch(payload) {
   plainObject(payload)
   const patch = {}
+  if (payload.nearbyDiscovery !== undefined) patch.nearbyDiscovery = require('./nearby-discovery').input(payload.nearbyDiscovery)
   if (payload.availability !== undefined) patch.availability = require('./availability').input(payload.availability)
   if (payload.nickname !== undefined) patch.nickname = text(payload.nickname, '昵称', { min: 1, max: 20 })
   if (payload.city !== undefined) patch.city = text(payload.city, '城市', { min: 1, max: 20 })

@@ -12,6 +12,27 @@ for (const value of ['', 0, -1, 10000, null, 1600.1, 'abc']) assert.strictEqual(
 assert.strictEqual(levels.level('ChinaTT', '1628').code, '')
 assert.strictEqual(levels.level('未填写', '1628').code, '')
 assert.strictEqual(levels.summary({}).assessedCount, 0)
+function abilitiesAt(state) {
+  return Object.fromEntries(levels.ASSESSMENT_DOMAINS.flatMap(domain => domain.ids.slice(0, 2).map(id => [id, state])))
+}
+for (const [state, code] of [[1, 'F'], [2, 'E'], [3, 'C'], [4, 'B']]) {
+  const playingProfile = { abilities: abilitiesAt(state) }
+  const result = levels.summary({ playingProfile })
+  assert.strictEqual(result.level.code, code)
+  assert.strictEqual(result.level.sourceLabel, '自评参考段位')
+  assert.strictEqual(result.ratingText, '积分未填写', 'self assessment never invents points')
+  assert.strictEqual(levels.resolve({ playingProfile, ratingPlatform: '开球网', ratingValue: '1628' }).code, 'C2')
+  assert.strictEqual(levels.summary({ playingProfile, ratingPlatform: 'ChinaTT', ratingValue: '2000' }).ratingText, 'ChinaTT 2000 分', 'other platform points coexist unchanged')
+}
+const partial = abilitiesAt(4)
+delete partial[levels.ASSESSMENT_DOMAINS[0].ids[0]]
+assert.strictEqual(levels.resolve({ playingProfile: { abilities: partial } }).code, '', 'missing domains do not become zero or a premature rank')
+const unbalanced = abilitiesAt(4)
+levels.ASSESSMENT_DOMAINS[5].ids.slice(0, 2).forEach(id => { unbalanced[id] = 1 })
+assert.strictEqual(levels.resolve({ playingProfile: { abilities: unbalanced } }).code, 'E', 'weak domain caps optimistic top skills')
+const intermediate = abilitiesAt(2)
+levels.ASSESSMENT_DOMAINS.slice(0, 3).forEach(domain => domain.ids.slice(0, 2).forEach(id => { intermediate[id] = 3 }))
+assert.strictEqual(levels.resolve({ playingProfile: { abilities: intermediate } }).code, 'D')
 
 let definition, saved
 let rejectSave = false, oldServer = false

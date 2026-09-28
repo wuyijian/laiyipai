@@ -3,7 +3,8 @@ function view(profile, groupIndex = 0) {
   const value = levels.normalize(profile.playingProfile)
   const group = levels.ABILITY_GROUPS[groupIndex] || levels.ABILITY_GROUPS[0]
   return {
-    editLevel: levels.level(profile.ratingPlatform, profile.ratingValue),
+    editLevel: levels.resolve(profile),
+    assessmentDomains: levels.assessment(profile.playingProfile).domains,
     equipmentFields: levels.EQUIPMENT.map(item => Object.assign({}, item, { index: item.options.indexOf(value[item.key]) })),
     traitGroups: levels.TRAITS.map(item => Object.assign({}, item, {
       count: value[item.key].length,

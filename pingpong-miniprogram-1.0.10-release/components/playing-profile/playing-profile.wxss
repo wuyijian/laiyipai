@@ -10,3 +10,8 @@
 .abilities-toggle { display: flex; justify-content: space-between; align-items: center; padding: 24rpx 0 0; margin: 20rpx 0 0; border-top: 1rpx solid #dce6de; background: transparent; font-size: 25rpx; line-height: 1.5; color: #245e42; border-radius: 0; }
 .abilities-toggle::after { border: 0; }
 .ability { display: flex; justify-content: space-between; gap: 20rpx; padding-top: 20rpx; font-size: 25rpx; }
+.score-rank-row { display: flex; gap: 28rpx; margin-top: 24rpx; }
+.score-rank-row > view { flex: 1; min-width: 0; }
+.metric-label { color: #647469; font-size: 23rpx; }
+.score-text { margin-top: 10rpx; font-size: 29rpx; font-weight: 600; overflow-wrap: anywhere; }
+.score-rank-row .level-text { margin-top: 10rpx; font-size: 29rpx; }

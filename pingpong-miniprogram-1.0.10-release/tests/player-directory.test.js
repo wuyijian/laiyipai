@@ -2,16 +2,17 @@ const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
 const vm = require('vm')
-function page(name, api) {
+function page(name, api, location = { locate: async () => ({ latitude: 30.25, longitude: 120.15 }) }) {
   let definition
   const sandbox = {
     Page: value => { definition = value }, module: { exports: {} },
     getApp: () => ({ globalData: { session: {} }, ensureSession: async () => ({}) }),
     wx: { showToast() {}, navigateBack() {}, navigateTo() {}, stopPullDownRefresh() {} },
     setInterval: () => 1, clearInterval() {},
-    require: name => name.endsWith('/api') ? api : name.endsWith('/error') ? { message: error => error.message } : require('../utils/player-levels')
+    require: name => name.endsWith('/api') ? api : name.endsWith('/location') ? location : name.endsWith('/error') ? { message: error => error.message } : require('../utils/player-levels')
   }
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../pages', name, name + '.js'), 'utf8'), sandbox)
+  vm.runInNewContext(fs.readFileSync(name === 'player-directory' ? path.join(__dirname, '../utils/player-directory.js') : path.join(__dirname, '../pages', name, name + '.js'), 'utf8'), sandbox)
+  definition = definition || sandbox.module.exports.definition
   const value = Object.assign({}, definition, { data: JSON.parse(JSON.stringify(definition.data)), active: true })
   value.setData = patch => Object.entries(patch).forEach(([key, data]) => {
     const parts = key.replace(/\[(\d+)\]/g, '.$1').split('.')
@@ -55,6 +56,42 @@ async function run() {
   assert.strictEqual(p.data.items.length, 0, 'hidden page ignores late data')
   assert.strictEqual(directory.exported.expire([{ availability: { available: true, endAt: 100 } }], 100)[0].availability.available, false)
 
+  let locationCalls = 0, locationFailure = false
+  const queries = []
+  const nearbyApi = { players: { list: async payload => { queries.push(payload); return { items: [] } } }, files: {} }
+  const nearby = page('player-directory', nearbyApi, { locate: async () => {
+    locationCalls++
+    if (locationFailure) throw new Error('定位被拒绝')
+    return { latitude: 30.25, longitude: 120.15 }
+  } }).value
+  await nearby.onShow()
+  assert.strictEqual(locationCalls, 0, 'browsing never requests location')
+  assert.strictEqual(queries.at(-1).nearby, undefined)
+  await nearby.toggleNearby()
+  assert.strictEqual(queries.at(-1).nearby.radiusMeters, 20000)
+  await nearby.toggleAvailableOnly()
+  assert.strictEqual(queries.at(-1).availability, 'available')
+  assert(queries.at(-1).nearby, 'nearby combines with availability')
+  await nearby.changeRadius({ detail: { value: '0' } })
+  assert.strictEqual(queries.at(-1).nearby.radiusMeters, 5000)
+  await nearby.toggleNearby()
+  assert.strictEqual(nearby.position, null)
+  assert.strictEqual(queries.at(-1).nearby, undefined)
+  locationFailure = true
+  await nearby.toggleNearby()
+  assert.strictEqual(nearby.data.nearbyActive, false)
+  assert.strictEqual(nearby.data.state, 'ready', 'denial retains manual discovery')
+  assert(nearby.data.locationError)
+  const delayedLocation = deferred()
+  const abandoned = page('player-directory', nearbyApi, { locate: () => delayedLocation.promise }).value
+  const pendingLocation = abandoned.toggleNearby()
+  abandoned.onHide()
+  const before = queries.length
+  delayedLocation.resolve({ latitude: 30.25, longitude: 120.15 })
+  await pendingLocation
+  assert.strictEqual(queries.length, before, 'leaving page cancels late location')
+  assert.strictEqual(abandoned.position, null)
+
   let saved, saveFailure = false, legacy = false
   const editApi = {
     profile: {
@@ -85,6 +122,12 @@ async function run() {
   assert.strictEqual(await editor.save(), true)
   assert.strictEqual(saved.availability.venueId, undefined, 'turning off drops schedule')
   assert.strictEqual(saved.availability.note, '休息中')
+  await editor.setNearbyDiscovery({ currentTarget: { dataset: { enabled: 'true' } } })
+  assert.strictEqual(editor.data.nearbyEnabled, true)
+  assert.strictEqual(saved.nearbyDiscovery.latitude, 30.25)
+  await editor.setNearbyDiscovery({ currentTarget: { dataset: { enabled: 'false' } } })
+  assert.strictEqual(editor.data.nearbyEnabled, false)
+  assert.strictEqual(saved.nearbyDiscovery.latitude, undefined)
   console.log('player directory UI: stale reads, pagination retry, expiry, venue choice and save recovery passed')
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

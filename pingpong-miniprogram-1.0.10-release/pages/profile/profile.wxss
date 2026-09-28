@@ -203,3 +203,8 @@
 .ui-screen .feedback-entry-copy { display: flex; flex-direction: column; gap: 8rpx; }
 .ui-screen .feedback-title { font-size: 28rpx; font-weight: 600; }
 .ui-screen .feedback-subtitle { font-size: 23rpx; color: var(--text-secondary); line-height: 1.6; }
+.ui-screen .auto-level-summary { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin: 18rpx 0; padding: 20rpx; border-radius: 14rpx; background: #edf5ef; font-size: 23rpx; }
+.ui-screen .auto-level-code { margin-left: 14rpx; color: #0f5c45; font-size: 28rpx; font-weight: 600; }
+.ui-screen .assessment-checklist { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 18rpx; }
+.ui-screen .assessment-checklist text { padding: 6rpx 12rpx; background: #f4f5f3; border-radius: 8rpx; font-size: 22rpx; color: #6b746d; }
+.ui-screen .assessment-checklist text.complete { color: #0f5c45; background: #edf5ef; }

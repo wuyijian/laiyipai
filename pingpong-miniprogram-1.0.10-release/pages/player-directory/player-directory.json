@@ -1,1 +1,1 @@
-{ "navigationBarTitleText": "找球友", "enablePullDownRefresh": true }
+{ "navigationBarTitleText": "找球友", "enablePullDownRefresh": true, "usingComponents": { "player-directory-panel": "/components/player-directory-panel/player-directory-panel" } }

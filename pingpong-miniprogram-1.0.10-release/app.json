@@ -62,5 +62,13 @@
   "__usePrivacyCheck__": true,
   "lazyCodeLoading": "requiredComponents",
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "permission": {
+    "scope.userFuzzyLocation": {
+      "desc": "用于主动查找附近球友，以及自愿开启附近展示时获取大致位置"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getFuzzyLocation"
+  ]
 }

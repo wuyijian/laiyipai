@@ -58,6 +58,14 @@ wx.cloud.callFunction({
 - `profile.get/update/bootstrap` 和 `players.get` 增加 playingProfile、ratingStatus 固定 self_reported、ratingUpdatedAt、availability；不暴露 OPENID。到期状态返回 `{available:false}`，无旧时段或地点。
 - 新增 users 的 status_public_id、status_district_public_id 索引。部署顺序：索引生效 → api → 客户端。详见 docs/PLAYER_DIRECTORY_AND_LEVELS.md。
 
+#### 三栏目与附近球友补充
+
+- 首页在“找球局 / 找球友 / 找教练”中切换。球友独立页和首页共用组件；筛选显示“等级 / 行政区 / 可约 / 附近”，可约仅为可取消的单项筛选。
+- 积分和段位并存。players.list 增加 ratingPlatform、ratingValue、ratingStatus、ratingText；level.source 为 rating_self_reported / ability_self_assessment / insufficient。无有效开球网积分时按六类能力估算参考段位，信息不足仍待定级，自评不生成积分。
+- players.list 可带 nearby:{latitude,longitude,radiusMeters?}。坐标为 gcj02，半径仅支持 5000/10000/20000/50000 米，默认 20000；按仍有效且主动开启附近展示的账号筛选，排除本人及双向屏蔽。响应新增 distanceText，仅给约整数公里，不返回坐标、位置期限或其他私有信息。仍按 publicId 游标，不保证距离排序。
+- profile.update 可带 nearbyDiscovery:{enabled:true,latitude,longitude}，服务端降低到 0.01 度栅格并生成 24 小时期限；enabled:false 写 point:null / expiresAt:0 清除位置。省略字段则保留。profile/bootstrap 返回附近展示状态及期限，不返回位置。
+- 到期后立即不再匹配。accountCleanup 额外分批清理过期位置，并在事务中核对期限防止覆盖续期；新增 users.nearby_enabled_expiry 索引。须更新 api、accountCleanup、接口权限及微信隐私指引后再发布。
+
 ### 个人约球统计（2026-09-22，本地完成，待部署）
 
 - 新增只读 `profile.stats.get`，payload `{}`。必须登录，身份仅取云函数上下文；不支持查询其他用户，不开放游客访问。

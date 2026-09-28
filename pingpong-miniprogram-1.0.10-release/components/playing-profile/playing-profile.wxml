@@ -1,6 +1,9 @@
 <view wx:if="{{summary}}" class="playing-profile">
   <view class="playing-head"><text class="playing-title">技术档案</text><text class="source-label">{{summary.source}}</text></view>
-  <view class="level-text">{{summary.level.text}}</view>
+  <view class="score-rank-row">
+    <view><view class="metric-label">积分</view><view class="score-text">{{summary.ratingText}}</view><view class="playing-note">本人填写 · 原平台积分</view></view>
+    <view><view class="metric-label">段位</view><view class="level-text">{{summary.level.text}}</view><view class="playing-note">{{summary.level.sourceLabel}}</view></view>
+  </view>
   <view class="playing-note">{{summary.level.note}}</view>
   <view wx:if="{{summary.equipmentText}}" class="equipment-text">{{summary.equipmentText}}</view>
   <view class="traits"><text wx:for="{{summary.traits}}" wx:key="*this" class="trait">{{item}}</text></view>

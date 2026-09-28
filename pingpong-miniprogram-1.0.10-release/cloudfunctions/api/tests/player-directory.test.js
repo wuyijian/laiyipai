@@ -2,6 +2,7 @@ const assert = require('assert')
 const availability = require('../lib/availability')
 const players = require('../lib/players')
 const profile = require('../lib/profile')
+const discovery = require('../lib/nearby-discovery')
 const { stableId } = require('../lib/database')
 const { COLLECTIONS } = require('../lib/constants')
 const date = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
@@ -85,7 +86,41 @@ async function run() {
   assert.strictEqual(new Set(seen).size, 5)
   assert.strictEqual(seen.length, 5)
 
+  for (const bad of [{ enabled: 'true' }, { enabled: true, latitude: null, longitude: 120 }, { enabled: true, latitude: 91, longitude: 120 }]) {
+    assert.throws(() => discovery.input(bad), error => error.code === 'INVALID_ARGUMENT')
+  }
+  const privateLocation = discovery.input({ enabled: true, latitude: 30.253489, longitude: 120.155388, expiresAt: Number.MAX_SAFE_INTEGER })
+  assert.strictEqual(privateLocation.point.latitude, 30.25)
+  assert.strictEqual(privateLocation.point.longitude, 120.16)
+  assert(privateLocation.expiresAt < Number.MAX_SAFE_INTEGER)
+  users[0].profile.nearbyDiscovery = privateLocation
+  users[1].profile.nearbyDiscovery = { ...privateLocation, point: { latitude: 40, longitude: 116 } }
+  users[2].profile.nearbyDiscovery = { ...privateLocation, expiresAt: Date.now() - 1 }
+  users[3].profile.nearbyDiscovery = { ...privateLocation, enabled: false }
+  const nearbyPayload = { nearby: { latitude: 30.25, longitude: 120.15, radiusMeters: 5000 }, grade: 'C', availability: 'available' }
+  const nearbyRows = await players.list(ctx, nearbyPayload)
+  assert.strictEqual(nearbyRows.items.length, 1, 'only fresh opted-in players within radius')
+  assert(nearbyRows.items[0].distanceText.startsWith('约 '))
+  assert(!/latitude|longitude|expiresAt|nearbyDiscovery|private_/.test(JSON.stringify(nearbyRows)), 'public result contains no stored coordinates')
+  assert.strictEqual((await players.list(context(users, blocks), nearbyPayload)).items.length, 0, 'blocks still apply near location')
+  assert.strictEqual(discovery.match(discovery.query(nearbyPayload.nearby), { ...privateLocation, expiresAt: Date.now() - 1 }), '')
+  await assert.rejects(players.list(ctx, { nearby: { latitude: 30, longitude: 120, radiusMeters: 1000000 } }), error => error.code === 'INVALID_ARGUMENT')
+  const { ASSESSMENT_DOMAINS } = require('../lib/player-levels')
+  users[4].profile.ratingPlatform = '未填写'
+  users[4].profile.ratingValue = ''
+  users[4].profile.playingProfile = { abilities: Object.fromEntries(ASSESSMENT_DOMAINS.flatMap(domain => domain.ids.slice(0, 2).map(id => [id, 3]))) }
+  const estimated = (await players.list(ctx, { grade: 'C' })).items.find(item => item.playerId === users[4].publicId)
+  assert.strictEqual(estimated.level.source, 'ability_self_assessment')
+  assert.strictEqual(estimated.ratingValue, '')
+  assert.strictEqual(estimated.ratingText, '积分未填写')
+
   ctx.openid = ctx.user._id
+  const shared = await profile.update(ctx, { nearbyDiscovery: { enabled: true, latitude: 30.25, longitude: 120.15 } })
+  assert.strictEqual(shared.nearbyDiscovery.enabled, true)
+  assert.strictEqual(shared.nearbyDiscovery.point, undefined)
+  assert.strictEqual((await players.list(ctx, nearbyPayload)).items.length, 0, 'nearby excludes self')
+  await profile.update(ctx, { nearbyDiscovery: { enabled: false } })
+  assert.strictEqual(ctx.user.profile.nearbyDiscovery.point, null, 'turning off clears location')
   const saved = await profile.update(ctx, { availability: { ...valid, venueName: '伪造场馆' } })
   assert.strictEqual(saved.availability.venueName, '公开球馆')
   await profile.update(ctx, { nickname: '新昵称' })

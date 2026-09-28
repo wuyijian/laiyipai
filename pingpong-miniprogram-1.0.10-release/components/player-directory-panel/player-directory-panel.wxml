@@ -1,0 +1,34 @@
+<view class="ui-screen">
+<view class="directory-panel {{compact ? 'compact' : ''}}">
+  <view wx:if="{{!compact}}" class="directory-header"><view><view class="directory-title">找到合拍的球友</view><view class="directory-copy">看看谁有空，一起打场好球</view></view><navigator class="status-link" url="/pages/availability-edit/availability-edit">我的状态 ›</navigator></view>
+  <view class="directory-filters">
+    <picker range="{{grades}}" range-key="label" value="{{gradeIndex}}" data-key="gradeIndex" bindchange="changeFilter"><view>{{grades[gradeIndex].label}} ⌄</view></picker>
+    <picker range="{{districts}}" value="{{districtIndex}}" data-key="districtIndex" bindchange="changeFilter"><view>{{districts[districtIndex]}} ⌄</view></picker>
+    <button class="availability-filter {{availableOnly ? 'selected' : ''}}" bindtap="toggleAvailableOnly" aria-label="只看可约球友" aria-pressed="{{availableOnly}}"><view class="availability-radio">{{availableOnly ? '✓' : ''}}</view><text>可约</text></button>
+    <button class="availability-filter nearby-filter {{nearbyActive ? 'selected' : ''}}" bindtap="toggleNearby" disabled="{{locating}}" aria-label="查找附近球友" aria-pressed="{{nearbyActive}}"><text>{{locating ? '定位中' : '附近'}}</text></button>
+  </view>
+  <view wx:if="{{nearbyActive}}" class="nearby-tools"><picker range="{{radiusLabels}}" value="{{radiusIndex}}" bindchange="changeRadius"><text>{{radiusLabels[radiusIndex]}} ⌄</text></picker><text>大致距离</text><button bindtap="locateNearby" disabled="{{locating}}">重新定位</button></view>
+  <view wx:if="{{locationError}}" class="inline-error" role="alert">{{locationError}}</view>
+  <view wx:if="{{state === 'loading'}}" class="status-panel">正在寻找球友…</view>
+  <view wx:elif="{{state === 'error'}}" class="status-panel"><view class="status-title">暂时无法加载</view><view class="status-copy">{{errorMessage}}</view><button class="status-action" bindtap="retry">重试</button></view>
+  <block wx:else>
+    <button wx:for="{{items}}" wx:key="playerId" class="directory-card" data-id="{{item.playerId}}" bindtap="openPlayer">
+      <view class="card-header">
+        <player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId}}" size="72" label="{{item.displayName}}的头像" />
+        <view class="card-person">
+          <view class="card-name-row"><text class="card-name">{{item.displayName}}</text><text class="card-rank">{{item.level.code || '待定级'}}{{item.level.source === 'ability_self_assessment' ? ' · 自评' : ''}}</text></view>
+          <view class="card-meta">{{item.district || '地区未填写'}}{{item.distanceText ? ' · ' + item.distanceText : ''}} · {{item.ratingText || '积分未填写'}}</view>
+        </view>
+        <text class="availability-badge {{item.availability.available ? 'available' : ''}}">{{item.availability.available ? '可约球' : '暂不约球'}}</text>
+      </view>
+      <view class="card-details">
+        <view wx:if="{{item.availability.available}}" class="availability-plan">{{item.availability.date}} {{item.availability.startTime}}—{{item.availability.endTime}} · {{item.availability.venueName}}</view>
+        <view wx:if="{{item.availability.note}}" class="card-note">{{item.availability.note}}</view>
+      </view>
+    </button>
+    <view wx:if="{{!items.length}}" class="status-panel"><view class="status-title">{{hasMore ? '这一批暂无符合条件的球友' : '暂无符合条件的球友'}}</view><view class="status-copy">{{hasMore ? '继续查找更多球友，或调整筛选条件。' : '试试其他等级、地区或约球状态。'}}</view></view>
+    <view wx:if="{{errorMessage}}" class="inline-error" role="alert">{{errorMessage}}</view>
+    <button wx:if="{{hasMore}}" class="text-button" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">{{errorMessage ? '重试加载更多' : '查看更多球友'}}</button>
+  </block>
+</view>
+</view>

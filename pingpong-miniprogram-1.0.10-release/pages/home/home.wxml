@@ -1,7 +1,7 @@
 <view class="ui-screen">
 <view class="page-shell home-page safe-bottom">
   <view class="home-topbar">
-    <picker class="location-picker" mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict">
+    <picker wx:if="{{mode !== 'players'}}" class="location-picker" mode="selector" range="{{districts}}" value="{{districtIndex}}" bindchange="changeDistrict">
       <view class="location-control">
         <view class="location-dot"></view>
         <text class="city-name">杭州</text>
@@ -10,6 +10,7 @@
         <text class="location-chevron">⌄</text>
       </view>
     </picker>
+    <view wx:else class="location-control"><view class="location-dot"></view><text class="city-name">杭州</text><text class="district-name">· 找球友</text></view>
     <view class="home-top-actions">
       <button class="home-refresh" bindtap="refreshHome" disabled="{{manualRefreshing}}" aria-label="刷新当前列表" hover-class="tap-feedback">
         <view class="refresh-icon {{manualRefreshing ? 'is-refreshing' : ''}}"></view>
@@ -20,25 +21,28 @@
 
   <view class="home-hero">
     <view class="hero-copy">
-      <view class="hero-title">{{mode === 'matches' ? '找一场好球' : '练得更进一步'}}</view>
-      <view class="hero-subtitle">{{mode === 'matches' ? '约好时间，球台见' : '选择教练和合适的时段'}}</view>
+      <view class="hero-title">{{mode === 'matches' ? '找一场好球' : mode === 'players' ? '找到合拍的球友' : '练得更进一步'}}</view>
+      <view class="hero-subtitle">{{mode === 'matches' ? '约好时间，球台见' : mode === 'players' ? '看看谁有空，一起打场好球' : '选择教练和合适的时段'}}</view>
     </view>
     <button class="publish-quick" bindtap="openPrimaryAction" hover-class="publish-quick-press">
-      <text class="publish-plus">＋</text>
-      <text>发球局</text>
+      <text wx:if="{{mode !== 'players'}}" class="publish-plus">＋</text>
+      <text>{{mode === 'players' ? '我的状态' : '发球局'}}</text>
     </button>
   </view>
-
-  <navigator class="directory-entry" url="/pages/player-directory/player-directory"><view><text class="directory-entry-title">找球友</text><text class="directory-entry-copy">按等级和地区，找到有空一起打球的人</text></view><text>浏览球友 ›</text></navigator>
 
   <view class="mode-switch" role="tablist" aria-role="tablist" aria-label="首页内容">
     <button class="mode-button {{mode === 'matches' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'matches'}}" data-mode="matches" bindtap="switchMode">
       <text class="mode-title">找球局</text>
     </button>
+    <button class="mode-button {{mode === 'players' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'players'}}" data-mode="players" bindtap="switchMode">
+      <text class="mode-title">找球友</text>
+    </button>
     <button class="mode-button {{mode === 'coaches' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'coaches'}}" data-mode="coaches" bindtap="switchMode">
-      <text class="mode-title">约教练</text>
+      <text class="mode-title">找教练</text>
     </button>
   </view>
+
+  <player-directory-panel wx:if="{{mode === 'players'}}" id="home-players" compact="{{true}}" />
 
   <view wx:if="{{refreshError}}" class="refresh-feedback failed" role="alert">
     <text>{{refreshError}}</text><button bindtap="refreshHome">重试</button>

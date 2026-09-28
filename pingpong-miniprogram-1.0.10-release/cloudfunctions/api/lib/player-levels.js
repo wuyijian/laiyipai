@@ -30,6 +30,23 @@ const LEVEL_BANDS = [
   { min: 2100, code: 'A', label: '高阶', range: '2100—2399' },
   { min: 2400, code: 'S+', label: '高水平', range: '2400 及以上' }
 ]
+// A transparent product heuristic, not a conversion to competition points.
+// Two alternatives per domain avoid requiring every specialist technique.
+const ASSESSMENT_DOMAINS = [
+  { label: '正手', ids: ['fh_drive', 'fh_topspin', 'fh_backspin', 'smash'] },
+  { label: '反手', ids: ['bh_block', 'bh_drive', 'bh_loop', 'rpb'] },
+  { label: '发球', ids: ['serve_backspin', 'serve_no_spin', 'serve_sidespin', 'serve_length', 'serve_variation'] },
+  { label: '接发', ids: ['read_spin', 'read_length', 'receive_short', 'receive_long', 'receive_attack'] },
+  { label: '步法', ids: ['footwork_side', 'footwork_in', 'footwork_pivot', 'footwork_recover'] },
+  { label: '衔接与实战', ids: ['transition', 'continuous_attack', 'defense', 'serve_attack', 'receive_combination'] }
+]
+const ASSESSMENT_RULES = [
+  { code: 'B', average: 3.75, weakest: 3.5 },
+  { code: 'C', average: 3, weakest: 2.5 },
+  { code: 'D', average: 2.25, weakest: 1.5 },
+  { code: 'E', average: 1.5, weakest: 1 },
+  { code: 'F', average: 1, weakest: 1 }
+]
 function level(platform, value) {
   const score = Number(value)
   if (platform !== '开球网' || !String(value || '').trim() || !Number.isInteger(score) || score < 1 || score > 9999) {
@@ -53,16 +70,45 @@ function normalize(value = {}) {
   }))
   return result
 }
+function assessment(playingProfile) {
+  const abilities = normalize(playingProfile).abilities
+  const domains = ASSESSMENT_DOMAINS.map(domain => {
+    const values = domain.ids.map(id => abilities[id]).filter(Boolean).sort((a, b) => b - a).slice(0, 2)
+    return { label: domain.label, count: values.length, missing: 2 - values.length,
+      value: values.length === 2 ? (values[0] + values[1]) / 2 : null }
+  })
+  const missing = domains.filter(domain => domain.missing)
+  if (missing.length) return { ready: false, domains, missing }
+  const average = domains.reduce((sum, domain) => sum + domain.value, 0) / domains.length
+  const weakest = Math.min(...domains.map(domain => domain.value))
+  const rule = ASSESSMENT_RULES.find(rule => average >= rule.average && weakest >= rule.weakest)
+  return { ready: true, domains, missing: [], average, weakest, code: rule.code }
+}
+function resolve(profile = {}) {
+  const scored = level(profile.ratingPlatform, profile.ratingValue)
+  if (scored.code) return Object.assign({}, scored, { source: 'rating_self_reported', sourceLabel: '自报积分推导' })
+  const assessed = assessment(profile.playingProfile)
+  if (!assessed.ready) return Object.assign({}, scored, {
+    source: 'insufficient', sourceLabel: '待定级',
+    note: '暂无可换算的开球网积分。能力自评还需：' + assessed.missing.map(item => item.label + ' ' + item.missing + ' 项').join('、')
+  })
+  const band = LEVEL_BANDS.find(item => item.code === assessed.code)
+  return { code: band.code, label: band.label, text: band.code + ' · ' + band.label,
+    source: 'ability_self_assessment', sourceLabel: '自评参考段位',
+    note: '基于六类能力自评自动估算，未核验，不折算积分。试行规则最高估至 B；A、S+ 需用开球网积分区分。' }
+}
 function summary(profile = {}) {
   const value = normalize(profile.playingProfile)
   const abilities = ABILITY_GROUPS.flatMap(group => group.items.filter(item => value.abilities[item.id]).map(item => ({
     id: item.id, label: item.label, state: ABILITY_STATES[value.abilities[item.id]]
   })))
   return {
-    level: level(profile.ratingPlatform, profile.ratingValue),
+    level: resolve(profile),
+    ratingText: profile.ratingPlatform && profile.ratingPlatform !== '未填写' && String(profile.ratingValue || '').trim()
+      ? profile.ratingPlatform + ' ' + profile.ratingValue + ' 分' : '积分未填写',
     equipmentText: EQUIPMENT.map(item => value[item.key]).filter(v => v !== '未填写').join(' · '),
     traits: TRAITS.flatMap(item => value[item.key]), abilities, assessedCount: abilities.length,
     source: '本人自评'
   }
 }
-module.exports = { ABILITY_STATES, ABILITY_HINTS, ABILITY_GROUPS, EQUIPMENT, TRAITS, LEVEL_BANDS, level, normalize, summary }
+module.exports = { ABILITY_STATES, ABILITY_HINTS, ABILITY_GROUPS, EQUIPMENT, TRAITS, LEVEL_BANDS, ASSESSMENT_DOMAINS, ASSESSMENT_RULES, level, normalize, assessment, resolve, summary }

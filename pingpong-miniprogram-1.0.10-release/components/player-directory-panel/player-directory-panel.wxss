@@ -1,0 +1,29 @@
+.ui-screen .directory-header { display:flex; justify-content:space-between; align-items:center; gap:20rpx; margin:20rpx 0 32rpx; }
+.ui-screen .directory-title { font-size:38rpx; font-weight:700; }
+.ui-screen .directory-copy { margin-top:12rpx; color:var(--text-secondary); font-size:23rpx; line-height:1.6; }
+.ui-screen .status-link { color:#0f5c45; font-size:25rpx; flex-shrink:0; }
+.ui-screen .directory-filters { display:flex; gap:12rpx; }
+.ui-screen .directory-filters picker { flex:1; min-width:0; background:#f2f5f3; border-radius:16rpx; padding:18rpx 6rpx; font-size:23rpx; text-align:center; }
+.ui-screen .directory-card { display:block; width:100%; text-align:left; padding:22rpx 0; border-bottom:1rpx solid var(--line); border-radius:0; }
+.ui-screen .card-header { display:flex; gap:16rpx; align-items:center; }
+.ui-screen .card-person { flex:1; min-width:0; }
+.ui-screen .card-name { font-size:28rpx; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.ui-screen .card-meta { font-size:22rpx; color:var(--text-secondary); margin-top:6rpx; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ui-screen .availability-badge { font-size:21rpx; padding:6rpx 10rpx; border-radius:12rpx; background:#f1f3f2; color:#6c756f; flex-shrink:0; }
+.ui-screen .availability-badge.available { background:#e6f4eb; color:#0f5c45; }
+
+.ui-screen .directory-panel.compact { padding-top: 28rpx; }
+.ui-screen .card-name-row { display: flex; align-items: center; gap: 12rpx; }
+.ui-screen .card-rank { flex-shrink: 0; font-size: 21rpx; color: #0f5c45; background: #edf5ef; border-radius: 6rpx; padding: 2rpx 8rpx; }
+.ui-screen .card-details { margin-left: 88rpx; }
+.ui-screen .availability-plan { margin-top: 8rpx; color: #0f5c45; font-size: 22rpx; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .card-note { margin-top: 6rpx; font-size: 22rpx; line-height: 1.6; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-screen .availability-filter { display: flex; align-items: center; justify-content: center; gap: 10rpx; flex: 0 0 108rpx; min-height: 70rpx; font-size: 24rpx; border-radius: 16rpx; color: var(--text-secondary); background: #f2f5f3; }
+.ui-screen .availability-radio { display: flex; align-items: center; justify-content: center; width: 27rpx; height: 27rpx; border: 2rpx solid #a5b1a9; border-radius: 50%; font-size: 19rpx; line-height: 1; }
+.ui-screen .availability-filter.selected { color: #0f5c45; background: #e6f4eb; }
+.ui-screen .availability-filter.selected .availability-radio { color: #fff; background: #0f5c45; border-color: #0f5c45; }
+
+.ui-screen .nearby-filter { flex-basis: 98rpx; }
+.ui-screen .nearby-tools { display: flex; align-items: center; gap: 18rpx; padding: 16rpx 0 4rpx; color: var(--text-secondary); font-size: 22rpx; }
+.ui-screen .nearby-tools picker { color: #0f5c45; }
+.ui-screen .nearby-tools button { margin-left: auto; color: #0f5c45; font-size: 22rpx; }

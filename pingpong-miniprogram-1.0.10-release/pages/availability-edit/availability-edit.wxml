@@ -5,6 +5,7 @@
   <view wx:if="{{state === 'loading'}}" class="status-panel">正在加载状态…</view>
   <view wx:elif="{{state === 'error'}}" class="status-panel"><view class="status-copy">{{errorMessage}}</view><button class="status-action" bindtap="retry">登录并重试</button></view>
   <block wx:else>
+    <view class="nearby-sharing"><view class="field-label">在附近展示 · {{nearbyEnabled ? '已开启' : '未开启'}}</view><view class="availability-copy">自愿分享大致位置，供附近球友查找。只展示约几公里，24 小时后自动关闭。</view><button class="text-button" data-enabled="true" bindtap="setNearbyDiscovery" loading="{{sharingLocation}}" disabled="{{sharingLocation || saving}}">{{nearbyEnabled ? '更新大致位置，延长 24 小时' : '开启附近展示 24 小时'}}</button><button wx:if="{{nearbyEnabled}}" class="text-button" data-enabled="false" bindtap="setNearbyDiscovery" disabled="{{sharingLocation || saving}}">关闭并清除位置</button><view wx:if="{{nearbyError}}" class="inline-error">{{nearbyError}}</view></view>
     <view class="availability-switch"><view><view>{{available ? '可约球' : '暂不约球'}}</view><view class="availability-copy">开启后公开本次约球时间和球馆</view></view><switch checked="{{available}}" disabled="{{saving}}" color="#0f5c45" bindchange="toggleAvailable" aria-label="是否可约球" /></view>
     <view class="field-label">状态说明（选填）</view>
     <textarea class="status-note" value="{{note}}" maxlength="100" disabled="{{saving}}" placeholder="例如：今晚想练反手，欢迎相近水平的球友" data-key="note" bindinput="changeField" />
@@ -28,7 +29,7 @@
       <view class="availability-copy">状态仅表达约球意愿，不代表球馆已订场。</view>
     </block>
     <view wx:if="{{errorMessage}}" class="inline-error" role="alert">{{errorMessage}}</view>
-    <view class="save-area"><button class="primary-button" bindtap="save" loading="{{saving}}" disabled="{{saving}}">保存状态</button></view>
+    <view class="save-area"><button class="primary-button" bindtap="save" loading="{{saving}}" disabled="{{saving || sharingLocation}}">保存状态</button></view>
   </block>
 </view>
 </view>

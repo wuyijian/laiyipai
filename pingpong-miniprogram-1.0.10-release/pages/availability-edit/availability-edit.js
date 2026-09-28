@@ -1,11 +1,12 @@
 const api = require('../../utils/api')
 const errors = require('../../utils/error')
+const location = require('../../utils/location')
 function chinaDate(now = Date.now()) { return new Date(now + 8 * 3600000).toISOString().slice(0, 10) }
 Page({
   data: { state: 'loading', errorMessage: '', saving: false, available: false, note: '',
     date: '', minimumDate: '', maximumDate: '', startTime: '19:00', endTime: '21:00',
     venueId: '', venueName: '', venues: [], venuePage: 0, venueHasMore: false, venueLoading: false,
-    keyword: '', searchedKeyword: '', venueError: '' },
+    keyword: '', searchedKeyword: '', venueError: '', nearbyEnabled: false, sharingLocation: false, nearbyError: '' },
   onLoad() {
     this.active = true
     this.setData({ minimumDate: chinaDate(), maximumDate: chinaDate(Date.now() + 30 * 86400000), date: chinaDate(Date.now() + 86400000) })
@@ -20,7 +21,7 @@ Page({
       const profile = await api.profile.get()
       if (!this.active || run !== this.run) return
       const status = profile.availability || { available: false }
-      this.setData({ state: 'ready', available: status.available === true, note: status.note || '',
+      this.setData({ state: 'ready', nearbyEnabled: Boolean(profile.nearbyDiscovery && profile.nearbyDiscovery.enabled), available: status.available === true, note: status.note || '',
         date: status.date || this.data.date, startTime: status.startTime || '19:00', endTime: status.endTime || '21:00',
         venueId: status.venueId || '', venueName: status.venueName || '' })
       if (status.available) this.searchVenues(false)
@@ -29,6 +30,25 @@ Page({
     }
   },
   retry() { return this.load(true) },
+  async setNearbyDiscovery(event) {
+    if (this.data.sharingLocation || this.data.saving) return
+    const enabled = event.currentTarget.dataset.enabled === true || event.currentTarget.dataset.enabled === 'true'
+    this.setData({ sharingLocation: true, nearbyError: '' })
+    try {
+      await getApp().ensureSession({ interactive: true })
+      const point = enabled ? await location.locate(() => this.active) : {}
+      if (!this.active) return false
+      const result = await api.profile.update({ nearbyDiscovery: Object.assign({ enabled }, point) })
+      if (!result.nearbyDiscovery || result.nearbyDiscovery.enabled !== enabled) throw new Error('附近展示设置尚未保存，请稍后重试')
+      if (!this.active) return false
+      this.setData({ nearbyEnabled: enabled })
+      wx.showToast({ title: enabled ? '已开启 24 小时' : '已关闭附近展示', icon: 'none' })
+      return true
+    } catch (error) {
+      if (this.active) this.setData({ nearbyError: errors.message(error) })
+      return false
+    } finally { if (this.active) this.setData({ sharingLocation: false }) }
+  },
   toggleAvailable(event) {
     if (this.data.saving) return
     this.setData({ available: event.detail.value === true, errorMessage: '' })
@@ -62,7 +82,7 @@ Page({
     if (venue) this.setData({ venueId: venue.id, venueName: venue.name, errorMessage: '' })
   },
   async save() {
-    if (this.data.saving || this.data.state !== 'ready') return false
+    if (this.data.saving || this.data.sharingLocation || this.data.state !== 'ready') return false
     const { available, note, date, startTime, endTime, venueId } = this.data
     if (available) {
       const start = Date.parse(date + 'T' + startTime + ':00+08:00')

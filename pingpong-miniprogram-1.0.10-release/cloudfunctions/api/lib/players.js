@@ -68,6 +68,8 @@ async function list(context, payload) {
   const grade = validate.oneOf(payload.grade || '', ['', 'pending'].concat(levels.LEVEL_BANDS.map(item => item.code)), '等级')
   const district = validate.oneOf(payload.district || '', [''].concat(districts), '行政区')
   const availability = validate.oneOf(payload.availability || '', ['', 'available', 'unavailable'], '约球状态')
+  const nearbyDiscovery = require('./nearby-discovery')
+  const nearby = payload.nearby === undefined ? null : nearbyDiscovery.query(payload.nearby)
   const pageSize = validate.integer(payload.pageSize === undefined ? 20 : payload.pageSize, '每页数量', { min: 1, max: 20 })
   let cursor = payload.cursor ? validate.id(payload.cursor, '分页游标') : ''
   const items = []
@@ -82,12 +84,18 @@ async function list(context, payload) {
     for (const user of result.data) {
       cursor = user.publicId
       if (blocked.has(user._id)) continue
+      if (nearby && user._id === context.openid) continue
+      const distanceText = nearby ? nearbyDiscovery.match(nearby, user.profile && user.profile.nearbyDiscovery) : ''
+      if (nearby && !distanceText) continue
       const profile = presenters.userProfile(user)
-      const level = levels.level(profile.ratingPlatform, profile.ratingValue)
+      const level = levels.resolve(profile)
       if (grade === 'pending' ? Boolean(level.code) : grade && !level.code.startsWith(grade)) continue
       if (availability && profile.availability.available !== (availability === 'available')) continue
       items.push({ playerId: profile.playerId, displayName: profile.nickname,
         avatarFileId: profile.avatarFileId, city: profile.city, district: profile.district,
+        ratingPlatform: profile.ratingPlatform, ratingValue: profile.ratingValue, ratingStatus: profile.ratingStatus,
+        ratingText: levels.summary(profile).ratingText,
+        ...(nearby ? { distanceText } : {}),
         level, availability: profile.availability, traits: levels.summary(profile).traits.slice(0, 3) })
       if (items.length === pageSize) return { items, cursor, hasMore: true }
     }

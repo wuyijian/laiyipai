@@ -101,7 +101,7 @@ Page({
     const ballAgeIndex = Math.max(0, BALL_AGES.indexOf(preferences.ballAge || '不限球龄'))
     const selection = dateSelection(preferences.date || '')
     const { dateOptions, selectedDate } = selection
-    const requestedMode = ['matches', 'coaches'].includes(options.mode) ? options.mode : 'matches'
+    const requestedMode = ['matches', 'players', 'coaches'].includes(options.mode) ? options.mode : 'matches'
     const patch = {
       // 普通冷启动默认找球局；旧动态分享链接回到找球局，不再加载公开动态。
       mode: requestedMode,
@@ -236,6 +236,21 @@ Page({
     const append = options.append === true
     const startedAt = Date.now()
     const mode = this.data.mode
+    if (mode === 'players') {
+      // Invalidate in-flight match/coach reads when the shared directory mounts.
+      const sequence = this.contentRequestSequence = Number(this.contentRequestSequence || 0) + 1
+      clearTimeout(this.slowLoadingTimer)
+      this.setData({ state: 'ready', primaryLoading: false, loadingSlow: false, refreshing: false, loadingMore: false, refreshError: '', refreshNotice: '' })
+      if (options.fresh && api.invalidateReads) api.invalidateReads()
+      const panel = this.selectComponent && this.selectComponent('#home-players')
+      const loaded = options.manual && panel ? await panel.refresh() : true
+      if (sequence !== this.contentRequestSequence) return false
+      if (options.manual && this.manualRefresh === options.manual) {
+        if (loaded) this.setData({ refreshNotice: '球友列表已更新' })
+        this.finishManualRefresh(Boolean(loaded))
+      }
+      return loaded
+    }
     const hasMore = mode === 'matches' ? this.data.matchesHasMore : this.data.coachesHasMore
     if (append && (this.data.state !== 'ready' || this.data.refreshing || this.data.loadingMore || !hasMore)) return false
 
@@ -507,8 +522,9 @@ Page({
 
   switchMode(event) {
     const mode = event.currentTarget.dataset.mode
-    if (!['matches', 'coaches'].includes(mode)) return
+    if (!['matches', 'players', 'coaches'].includes(mode)) return
     if (mode === this.data.mode) return
+    this.finishManualRefresh(false)
     this.setData({ mode }, () => {
       this.savePreferences()
       this.loadContent({ showSkeleton: true })
@@ -740,6 +756,9 @@ Page({
   },
 
   openPrimaryAction(event) {
+    if (this.data.mode === 'players') {
+      return wx.navigateTo({ url: '/pages/availability-edit/availability-edit' })
+    }
     return this.openPublish(event)
   },
 
@@ -768,14 +787,14 @@ Page({
   onShareAppMessage() {
     const path = this.data.mode === 'matches' ? '/pages/home/home' : `/pages/home/home?mode=${this.data.mode}`
     return share.appMessage({
-      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜搭拍子' : '杭州乒乓球约球｜搭拍子',
+      title: this.data.mode === 'players' ? '杭州找球友｜搭拍子' : this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜搭拍子' : '杭州乒乓球约球｜搭拍子',
       path
     })
   },
 
   onShareTimeline() {
     return share.timeline({
-      title: this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜搭拍子' : '杭州乒乓球约球｜搭拍子',
+      title: this.data.mode === 'players' ? '杭州找球友｜搭拍子' : this.data.mode === 'coaches' ? '杭州乒乓球教练预约｜搭拍子' : '杭州乒乓球约球｜搭拍子',
       params: this.data.mode === 'matches' ? undefined : { mode: this.data.mode }
     })
   }
