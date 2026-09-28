@@ -1565,7 +1565,7 @@ test('首页旧的标记状态响应不能覆盖稍后保存成功的结果', as
   assert.strictEqual(home.favoriteMutations[venue.id], undefined, '保存后的新鲜状态应清理临时覆盖')
 })
 
-test('首页将 45 个媒体 fileID 按最多 20 个分批解析并合并 URL', async () => {
+test('首页按当前模式加载媒体，每批最多 20 个并合并 URL', async () => {
   resetRuntime()
   const venues = Array.from({ length: 25 }, (_, index) => {
     const sequence = String(index + 1).padStart(2, '0')
@@ -1608,11 +1608,15 @@ test('首页将 45 个媒体 fileID 按最多 20 个分批解析并合并 URL', 
   home.setData({ mode: 'coaches' })
   await home.loadContent({ showSkeleton: true })
 
+  assert.deepStrictEqual(resolveBatches.map((batch) => batch.length), [20])
+  assert.strictEqual(home.data.venues.filter((item) => item.coverUrl).length, 0)
+  assert.strictEqual(home.data.coaches.filter((item) => item.avatarUrl).length, 20)
+  home.setData({ mode: 'matches' })
+  await home.loadContent({ showSkeleton: true })
   assert.deepStrictEqual(resolveBatches.map((batch) => batch.length), [20, 20, 5])
   assert(resolveBatches.every((batch) => batch.length > 0 && batch.length <= 20))
   assert.strictEqual(new Set(resolveBatches.flat()).size, 45)
   assert.strictEqual(home.data.venues.filter((item) => item.coverUrl).length, 25)
-  assert.strictEqual(home.data.coaches.filter((item) => item.avatarUrl).length, 20)
   assert.strictEqual(home.data.state, 'ready')
 })
 

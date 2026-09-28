@@ -161,6 +161,95 @@ test('首页翻页不重复请求已加载的球馆、标记和封面', async ()
   assert.equal(venues, 1); assert.equal(favorites, 1)
   assert.equal(page.data.matchesPage, 2)
 })
+test('首页收藏查询慢时封面仍可展示，迟到收藏结果保留封面和最新标记', async () => {
+  const favorites = deferred()
+  const { page } = setup('home', {
+    venues: { list: async () => ({ items: [{ id: 'v', name: '球馆', coverFileIds: ['cloud://cover'] }] }) },
+    favorites: { status: () => favorites.promise },
+    files: { resolve: async () => ({ urls: { 'cloud://cover': 'https://cover' } }) }
+  })
+  const loading = page.loadContent()
+  await turn()
+  assert.equal(page.data.state, 'ready')
+  assert.equal(page.data.venues[0].coverUrl, 'https://cover')
+  assert.equal(page.data.venues[0].favoriteKnown, false)
+  favorites.resolve({ markedIds: ['v'] }); await loading
+  assert.equal(page.data.venues[0].coverUrl, 'https://cover')
+  assert.equal(page.data.venues[0].favorited, true)
+})
+test('教练模式只解析可见教练头像，不请求隐藏球馆封面', async () => {
+  const calls = []
+  const { page } = setup('home', {
+    venues: { list: async () => ({ items: [{ id: 'v', coverFileIds: ['cloud://hidden'] }] }) },
+    coaches: { list: async () => ({ items: [{ id: 'c', avatarFileId: 'cloud://avatar' }] }) },
+    files: { resolve: async ids => { calls.push(ids); return { urls: { 'cloud://avatar': 'https://avatar' } } } }
+  })
+  page.data.mode = 'coaches'
+  await page.loadContent()
+  assert.deepEqual(calls, [['cloud://avatar']])
+  assert.equal(page.data.coaches[0].avatarUrl, 'https://avatar')
+  await page.loadContent()
+  assert.equal(page.data.coaches[0].avatarUrl, 'https://avatar')
+})
+test('迟到封面不覆盖新筛选，图片失败仍能保留当前可用封面', async () => {
+  const waiting = deferred()
+  const { page, api } = setup('home', {
+    venues: { list: async () => ({ items: [{ id: 'v', coverFileIds: ['cloud://old'] }] }) },
+    files: { resolve: () => waiting.promise }
+  })
+  const old = page.loadContent(); await turn()
+  api.venues.list = async () => ({ items: [{ id: 'new', coverFileIds: [] }] })
+  await page.loadContent({ showSkeleton: true })
+  waiting.resolve({ urls: { 'cloud://old': 'https://old' } }); await old
+  assert.equal(page.data.venues[0].id, 'new')
+  assert.equal(page.data.venues[0].coverUrl, '')
+  api.venues.list = async () => ({ items: [{ id: 'new', coverFileIds: ['cloud://new'] }] })
+  api.files.resolve = async () => ({ urls: { 'cloud://new': 'https://new' } })
+  await page.loadContent()
+  api.files.resolve = async () => { throw new Error('offline') }
+  await page.loadContent()
+  assert.equal(page.data.venues[0].coverUrl, 'https://new')
+})
+test('首屏列表只传一次，分页不重传球馆，未变化刷新不重传列表', async () => {
+  const { page, api } = setup('home')
+  const patches = [], apply = page.setData
+  page.setData = function(patch, callback) { patches.push(patch); return apply.call(this, patch, callback) }
+  await page.loadContent()
+  assert.equal(patches.filter(p => p.matches).length, 1)
+  patches.length = 0
+  await page.loadContent()
+  assert.equal(patches.filter(p => p.matches).length, 0)
+  patches.length = 0
+  api.matches.list = async () => ({ items: [{ id: 'm2', title: '另一场' }] })
+  await page.loadMore()
+  assert.equal(patches.filter(p => p.matches).length, 1)
+  assert.equal(patches.filter(p => p.venues).length, 0)
+  assert.deepEqual(page.data.matches.map(item => item.id), ['m1', 'm2'])
+})
+test('首页卡片不把成员和详情文案传给视图，仍保留跳转和名额展示', async () => {
+  const { page } = setup('home', { matches: { list: async () => ({ items: [{
+    id: 'm', title: '练球', venueId: 'venue_a', capacity: 4, participantCount: 2,
+    participants: [{ playerId: 'private-card-unused', displayName: '球友' }],
+    courtBookingNote: '仅详情展示的长备注'
+  }] }) } })
+  await page.loadContent()
+  assert.equal(page.data.matches[0].id, 'm')
+  assert.equal(page.data.matches[0].venueId, 'venue_a')
+  assert.equal(page.data.matches[0].seatText, '还差 2 人')
+  assert.equal(page.data.matches[0].participants, undefined)
+  assert.equal(page.data.matches[0].courtBookingNote, undefined)
+  assert.equal(page.data.matches[0].joinSheetCopy, undefined)
+})
+test('视图差量检查仍传递移除、排序、名额和权限状态变化', () => {
+  const { changedPatch } = require('../utils/view-patch')
+  const current = { matches: [{ id: 'm1', count: 1 }, { id: 'm2', count: 2 }], loggedIn: true }
+  assert.deepEqual(changedPatch(current, JSON.parse(JSON.stringify(current))), {})
+  for (const matches of [[], current.matches.slice().reverse(), [{ id: 'm1', count: 2 }, current.matches[1]]]) {
+    assert.deepEqual(changedPatch(current, { matches }).matches, matches)
+  }
+  assert.deepEqual(changedPatch(current, { loggedIn: false }), { loggedIn: false })
+  assert.deepEqual(changedPatch({ value: { a: 1 } }, { value: { b: 1 } }), { value: { b: 1 } })
+})
 test('未取得标记状态时点击只查询，不猜测写入', async () => {
   const waiting = deferred(); let queries = 0, writes = 0
   const { page } = setup('home', { favorites: {

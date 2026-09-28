@@ -7,6 +7,7 @@ const share = require('../../utils/share')
 const diagnostics = require('../../utils/diagnostics')
 const mapHelper = require('../../utils/map')
 const tabBar = require('../../utils/tab-bar')
+const { changedPatch } = require('../../utils/view-patch')
 
 const DISTRICTS = ['全杭州', '西湖区', '拱墅区', '上城区', '滨江区', '余杭区', '萧山区']
 const BALL_AGES = ['不限球龄', '新手友好', '球龄 1 年以内', '球龄 2—5 年', '球龄 5 年以上']
@@ -32,6 +33,35 @@ function mergeById(current, incoming) {
     if (item && item.id) merged.set(item.id, item)
   })
   return Array.from(merged.values())
+}
+
+// Home cards only need display and navigation fields. Detail/member data is
+// fetched by the detail page; do not send it through every list render.
+const HOME_MATCH_FIELDS = [
+  'id', 'title', 'dateLabel', 'startTime', 'endTime', 'seatText', 'full',
+  'venueId', 'venueName', 'courtStatusText', 'venueLocationText', 'address',
+  'location', 'hasLocation', 'venueActivityTags', 'expectedBallAge',
+  'practiceIntentLabel', 'joinModeText', 'feeText', 'soloPractice', 'joinMode'
+]
+function homeMatchView(item) {
+  return HOME_MATCH_FIELDS.reduce((view, key) => {
+    if (item[key] !== undefined) view[key] = item[key]
+    return view
+  }, {})
+}
+
+function homeMatch(raw, venues) {
+  const item = present.match(raw)
+  const place = venues[item.venueId]
+  if (!place) return homeMatchView(item)
+  return homeMatchView(Object.assign(item, {
+    venueName: place.name || item.venueName,
+    address: place.address,
+    venueLocationText: place.locationText,
+    venueActivityTags: place.activityTags,
+    location: place.location,
+    hasLocation: place.hasLocation
+  }))
 }
 
 async function resolveMediaUrls(fileIds, options = {}) {
@@ -122,7 +152,7 @@ Page({
       })
       if (snapshot) Object.assign(patch, {
         state: 'ready',
-        matches: snapshot.matches,
+        matches: snapshot.matches.map(homeMatchView),
         venues: snapshot.venues,
         matchesPage: 1,
         matchesHasMore: snapshot.matchesHasMore === true,
@@ -232,6 +262,11 @@ Page({
     if (this.retryOnReconnect) return this.refreshHome()
   },
 
+  setContentData(incoming) {
+    const patch = changedPatch(this.data, incoming)
+    if (Object.keys(patch).length) this.setData(patch)
+  },
+
   async loadContent(options = {}) {
     const append = options.append === true
     const startedAt = Date.now()
@@ -252,15 +287,16 @@ Page({
       : 1
     const showSkeleton = !append && (options.showSkeleton === true || this.data.state !== 'ready')
     if (append) {
-      this.setData({ loadingMore: true, paginationError: '' })
+      this.setContentData({ loadingMore: true, paginationError: '' })
     } else {
-      this.setData({ primaryLoading: true, loadingSlow: false, loadingStage: 'session', refreshError: '', refreshNotice: '' })
-      this.setData(showSkeleton
+      this.setContentData(Object.assign({
+        primaryLoading: true, loadingSlow: false, loadingStage: 'session', refreshError: '', refreshNotice: ''
+      }, showSkeleton
         ? { state: 'loading', refreshing: false, loadingMore: false, paginationError: '', errorMessage: '', venues: [] }
-        : { refreshing: true, loadingMore: false, paginationError: '', errorMessage: '' })
+        : { refreshing: true, loadingMore: false, paginationError: '', errorMessage: '' }))
       this.slowLoadingTimer = setTimeout(() => {
         if (requestSequence === this.contentRequestSequence && this.visible !== false && this.data.primaryLoading) {
-          this.setData({ loadingSlow: true })
+          this.setContentData({ loadingSlow: true })
         }
       }, 3500)
     }
@@ -272,24 +308,24 @@ Page({
       const app = getApp()
       const loggedIn = Boolean(app.globalData && app.globalData.session)
       const readOptions = { publicRead: !loggedIn }
-      if (loggedIn !== this.data.loggedIn) this.setData({ loggedIn })
+      if (loggedIn !== this.data.loggedIn) this.setContentData({ loggedIn })
       if (requestSequence !== this.contentRequestSequence) return false
-      if (!append) this.setData({ loadingStage: 'list' })
+      if (!append) this.setContentData({ loadingStage: 'list' })
 
       const district = districtIndex ? DISTRICTS[districtIndex] : ''
       const venuePayload = { city: '杭州', page: 1, pageSize: 30 }
       if (district) venuePayload.district = district
       const reuseVenues = append && !this.data.venuesLoading && !this.data.venueLoadFailed
-      if (!reuseVenues) this.setData({ venuesLoading: true, venueLoadFailed: false })
+      if (!reuseVenues) this.setContentData({ venuesLoading: true, venueLoadFailed: false })
       const venuePromise = (reuseVenues
         ? Promise.resolve({ items: this.data.venues, reused: true })
         : api.venues.list(venuePayload, readOptions).catch(() => ({ items: [], loadFailed: true })))
         .then(result => {
           if (requestSequence !== this.contentRequestSequence || reuseVenues) return result
-          if (result.loadFailed) this.setData({ venuesLoading: false, venueLoadFailed: true })
+          if (result.loadFailed) this.setContentData({ venuesLoading: false, venueLoadFailed: true })
           else {
             const previous = Object.fromEntries(this.data.venues.map(item => [item.id, item]))
-            this.setData({ venuesLoading: false, venues: (result.items || []).map(raw => {
+            this.setContentData({ venuesLoading: false, venues: (result.items || []).map(raw => {
               const venue = present.venue(raw)
               const old = previous[venue.id]
               const mutation = this.favoriteMutations && this.favoriteMutations[venue.id]
@@ -319,8 +355,9 @@ Page({
         if (this.data.friendsOnly) matchPayload.friendsOnly = true
         matchPromise = api.matches.list(matchPayload, readOptions).then(result => {
           if (requestSequence !== this.contentRequestSequence) return result
-          const incoming = (result.items || []).map(present.match)
-          this.setData({ state: 'ready', refreshing: false, loadingMore: false,
+          const venueMap = Object.fromEntries(this.data.venues.map(item => [item.id, item]))
+          const incoming = (result.items || []).map(raw => homeMatch(raw, venueMap))
+          this.setContentData({ state: 'ready', refreshing: false, loadingMore: false,
             matches: append ? mergeById(this.data.matches, incoming) : incoming,
             matchesPage: page, matchesHasMore: result.hasMore === true })
           diagnostics.record({ action: 'page.home.ready', durationMs: Date.now() - startedAt })
@@ -333,8 +370,11 @@ Page({
         coachPromise = api.coaches.list(coachPayload, readOptions).then(result => {
           if (requestSequence !== this.contentRequestSequence) return result
           const venueMap = Object.fromEntries(this.data.venues.map(item => [item.id, item]))
-          const incoming = (result.items || []).map(item => Object.assign(present.coach(item, venueMap), { avatarUrl: '' }))
-          this.setData({ state: 'ready', refreshing: false, loadingMore: false,
+          const previous = Object.fromEntries(this.data.coaches.map(item => [item.id, item]))
+          const incoming = (result.items || []).map(item => Object.assign(present.coach(item, venueMap), {
+            avatarUrl: previous[item.id] && previous[item.id].avatarFileId === item.avatarFileId ? previous[item.id].avatarUrl || '' : ''
+          }))
+          this.setContentData({ state: 'ready', refreshing: false, loadingMore: false,
             coaches: append ? mergeById(this.data.coaches, incoming) : incoming,
             coachesPage: page, coachesHasMore: result.hasMore === true })
           diagnostics.record({ action: 'page.home.ready', durationMs: Date.now() - startedAt })
@@ -342,6 +382,31 @@ Page({
           return result
         })
       }
+
+      // Media needs the visible content, never the user's favorite status.
+      // Start after the primary list so image requests follow primary data readiness.
+      const mediaPromise = (mode === 'matches'
+        ? Promise.all([venuePromise, matchPromise]).then(async ([result]) => {
+          if (requestSequence !== this.contentRequestSequence || result.reused || result.loadFailed) return
+          const fileIds = (result.items || []).map(item => (item.coverFileIds || [])[0]).filter(Boolean)
+          if (!fileIds.length) return
+          const urls = await resolveMediaUrls(fileIds, readOptions)
+          if (requestSequence !== this.contentRequestSequence) return
+          // Read the current rows: a favorite mutation may have reordered them.
+          this.setContentData({ venues: this.data.venues.map(item => Object.assign({}, item, {
+            coverUrl: urls[item.coverFileIds[0]] || item.coverUrl || ''
+          })) })
+        })
+        : coachPromise.then(async (result) => {
+          if (requestSequence !== this.contentRequestSequence) return
+          const fileIds = (result.items || []).map(item => item.avatarFileId).filter(Boolean)
+          if (!fileIds.length) return
+          const urls = await resolveMediaUrls(fileIds, readOptions)
+          if (requestSequence !== this.contentRequestSequence) return
+          this.setContentData({ coaches: this.data.coaches.map(item => Object.assign({}, item, {
+            avatarUrl: urls[item.avatarFileId] || item.avatarUrl || ''
+          })) })
+        })).catch(() => {}) // Primary errors are handled by the list below.
 
       const [venueResult, favoriteResult, matchResult, coachResult] = await Promise.all([
         venuePromise,
@@ -382,19 +447,7 @@ Page({
         venueItems.sort((left, right) => Number(Boolean(right.favorited)) - Number(Boolean(left.favorited)))
       }
       const matchVenueMap = Object.assign({}, previousVenues, venueMap)
-      const incomingMatches = (matchResult.items || []).map((raw) => {
-        const item = present.match(raw)
-        const place = matchVenueMap[item.venueId]
-        if (!place) return item
-        return Object.assign(item, {
-          venueName: place.name || item.venueName,
-          address: place.address,
-          venueLocationText: place.locationText,
-          venueActivityTags: place.activityTags,
-          location: place.location,
-          hasLocation: place.hasLocation
-        })
-      })
+      const incomingMatches = (matchResult.items || []).map(raw => homeMatch(raw, matchVenueMap))
       const previousCoaches = Object.fromEntries((this.data.coaches || []).map((item) => [item.id, item]))
       const incomingCoaches = (coachResult.items || []).map((item) => Object.assign(present.coach(item, venueMap), {
         avatarUrl: previousCoaches[item.id] && previousCoaches[item.id].avatarUrl || ''
@@ -420,7 +473,7 @@ Page({
         patch.coachesPage = page
         patch.coachesHasMore = coachResult.hasMore === true
       }
-      this.setData(patch)
+      this.setContentData(patch)
 
       if (mode === 'matches' && !this.data.friendsOnly && !append && !venueResult.loadFailed) {
         clientState.saveHomeSnapshot({
@@ -435,37 +488,8 @@ Page({
         })
       }
 
-      const mediaIds = []
-      if (!venueResult.reused) venueItems.forEach((item) => {
-        if (item.coverFileIds[0]) mediaIds.push(item.coverFileIds[0])
-      })
-      if (mode === 'coaches') {
-        incomingCoaches.forEach((item) => {
-          if (item.avatarFileId) mediaIds.push(item.avatarFileId)
-        })
-      }
-      if (!mediaIds.length) return true
-
-      // 文字结果先可操作，图片随后按云函数的 20 个上限分批补齐。
-      const mediaUrls = await resolveMediaUrls(mediaIds, readOptions)
+      await mediaPromise
       if (requestSequence !== this.contentRequestSequence) return false
-      const mediaPatch = {}
-      if (!venueResult.loadFailed && !venueResult.reused) {
-        const currentVenues = Object.fromEntries((this.data.venues || []).map((item) => [item.id, item]))
-        mediaPatch.venues = venueItems.map((item) => Object.assign({}, item, {
-          coverUrl: mediaUrls[item.coverFileIds[0]] || '',
-          favorited: currentVenues[item.id]
-            ? Boolean(currentVenues[item.id].favorited)
-            : Boolean(item.favorited),
-          favoriteKnown: currentVenues[item.id] ? currentVenues[item.id].favoriteKnown : item.favoriteKnown
-        }))
-      }
-      if (mode === 'coaches') {
-        mediaPatch.coaches = coaches.map((item) => Object.assign({}, item, {
-          avatarUrl: mediaUrls[item.avatarFileId] || item.avatarUrl || ''
-        }))
-      }
-      this.setData(mediaPatch)
       return true
     } catch (error) {
       if (requestSequence !== this.contentRequestSequence) return false
@@ -474,14 +498,14 @@ Page({
       if (SESSION_ERRORS.has(error.code) && app.clearSession) app.clearSession()
       this.finishPrimaryLoad(requestSequence, options.manual, false)
       if (append) {
-        this.setData({ loadingMore: false, paginationError: errors.message(error, '更多内容加载失败') })
+        this.setContentData({ loadingMore: false, paginationError: errors.message(error, '更多内容加载失败') })
         return false
       }
       if (!showSkeleton && this.data.state === 'ready' && !ACCESS_ERRORS.has(error.code)) {
-        this.setData({ refreshing: false, refreshError: `未能更新，当前显示上次结果。${errors.message(error)}` })
+        this.setContentData({ refreshing: false, refreshError: `未能更新，当前显示上次结果。${errors.message(error)}` })
         errors.toast(error, '刷新失败，请稍后重试')
       } else {
-        this.setData({ state: 'error', refreshing: false, errorMessage: errors.message(error), loginRequired: error.code === 'LOGIN_REQUIRED' })
+        this.setContentData({ state: 'error', refreshing: false, errorMessage: errors.message(error), loginRequired: error.code === 'LOGIN_REQUIRED' })
       }
       if (this.pendingNetworkRecovery && this.retryOnReconnect && this.visible !== false) {
         this.pendingNetworkRecovery = false
