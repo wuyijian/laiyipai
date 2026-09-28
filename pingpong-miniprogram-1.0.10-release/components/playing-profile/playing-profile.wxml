@@ -1,0 +1,16 @@
+<view wx:if="{{summary}}" class="playing-profile">
+  <view class="playing-head"><text class="playing-title">技术档案</text><text class="source-label">{{summary.source}}</text></view>
+  <view class="score-rank-row">
+    <view><view class="metric-label">积分</view><view class="score-text">{{summary.ratingText}}</view><view class="playing-note">本人填写 · 原平台积分</view></view>
+    <view><view class="metric-label">段位</view><view class="level-text">{{summary.level.text}}</view><view class="playing-note">{{summary.level.sourceLabel}}</view></view>
+  </view>
+  <view class="playing-note">{{summary.level.note}}</view>
+  <view wx:if="{{summary.equipmentText}}" class="equipment-text">{{summary.equipmentText}}</view>
+  <view class="traits"><text wx:for="{{summary.traits}}" wx:key="*this" class="trait">{{item}}</text></view>
+  <view wx:if="{{!summary.traits.length}}" class="playing-note">技术特点尚未填写</view>
+  <button class="abilities-toggle" bindtap="toggle" aria-expanded="{{expanded}}">能力项 · 已自评 {{summary.assessedCount}} 项 <text>{{expanded ? '收起 −' : '展开 ＋'}}</text></button>
+  <view wx:if="{{expanded}}">
+    <view wx:for="{{summary.abilities}}" wx:key="id" class="ability"><text>{{item.label}}</text><text>{{item.state}}</text></view>
+    <view class="playing-note">{{summary.assessedCount ? '其他项目未评估，不代表不会。' : '能力尚未评估，不代表不会。'}}</view>
+  </view>
+</view>

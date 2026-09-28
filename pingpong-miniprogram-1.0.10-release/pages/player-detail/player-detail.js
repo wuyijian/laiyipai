@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const errors = require('../../utils/error')
+const playerLevels = require('../../utils/player-levels')
 
 Page({
   data: {
@@ -17,14 +18,22 @@ Page({
   },
 
   onShow() {
+    clearInterval(this.availabilityTimer)
+    this.availabilityTimer = setInterval(() => {
+      const status = this.data.player && this.data.player.availability
+      if (status && status.available && status.endAt <= Date.now()) this.setData({ 'player.availability': { available: false } })
+    }, 30000)
     this.loadPlayer()
   },
+
+  onHide() { clearInterval(this.availabilityTimer) },
 
   onPullDownRefresh() {
     this.loadPlayer().finally(() => wx.stopPullDownRefresh())
   },
 
   onUnload() {
+    this.onHide()
     this.playerLoadRun = Number(this.playerLoadRun || 0) + 1
   },
 
@@ -58,6 +67,7 @@ Page({
           ballAge: raw.ballAge || '未填写',
           ballAgeText: String(raw.ballAge || '未填写').replace(/^球龄\s*/, ''),
           skills,
+          playingSummary: playerLevels.summary(raw),
           ratingText: raw.ratingPlatform && raw.ratingPlatform !== '未填写' && raw.ratingValue
             ? `${raw.ratingPlatform} ${raw.ratingValue}` : ''
         })

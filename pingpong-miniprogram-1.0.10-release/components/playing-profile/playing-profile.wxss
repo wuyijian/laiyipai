@@ -1,0 +1,17 @@
+.playing-profile { margin: 24rpx 0; padding: 28rpx; background: #f2f7f3; border-radius: 20rpx; color: #20382b; }
+.playing-head { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
+.playing-title { font-size: 28rpx; font-weight: 600; }
+.source-label { font-size: 22rpx; color: #647469; }
+.level-text { font-size: 38rpx; font-weight: 700; margin-top: 18rpx; }
+.playing-note { font-size: 23rpx; color: #67776d; line-height: 1.6; margin-top: 10rpx; }
+.equipment-text { font-size: 26rpx; margin-top: 20rpx; }
+.traits { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
+.trait { background: #fff; padding: 8rpx 14rpx; border-radius: 10rpx; font-size: 23rpx; }
+.abilities-toggle { display: flex; justify-content: space-between; align-items: center; padding: 24rpx 0 0; margin: 20rpx 0 0; border-top: 1rpx solid #dce6de; background: transparent; font-size: 25rpx; line-height: 1.5; color: #245e42; border-radius: 0; }
+.abilities-toggle::after { border: 0; }
+.ability { display: flex; justify-content: space-between; gap: 20rpx; padding-top: 20rpx; font-size: 25rpx; }
+.score-rank-row { display: flex; gap: 28rpx; margin-top: 24rpx; }
+.score-rank-row > view { flex: 1; min-width: 0; }
+.metric-label { color: #647469; font-size: 23rpx; }
+.score-text { margin-top: 10rpx; font-size: 29rpx; font-weight: 600; overflow-wrap: anywhere; }
+.score-rank-row .level-text { margin-top: 10rpx; font-size: 29rpx; }

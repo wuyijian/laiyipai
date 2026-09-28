@@ -81,6 +81,7 @@ requiredFiles.forEach((relativePath) => {
 
 const databaseIndexes = json('database/indexes.json')
 const requiredIndexNames = {
+  users: ['status_public_id', 'status_district_public_id', 'nearby_enabled_expiry'],
   venues: [
     'city_name_key',
     'city_name',
@@ -533,7 +534,7 @@ sourceFiles.forEach((file) => {
   const source = read(file)
   if (/wx\.cloud\.database\s*\(/.test(source)) fail(`客户端禁止直连数据库：${file}`)
   if (/wx\.getLocation\s*\(/.test(source)) fail(`附近球馆不得获取精确位置：${file}`)
-  if (/wx\.getFuzzyLocation\s*\(/.test(source) && file !== 'utils/location.js') fail(`定位只能通过统一的授权入口获取：${file}`)
+  if (/wx\.getFuzzyLocation\s*\(/.test(source) && file.split(path.sep).join('/') !== 'utils/location.js') fail(`定位只能通过统一的授权入口获取：${file}`)
   if (/\brequirePlugin\s*\(/.test(source)) {
     fail(`客户端不得依赖小程序语音插件：${file}`)
   }

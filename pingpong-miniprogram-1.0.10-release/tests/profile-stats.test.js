@@ -19,7 +19,7 @@ function runtime() {
     favorites: { list: async () => ({ items: [], total: 0 }) },
     files: { resolve: async () => ({ urls: {} }) }
   }
-  const deps = { api, present: { venue: value => value }, privacy: {}, error: { message: e => e.message, toast() {} }, 'client-state': {},
+  const deps = { 'player-levels': require('../utils/player-levels'), 'profile-editor': require('../utils/profile-editor'), api, present: { venue: value => value }, privacy: {}, error: { message: e => e.message, toast() {} }, 'client-state': {},
     'tab-bar': { sync() {} }, 'message-notifier': { start() {}, poll: async () => {}, subscribe: () => () => {} } }
   const box = { Page: value => { definition = value }, getApp: () => app, setTimeout, clearTimeout,
     wx: { showModal: value => { calls.modal = value }, stopPullDownRefresh: () => { calls.refreshStopped++ } },

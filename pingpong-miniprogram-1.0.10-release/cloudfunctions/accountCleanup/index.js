@@ -391,7 +391,10 @@ exports.main = async () => {
   }
   // Account deletion is privacy-critical, so it keeps priority within the short timer-function budget.
   const expiryCleanup = await cleanupExpiredRecords()
-  return { processed: result.data.length, expiryCleanup }
+  let nearbyCleanup
+  try { nearbyCleanup = await require('./nearby-expiry')(db) }
+  catch (error) { console.error('NEARBY_EXPIRY_CLEANUP_FAILED', error.message); nearbyCleanup = { failed: 1 } }
+  return { processed: result.data.length, expiryCleanup, nearbyCleanup }
 }
 
 exports._private = {

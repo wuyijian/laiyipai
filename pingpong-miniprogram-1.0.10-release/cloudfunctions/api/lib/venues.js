@@ -72,6 +72,9 @@ async function list(context, payload) {
 }
 
 async function nearby(context, payload) {
+  for (const key of ['latitude', 'longitude']) {
+    assert(typeof payload[key] === 'number' && Number.isFinite(payload[key]), 'INVALID_ARGUMENT', '模糊位置无效，请重新定位')
+  }
   const latitude = validate.number(payload.latitude, '纬度', { min: -90, max: 90 })
   const longitude = validate.number(payload.longitude, '经度', { min: -180, max: 180 })
   const radiusMeters = validate.integer(payload.radiusMeters === undefined ? 20000 : payload.radiusMeters, '搜索半径', { min: 500, max: 50000 })

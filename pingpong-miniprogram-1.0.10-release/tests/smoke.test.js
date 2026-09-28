@@ -2848,7 +2848,8 @@ test('个人资料按 files.resolve 契约显示头像并提交球龄、技术�
     ballAge: '球龄 5—10 年',
     skills: ['正手弧圈', '反手拧拉'],
     ratingPlatform: '开球网',
-    ratingValue: '1825'
+    ratingValue: '1825',
+    playingProfile: require('../utils/player-levels').normalize()
   })
   assert.strictEqual(profile.data.editVisible, false)
   const template = fs.readFileSync(path.join(projectRoot, 'pages', 'profile', 'profile.wxml'), 'utf8')

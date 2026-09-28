@@ -69,7 +69,7 @@ module.exports = {
     retryAvatar: action('profile.avatar.retry'),
     removeAvatar: action('profile.avatar.remove')
   },
-  players: { get: action('players.get') },
+  players: { get: action('players.get'), list: action('players.list') },
   friends: { list: action('friends.list') },
   messages: {
     list: action('messages.list'),

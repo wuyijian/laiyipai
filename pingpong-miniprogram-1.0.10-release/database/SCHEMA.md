@@ -2,6 +2,16 @@
 
 ## 核心关系
 
+### 球友目录扩展
+
+`users.profile.playingProfile` 保存结构化器材、技术标签及能力自评（0/缺失为未评估）。`ratingUpdatedAt` 仅在自报积分/平台变化时由服务端写入，等级不存客户端可写值，公开标记始终为 self_reported。
+
+`users.profile.availability` 为 `{available,note?}` 或 `{available:true,date,startTime,endTime,venueId,venueName,district,note,endAt}`。endAt 为服务端按北京时间计算的毫秒数，venueName/district 来自公开球馆。到期后读取时只呈现不可约，无需定时写库。旧客户端不传则保留；关闭时整体替换并删除旧安排；注销随 profile 清除。
+
+球友目录只查询 active 用户，使用 status_public_id / status_district_public_id 索引按 publicId 游标分页，派生等级及状态筛选，双向屏蔽逐批校验。数据库权限不变，客户端不可直接查询 users。
+
+附近展示可选保存于 users.profile.nearbyDiscovery：enabled、point（0.01 度栅格的 gcj02 latitude/longitude）、expiresAt（服务端数字毫秒，24 小时）。仅本人明确开启时保存，公开接口不返回 point；期限结束停止匹配。关闭写 point:null，注销随 profile 删除。accountCleanup 按 nearby_enabled_expiry 索引每次最多处理 100 条，在事务内重新核对期限后清除过期位置，避免误清理刚续期的数据。
+
 - `users/{OPENID}`：私有身份、角色、账号状态和资料。`publicId` 是对外球友 ID，接口不返回 OPENID。
 - `venues/{venueId}`：球馆目录支持两种展示模式。既有完整记录默认为 `listingMode:full`，要求地址与 GeoPoint，并用 `verificationDate/sourceUrls` 保留资料可追溯性；`listingMode:name_only` 只保存名称与 `activityTags`，不保存地址、坐标、电话、图片或设施信息，公开响应固定为 `verified:false`、`partnerVerified:false`。`activityTags` 仅可为 `教学/比赛/训练/切磋`，与完整场馆的通用 `tags`、设施类 `facilityTags` 分开。
 - `venue_submissions/{hash(OPENID,city,nameKey)}`：用户标记新球馆的私有录入留痕。新记录以 `publicationMode:instant/status:approved` 创建；仍兼容旧版 `reviewing/rejected/withdrawn` 审核记录。包含服务端写入的 `userId`、对外申请人快照、目标球馆 ID、标准化名称键、活动标签、对象版本及历史审核留痕。普通用户只能通过 API 查看本人记录；运营历史待审队列不返回 OPENID。

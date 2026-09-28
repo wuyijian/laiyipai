@@ -1,0 +1,5 @@
+const fs = require('fs')
+const path = require('path')
+const root = path.resolve(__dirname, '..')
+fs.copyFileSync(path.join(root, 'cloudfunctions/api/lib/player-levels.js'), path.join(root, 'utils/player-levels.js'))
+console.log('player level catalog synced')

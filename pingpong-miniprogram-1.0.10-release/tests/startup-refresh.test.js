@@ -248,6 +248,27 @@ test('首次登录遇到服务繁忙最多重试一次且复用编号，不自�
   assert.equal(deniedCalls, 1)
 })
 
+test('首页球友栏目不请求球局教练，旧响应不能覆盖；下拉交给共享列表', async () => {
+  const { page, api, stats } = setup()
+  const pending = deferred()
+  api.matches.list = () => pending.promise
+  const first = page.loadContent()
+  let refreshes = 0
+  page.selectComponent = () => ({ refresh: async () => { refreshes++; return true } })
+  page.switchMode({ currentTarget: { dataset: { mode: 'players' } } })
+  pending.resolve({ items: [{ id: 'stale-match' }] })
+  await first
+  assert.equal(page.data.mode, 'players')
+  assert(!page.data.matches.some(item => item.id === 'stale-match'))
+  assert.equal(refreshes, 0, 'component mount owns initial load')
+  assert.equal(await page.onPullDownRefresh(), true)
+  assert.equal(refreshes, 1)
+  assert.equal(stats.stops, 1)
+  assert.equal(page.data.refreshNotice, '球友列表已更新')
+  assert(page.onShareAppMessage().path.includes('mode=players'))
+  page.onUnload()
+})
+
 ;(async () => {
   for (const item of tests) { await item.run(); console.log(`PASS ${item.name}`) }
   console.log(`${tests.length} startup and refresh checks passed`)

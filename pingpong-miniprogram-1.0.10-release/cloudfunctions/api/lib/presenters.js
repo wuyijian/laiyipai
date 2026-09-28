@@ -1,5 +1,6 @@
 const matchOptions = require('./match-options')
 const { VENUE_ACTIVITY_TAGS, VENUE_REVIEW_TAGS } = require('./constants')
+const playerLevels = require('./player-levels')
 
 function venueActivityTags(document) {
   const source = Array.isArray(document.activityTags) ? document.activityTags : document.tags
@@ -18,6 +19,11 @@ function userProfile(user) {
     skills: Array.isArray(profile.skills) ? profile.skills : [],
     ratingPlatform: profile.ratingPlatform || '未填写',
     ratingValue: profile.ratingValue || '',
+    playingProfile: playerLevels.normalize(profile.playingProfile),
+    ratingStatus: 'self_reported',
+    ratingUpdatedAt: profile.ratingUpdatedAt || null,
+    availability: require('./availability').present(profile.availability),
+    nearbyDiscovery: require('./nearby-discovery').status(profile.nearbyDiscovery),
     completedMatches: Number(user && user.completedMatches || 0),
     punctualityRate: Number(user && user.completedMatches || 0) > 0 ? Number(user.punctualityRate || 0) : null
   }

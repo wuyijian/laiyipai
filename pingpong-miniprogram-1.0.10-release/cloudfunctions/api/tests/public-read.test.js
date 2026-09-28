@@ -45,7 +45,7 @@ test('公开读取使用显式白名单，写操作和个人读取不在白名�
     'venues.list', 'venues.nearby', 'venues.get', 'venueReviews.list',
     'matches.list', 'matches.get',
     'coaches.list', 'coaches.get',
-    'players.get', 'files.resolve'
+    'players.get', 'players.list', 'files.resolve'
   ]
   assert.deepStrictEqual(PUBLIC_READ_ACTIONS, expected)
   expected.forEach((action) => assert.strictEqual(isPublicRead(action), true, action))

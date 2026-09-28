@@ -10,6 +10,7 @@ const PUBLIC_READ_ACTIONS = Object.freeze([
   'coaches.list',
   'coaches.get',
   'players.get',
+  'players.list',
   'files.resolve'
 ])
 

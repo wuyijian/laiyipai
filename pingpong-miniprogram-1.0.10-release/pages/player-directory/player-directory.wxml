@@ -1,0 +1,3 @@
+<view class="ui-screen">
+<view class="page-shell directory-page safe-bottom"><player-directory-panel id="directory-panel" /></view>
+</view>

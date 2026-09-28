@@ -18,6 +18,8 @@
 
 按照 `indexes.json` 创建组合索引、地理索引和普通单字段索引。索引清单是评审用的跨环境源文件，控制台的索引导入格式可能随云开发版本变化，因此不要将它当作命令直接导入。
 
+2026-09-28 整合版新增球友目录与自愿附近展示：先建立 `users.status_public_id`、`users.status_district_public_id`、`users.nearby_enabled_expiry` 三个普通组合索引。附近展示默认关闭，开启后仅保存 0.01 度栅格位置，服务端到期立即停止匹配；每小时 `accountCleanup` 分批清空过期坐标，因此必须同时部署该函数并保持触发器运行。字段扩展不要求补填旧用户位置或能力分数，也不应向生产批量写入示例用户。
+
 上线前必须等待全部索引状态变为“可用”。当前 CloudBase 数据库不依赖 TTL 索引：`upload_tickets.expires_asc` 与 `rate_limits.expires_asc` 都是可在控制台创建的 `expiresAt` 单字段升序普通索引，过期记录由每小时触发的 `accountCleanup` 分批删除。不要在控制台把它们配置为 TTL。
 
 球友关系使用 `player_friends.user_updated` 展示我的球友，并用 `player_friends.friend_updated` 在账号注销时清除反向关系；两个索引都必须先于新版 `api` 上线。球友录入功能使用唯一组合索引 `venues.city_name_key` 与普通索引 `venues.city_name` 查重，并为 `venue_submissions` 建立 `user_updated`、`status_submitted`、`target_status_submitted`、`reviewer_updated` 组合索引。注销清理还依赖 `coaches.user_updated` 与 `coach_applications.reviewer_updated` 定位教练账号和历史审核员；唯一生产环境必须等待这些索引可用。历史审核队列继续依赖相应索引；不能为联调放开客户端直接读写。
