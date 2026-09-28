@@ -76,6 +76,7 @@ const routes = {
   'profile.get': profile.get,
   'profile.stats.get': profileStats.get,
   'players.get': players.get,
+  'players.list': players.list,
   'friends.list': friends.list,
   'profile.update': profile.update,
   'profile.avatar.status': avatar.status,

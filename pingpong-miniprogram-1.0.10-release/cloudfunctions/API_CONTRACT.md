@@ -49,6 +49,15 @@ wx.cloud.callFunction({
 
 ## 身份与资料
 
+### 球友目录与分级档案（本分支，待部署）
+
+- `players.list` 为公开读接口：payload `{cursor?, pageSize?:1..20, grade?:''|'pending'|'F'|'E'|'D'|'C'|'B'|'A'|'S+', district?, availability?:''|'available'|'unavailable'}`。返回 `{items,cursor,hasMore}`；item 只含公开球友编号、昵称、头像引用、城市/地区、等级、自选技术标签和有效约球状态。正常公开账号均可列入，双向屏蔽和非 active 账号被过滤。地区取个人资料；等级由开球网自报积分推导，未核验。
+- 游标按 publicId 升序；每次扫描上限 250 个候选，稀疏筛选可能出现空 items 且 hasMore=true，客户端继续沿游标查找。单页刚好满时允许一次额外空请求确认结束。
+- `profile.update` 新增选填 `playingProfile`（持拍手、握拍、胶皮、打法/优势/习惯标签、能力自评字典）及 `availability`。嵌套字段整体替换，省略则保留旧值。`playingProfile:{}` 清空自评；能力 0 表示未评估。
+- `availability:{available:false,note?:string}` 关闭可约并清除时段；开启为 `{available:true,date,startTime,endTime,venueId,note?}`。同日北京时间，结束须晚于当前及开始时刻；开始不得超过未来 30 天；说明最多 100 字并接受文本安全检查。服务端校验公开球馆并保存名称快照，计算数字毫秒 endAt，忽略伪造快照。
+- `profile.get/update/bootstrap` 和 `players.get` 增加 playingProfile、ratingStatus 固定 self_reported、ratingUpdatedAt、availability；不暴露 OPENID。到期状态返回 `{available:false}`，无旧时段或地点。
+- 新增 users 的 status_public_id、status_district_public_id 索引。部署顺序：索引生效 → api → 客户端。详见 docs/PLAYER_DIRECTORY_AND_LEVELS.md。
+
 ### 个人约球统计（2026-09-22，本地完成，待部署）
 
 - 新增只读 `profile.stats.get`，payload `{}`。必须登录，身份仅取云函数上下文；不支持查询其他用户，不开放游客访问。

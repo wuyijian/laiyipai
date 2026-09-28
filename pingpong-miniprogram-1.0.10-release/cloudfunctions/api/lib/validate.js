@@ -1,5 +1,6 @@
 const { ApiError, assert } = require('./errors')
 const { RATING_PLATFORMS } = require('./constants')
+const playerLevels = require('./player-levels')
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -113,13 +114,40 @@ function pagination(payload) {
   }
 }
 
+function playingProfile(value) {
+  plainObject(value, '技术档案')
+  const allowed = playerLevels.EQUIPMENT.concat(playerLevels.TRAITS).map(item => item.key).concat('abilities')
+  assert(Object.keys(value).every(key => allowed.includes(key)), 'INVALID_ARGUMENT', '技术档案包含未知字段')
+  const result = {}
+  playerLevels.EQUIPMENT.forEach(item => {
+    result[item.key] = oneOf(value[item.key] === undefined ? '未填写' : value[item.key], item.options, item.label)
+  })
+  playerLevels.TRAITS.forEach(item => {
+    const selected = value[item.key] === undefined ? [] : value[item.key]
+    assert(Array.isArray(selected) && selected.length <= item.limit, 'INVALID_ARGUMENT', `${item.label}最多选择 ${item.limit} 项`)
+    result[item.key] = Array.from(new Set(selected.map(option => oneOf(option, item.options, item.label))))
+  })
+  const abilities = value.abilities === undefined ? {} : plainObject(value.abilities, '能力项')
+  const ids = playerLevels.ABILITY_GROUPS.flatMap(group => group.items.map(item => item.id))
+  result.abilities = {}
+  Object.keys(abilities).forEach(id => {
+    assert(ids.includes(id), 'INVALID_ARGUMENT', '未知能力项')
+    const state = abilities[id]
+    assert(Number.isInteger(state) && state >= 0 && state < playerLevels.ABILITY_STATES.length, 'INVALID_ARGUMENT', '能力熟练度无效')
+    if (state > 0) result.abilities[id] = state
+  })
+  return result
+}
+
 function profilePatch(payload) {
   plainObject(payload)
   const patch = {}
+  if (payload.availability !== undefined) patch.availability = require('./availability').input(payload.availability)
   if (payload.nickname !== undefined) patch.nickname = text(payload.nickname, '昵称', { min: 1, max: 20 })
   if (payload.city !== undefined) patch.city = text(payload.city, '城市', { min: 1, max: 20 })
   if (payload.district !== undefined) patch.district = text(payload.district, '地区', { required: false, max: 20 })
   if (payload.ballAge !== undefined) patch.ballAge = text(payload.ballAge, '球龄', { min: 1, max: 30 })
+  if (payload.playingProfile !== undefined) patch.playingProfile = playingProfile(payload.playingProfile)
   if (payload.skills !== undefined) patch.skills = stringArray(payload.skills, '擅长技术', { required: true, maxItems: 6, itemMax: 16 })
   if (payload.ratingPlatform !== undefined) patch.ratingPlatform = oneOf(payload.ratingPlatform, RATING_PLATFORMS, '积分平台')
   if (payload.ratingValue !== undefined) {

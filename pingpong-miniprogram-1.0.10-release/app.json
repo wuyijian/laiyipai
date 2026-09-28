@@ -18,11 +18,14 @@
     "pages/friends/friends",
     "pages/update-detail/update-detail",
     "pages/settings/settings",
-    "pages/login/login"
+    "pages/login/login",
+    "pages/player-directory/player-directory",
+    "pages/availability-edit/availability-edit"
   ],
   "usingComponents": {
     "player-avatar": "/components/player-avatar/player-avatar",
-    "venue-avatar": "/components/venue-avatar/venue-avatar"
+    "venue-avatar": "/components/venue-avatar/venue-avatar",
+    "playing-profile": "/components/playing-profile/playing-profile"
   },
   "window": {
     "navigationBarTitleText": "搭拍子",

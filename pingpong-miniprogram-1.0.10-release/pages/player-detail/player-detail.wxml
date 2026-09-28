@@ -37,6 +37,14 @@
       <view wx:if="{{player.ratingText}}" class="data-note">积分由本人填写，平台暂未核验。</view>
     </view>
 
+    <view class="player-section">
+      <view class="section-title">{{player.availability.available ? '可约球' : '暂不约球'}}</view>
+      <block wx:if="{{player.availability.available}}"><view class="data-note">{{player.availability.date}} {{player.availability.startTime}}—{{player.availability.endTime}}</view><navigator class="data-note" url="/pages/venue-detail/venue-detail?id={{player.availability.venueId}}">{{player.availability.venueName}} ›</navigator></block>
+      <view wx:if="{{player.availability.note}}" class="data-note">{{player.availability.note}}</view>
+      <navigator wx:if="{{isSelf}}" url="/pages/availability-edit/availability-edit">编辑我的状态 ›</navigator>
+    </view>
+    <playing-profile summary="{{player.playingSummary}}" />
+
     <view class="player-note">这些资料只用于判断是否适合一起练球。无需加好友，加入同一球局后再沟通时间和地点。</view>
     <button wx:if="{{!isSelf}}" class="safety-button" bindtap="openSafety">举报或屏蔽</button>
   </block>

@@ -29,6 +29,8 @@
     </button>
   </view>
 
+  <navigator class="directory-entry" url="/pages/player-directory/player-directory"><view><text class="directory-entry-title">找球友</text><text class="directory-entry-copy">按等级和地区，找到有空一起打球的人</text></view><text>浏览球友 ›</text></navigator>
+
   <view class="mode-switch" role="tablist" aria-role="tablist" aria-label="首页内容">
     <button class="mode-button {{mode === 'matches' ? 'active' : ''}}" role="tab" aria-role="tab" aria-selected="{{mode === 'matches'}}" data-mode="matches" bindtap="switchMode">
       <text class="mode-title">找球局</text>

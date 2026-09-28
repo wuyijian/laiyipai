@@ -5,9 +5,12 @@ const errors = require('../../utils/error')
 const clientState = require('../../utils/client-state')
 const tabBar = require('../../utils/tab-bar')
 const messageNotifier = require('../../utils/message-notifier')
+const playerLevels = require('../../utils/player-levels')
+const profileEditor = require('../../utils/profile-editor')
 
 const BALL_AGES = ['未填写', '球龄 1 年以内', '球龄 1—2 年', '球龄 2—5 年', '球龄 5—10 年', '球龄 10 年以上']
 const RATING_PLATFORMS = ['未填写', '开球网', 'ChinaTT', '其他平台']
+const DISTRICTS = ['暂不选择', '滨江区', '萧山区', '上城区', '西湖区', '拱墅区', '余杭区', '临平区', '钱塘区', '富阳区', '临安区', '桐庐县', '淳安县', '建德市']
 const FAVORITE_PAGE_SIZE = 20
 const FAVORITE_RETRY_DELAY_MS = 260
 const FAVORITE_RETRY_CODES = new Set(['NETWORK_ERROR', 'REQUEST_TIMEOUT', 'SERVICE_UNAVAILABLE', 'INVALID_SERVER_RESPONSE', 'INTERNAL'])
@@ -91,10 +94,12 @@ function formatProfile(rawProfile, previousProfile) {
     ballAge: rawProfile.ballAge || '未填写',
     ballAgeText: String(rawProfile.ballAge || '未填写').replace(/^球龄\s*/, ''),
     skills,
+    playingProfile: playerLevels.normalize(rawProfile.playingProfile),
+    playingSummary: playerLevels.summary(rawProfile),
     ratingPlatform,
     ratingValue,
     ratingText: ratingPlatform !== '未填写' && ratingValue ? `${ratingPlatform} ${ratingValue}` : '未填写',
-    complete: rawProfile.nickname && rawProfile.nickname !== '新球友' && (rawProfile.ballAge && rawProfile.ballAge !== '未填写' || skills.length > 0)
+    complete: rawProfile.nickname && rawProfile.nickname !== '新球友' && (rawProfile.ballAge && rawProfile.ballAge !== '未填写' || skills.length > 0 || playerLevels.summary(rawProfile).assessedCount > 0 || playerLevels.summary(rawProfile).traits.length > 0 || Boolean(ratingValue))
   })
 }
 
@@ -137,6 +142,14 @@ Page({
     messageConversations: [],
     editVisible: false,
     editProfile: null,
+    editSection: 'basics',
+    editSections: [{ id: 'basics', label: '基本资料' }, { id: 'rating', label: '积分等级' }, { id: 'traits', label: '技术特点' }, { id: 'abilities', label: '能力项' }],
+    abilityGroupIndex: 0,
+    abilityGroupLabels: playerLevels.ABILITY_GROUPS.map(group => group.label),
+    abilityStates: playerLevels.ABILITY_STATES,
+    levelBands: playerLevels.LEVEL_BANDS,
+    showLevelGuide: false,
+    legacySkillsExpanded: false,
     editDirty: false,
     profileDirty: false,
     ballAgeOptions: BALL_AGES,
@@ -441,10 +454,14 @@ Page({
       ballAge: this.data.profile.ballAge || '未填写',
       skills: this.data.profile.skills.slice(),
       ratingPlatform: this.data.profile.ratingPlatform || '未填写',
-      ratingValue: this.data.profile.ratingValue || ''
+      ratingValue: this.data.profile.ratingValue || '',
+      playingProfile: playerLevels.normalize(this.data.profile.playingProfile)
     }
-    this.setData({
+    const districtOptions = editProfile.district && !DISTRICTS.includes(editProfile.district) ? DISTRICTS.concat(editProfile.district) : DISTRICTS
+    this.setData(Object.assign({
       editVisible: true,
+      districtOptions, editDistrictIndex: Math.max(0, districtOptions.indexOf(editProfile.district)),
+      editSection: 'basics', abilityGroupIndex: 0, showLevelGuide: false, legacySkillsExpanded: false,
       editProfile,
       editBallAgeIndex: Math.max(0, BALL_AGES.indexOf(editProfile.ballAge)),
       ratingPlatformIndex: Math.max(0, RATING_PLATFORMS.indexOf(editProfile.ratingPlatform)),
@@ -452,7 +469,7 @@ Page({
       editError: '',
       editDirty: false,
       profileDirty: false
-    })
+    }, profileEditor.view(editProfile)))
   },
 
   closeEdit() {
@@ -483,13 +500,73 @@ Page({
     this.setData({ editBallAgeIndex, 'editProfile.ballAge': BALL_AGES[editBallAgeIndex], editError: '', editDirty: true, profileDirty: true })
   },
   changeRatingPlatform(event) {
+    if (this.data.saving) return
     const ratingPlatformIndex = Number(event.detail.value)
     const ratingPlatform = RATING_PLATFORMS[ratingPlatformIndex]
+    if (!ratingPlatform) return
     const patch = { ratingPlatformIndex, 'editProfile.ratingPlatform': ratingPlatform, editError: '', editDirty: true, profileDirty: true }
     if (ratingPlatform === '未填写') patch['editProfile.ratingValue'] = ''
     this.setData(patch)
+    this.setData(profileEditor.view(this.data.editProfile, this.data.abilityGroupIndex))
   },
-  changeRatingValue(event) { this.setData({ 'editProfile.ratingValue': String(event.detail.value || '').replace(/\D/g, '').slice(0, 4), editError: '', editDirty: true, profileDirty: true }) },
+  selectDistrict(event) {
+    if (this.data.saving) return
+    const index = Number(event.detail.value)
+    if (!Number.isInteger(index) || !this.data.districtOptions[index]) return
+    this.setData({ editDistrictIndex: index })
+    this.changeDistrict({ detail: { value: index ? this.data.districtOptions[index] : '' } })
+  },
+  changeRatingValue(event) {
+    if (this.data.saving) return
+    this.setData({ 'editProfile.ratingValue': String(event.detail.value || '').replace(/\D/g, '').slice(0, 4), editError: '', editDirty: true, profileDirty: true })
+    this.setData(profileEditor.view(this.data.editProfile, this.data.abilityGroupIndex))
+  },
+  switchEditSection(event) {
+    const section = event.currentTarget.dataset.section
+    if (this.data.saving || !this.data.editSections.some(item => item.id === section)) return
+    this.setData({ editSection: section })
+  },
+  toggleLevelGuide() { this.setData({ showLevelGuide: !this.data.showLevelGuide }) },
+  toggleLegacySkills() { this.setData({ legacySkillsExpanded: !this.data.legacySkillsExpanded }) },
+  updatePlayingProfile(value) {
+    if (this.data.saving) return
+    this.setData({ 'editProfile.playingProfile': value, editDirty: true, profileDirty: true, editError: '' })
+    this.setData(profileEditor.view(this.data.editProfile, this.data.abilityGroupIndex))
+  },
+  changeEquipment(event) {
+    const item = playerLevels.EQUIPMENT.find(item => item.key === event.currentTarget.dataset.field)
+    const index = Number(event.detail.value)
+    if (!item || !Number.isInteger(index) || !item.options[index]) return
+    this.updatePlayingProfile(Object.assign({}, this.data.editProfile.playingProfile, { [item.key]: item.options[index] }))
+  },
+  toggleTrait(event) {
+    if (this.data.saving) return
+    const { field, value } = event.currentTarget.dataset
+    const group = playerLevels.TRAITS.find(item => item.key === field)
+    if (!group || !group.options.includes(value)) return
+    const selected = this.data.editProfile.playingProfile[field]
+    if (!selected.includes(value) && selected.length >= group.limit) {
+      return wx.showToast({ title: `${group.label}最多选择 ${group.limit} 项`, icon: 'none' })
+    }
+    this.updatePlayingProfile(Object.assign({}, this.data.editProfile.playingProfile, {
+      [field]: selected.includes(value) ? selected.filter(item => item !== value) : selected.concat(value)
+    }))
+  },
+  changeAbilityGroup(event) {
+    const index = Number(event.detail.value)
+    if (this.data.saving || !Number.isInteger(index) || !playerLevels.ABILITY_GROUPS[index]) return
+    this.setData(Object.assign({ abilityGroupIndex: index }, profileEditor.view(this.data.editProfile, index)))
+  },
+  changeAbility(event) {
+    if (this.data.saving) return
+    const id = event.currentTarget.dataset.id
+    const state = Number(event.detail.value)
+    if (!playerLevels.ABILITY_GROUPS.some(group => group.items.some(item => item.id === id)) || !Number.isInteger(state) || !playerLevels.ABILITY_STATES[state]) return
+    const abilities = Object.assign({}, this.data.editProfile.playingProfile.abilities)
+    if (state === 0) delete abilities[id]
+    else abilities[id] = state
+    this.updatePlayingProfile(Object.assign({}, this.data.editProfile.playingProfile, { abilities }))
+  },
   changeNewSkill(event) { this.setData({ newSkill: event.detail.value, editDirty: true, profileDirty: true }) },
 
   addSkill() {
@@ -516,7 +593,7 @@ Page({
   async saveProfile() {
     if (this.data.saving || !this.data.editDirty) return
     const validationError = this.validateEdit()
-    if (validationError) return this.setData({ editError: validationError })
+    if (validationError) return this.setData({ editError: validationError, editSection: !this.data.editProfile.nickname.trim() ? 'basics' : 'rating' })
     const skills = this.data.editProfile.skills.slice()
     const pendingSkill = this.data.newSkill.trim()
     if (pendingSkill && !skills.includes(pendingSkill)) {
@@ -526,20 +603,26 @@ Page({
     const submittedProfile = Object.assign({}, this.data.editProfile, {
       nickname: this.data.editProfile.nickname.trim(),
       district: this.data.editProfile.district.trim(),
+      playingProfile: playerLevels.normalize(this.data.editProfile.playingProfile),
       skills
     })
     this.setData({ saving: true, editError: '' })
     try {
       await privacy.authorize()
-      await api.profile.update({
+      const saved = await api.profile.update({
         nickname: submittedProfile.nickname,
         city: '杭州',
         district: submittedProfile.district,
         ballAge: submittedProfile.ballAge,
         skills: submittedProfile.skills,
         ratingPlatform: submittedProfile.ratingPlatform,
-        ratingValue: submittedProfile.ratingValue
+        ratingValue: submittedProfile.ratingValue,
+        playingProfile: submittedProfile.playingProfile
       })
+      const changedPlayingProfile = JSON.stringify(submittedProfile.playingProfile) !== JSON.stringify(playerLevels.normalize(this.data.profile.playingProfile))
+      if (changedPlayingProfile && (!saved || !saved.playingProfile)) {
+        throw new Error('基础资料可能已保存，技术档案服务尚未更新，请稍后重试')
+      }
       const ratingText = submittedProfile.ratingPlatform !== '未填写' && submittedProfile.ratingValue
         ? `${submittedProfile.ratingPlatform} ${submittedProfile.ratingValue}` : '未填写'
       const profile = Object.assign({}, this.data.profile, {
@@ -552,7 +635,9 @@ Page({
         ratingPlatform: submittedProfile.ratingPlatform,
         ratingValue: submittedProfile.ratingValue,
         ratingText,
-        complete: submittedProfile.nickname !== '新球友' && (submittedProfile.ballAge !== '未填写' || submittedProfile.skills.length > 0)
+        playingProfile: submittedProfile.playingProfile,
+        playingSummary: playerLevels.summary(submittedProfile),
+        complete: submittedProfile.nickname !== '新球友' && (submittedProfile.ballAge !== '未填写' || submittedProfile.skills.length > 0 || playerLevels.summary(submittedProfile).assessedCount > 0 || playerLevels.summary(submittedProfile).traits.length > 0 || Boolean(submittedProfile.ratingValue))
       })
       this.setData({ saving: false, editVisible: false, editDirty: false, profileDirty: false, newSkill: '', profile })
       wx.showToast({ title: '资料已保存', icon: 'success' })

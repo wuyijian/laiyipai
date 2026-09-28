@@ -9,7 +9,8 @@
   </view>
 
   <view class="settings-group">
-    <view class="settings-group-title">安全与内容</view>
+    <view class="settings-group-title">安全与帮助</view>
+    <button class="settings-item" open-type="feedback" aria-label="问题与建议反馈"><view><text>问题与建议</text><text>向我们反馈使用问题或功能建议</text></view><text>反馈</text></button>
     <button class="settings-item" bindtap="openBlocks"><view><text>已屏蔽用户</text><text>{{blockedUsers.length}} 人</text></view><text>管理</text></button>
     <button class="settings-item" open-type="contact"><view><text>联系客服</text><text>举报处理、账号问题与意见反馈</text></view><text>联系</text></button>
   </view>
@@ -30,7 +31,7 @@
     <scroll-view class="legal-content" scroll-y="true">
       <view class="legal-date">生效日期：{{termsEffectiveDate}}</view>
       <view class="legal-heading">1. 服务说明</view>
-      <view>搭拍子用于查找、发布和加入乒乓球活动，查看同场球友，管理预约并与同一球局成员沟通。平台目前不代收球局费用。</view>
+      <view>搭拍子用于查找、发布和加入乒乓球活动，发现球友、公开约球状态，管理预约并与同一球局成员沟通。平台目前不代收球局费用。</view>
       <view class="legal-heading">2. 信息真实性</view>
       <view>用户应如实填写球局时间、地区、球馆、场地状态、费用及个人资料；不得发布私人住宅邀约、诱导转账或违法有害内容。</view>
       <view class="legal-heading">3. 线下活动</view>

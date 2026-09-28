@@ -1,0 +1,34 @@
+<view class="ui-screen">
+<view class="page-shell availability-page safe-bottom">
+  <view class="availability-title">最近想打球吗？</view>
+  <view class="availability-copy">写下你的状态，让合拍的球友找到你。</view>
+  <view wx:if="{{state === 'loading'}}" class="status-panel">正在加载状态…</view>
+  <view wx:elif="{{state === 'error'}}" class="status-panel"><view class="status-copy">{{errorMessage}}</view><button class="status-action" bindtap="retry">登录并重试</button></view>
+  <block wx:else>
+    <view class="availability-switch"><view><view>{{available ? '可约球' : '暂不约球'}}</view><view class="availability-copy">开启后公开本次约球时间和球馆</view></view><switch checked="{{available}}" disabled="{{saving}}" color="#0f5c45" bindchange="toggleAvailable" aria-label="是否可约球" /></view>
+    <view class="field-label">状态说明（选填）</view>
+    <textarea class="status-note" value="{{note}}" maxlength="100" disabled="{{saving}}" placeholder="例如：今晚想练反手，欢迎相近水平的球友" data-key="note" bindinput="changeField" />
+    <view class="availability-copy">{{note.length}} / 100 · 状态说明会公开展示</view>
+    <block wx:if="{{available}}">
+      <view class="field-label">约球日期</view>
+      <picker mode="date" value="{{date}}" start="{{minimumDate}}" end="{{maximumDate}}" disabled="{{saving}}" data-key="date" bindchange="changeField"><view class="field-picker">{{date}} ›</view></picker>
+      <view class="time-row">
+        <view><view class="field-label">开始时间</view><picker mode="time" value="{{startTime}}" disabled="{{saving}}" data-key="startTime" bindchange="changeField"><view class="field-picker">{{startTime}} ›</view></picker></view>
+        <view><view class="field-label">结束时间</view><picker mode="time" value="{{endTime}}" disabled="{{saving}}" data-key="endTime" bindchange="changeField"><view class="field-picker">{{endTime}} ›</view></picker></view>
+      </view>
+      <view class="availability-copy">北京时间，同一天内的时段，结束后自动变为暂不约球。</view>
+      <view class="field-label">约球球馆</view>
+      <view wx:if="{{venueName}}" class="selected-venue">已选：{{venueName}}</view>
+      <view class="venue-search"><input value="{{keyword}}" maxlength="30" disabled="{{saving}}" placeholder="搜索球馆名称或地址" data-key="keyword" bindinput="changeField" bindconfirm="search" confirm-type="search" /><button bindtap="search" disabled="{{saving || venueLoading}}">搜索</button></view>
+      <view class="venue-results"><button wx:for="{{venues}}" wx:key="id" class="venue-option {{venueId === item.id ? 'selected' : ''}}" disabled="{{saving}}" data-id="{{item.id}}" bindtap="chooseVenue"><view>{{item.name}}{{venueId === item.id ? ' ✓' : ''}}</view><view class="availability-copy">{{item.district}} {{item.address}}</view></button></view>
+      <view wx:if="{{venueLoading}}" class="availability-copy">正在加载球馆…</view>
+      <view wx:elif="{{venueError}}" class="inline-error">{{venueError}}<button bindtap="search">重试搜索</button></view>
+      <view wx:elif="{{!venues.length}}" class="availability-copy">未找到球馆，试试其他名称或地址。</view>
+      <button wx:if="{{venueHasMore}}" class="text-button" disabled="{{venueLoading || saving}}" bindtap="moreVenues">更多球馆</button>
+      <view class="availability-copy">状态仅表达约球意愿，不代表球馆已订场。</view>
+    </block>
+    <view wx:if="{{errorMessage}}" class="inline-error" role="alert">{{errorMessage}}</view>
+    <view class="save-area"><button class="primary-button" bindtap="save" loading="{{saving}}" disabled="{{saving}}">保存状态</button></view>
+  </block>
+</view>
+</view>

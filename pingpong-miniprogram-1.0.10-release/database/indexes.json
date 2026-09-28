@@ -2,6 +2,8 @@
   "$note": "此文件是索引清单，不是自动导入格式；请按 database/README.md 在云开发控制台逐项建立。",
   "collections": {
     "users": [
+      { "name": "status_public_id", "fields": [{ "field": "status", "order": "asc" }, { "field": "publicId", "order": "asc" }] },
+      { "name": "status_district_public_id", "fields": [{ "field": "status", "order": "asc" }, { "field": "profile.district", "order": "asc" }, { "field": "publicId", "order": "asc" }] },
       { "name": "public_id_unique", "unique": true, "fields": [{ "field": "publicId", "order": "asc" }] },
       { "name": "public_id_status", "fields": [{ "field": "publicId", "order": "asc" }, { "field": "status", "order": "asc" }] },
       { "name": "status_avatar", "fields": [{ "field": "status", "order": "asc" }, { "field": "profile.avatarFileId", "order": "asc" }] }

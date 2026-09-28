@@ -10,9 +10,13 @@ async function get(context) {
 
 async function update(context, payload) {
   const patch = validate.profilePatch(payload)
-  await checkText(context, [patch.nickname, patch.city, patch.district, patch.ballAge].concat(patch.skills || []), 1)
+  if (patch.availability) patch.availability = await require('./availability').prepare(context, patch.availability)
+  await checkText(context, [patch.nickname, patch.city, patch.district, patch.ballAge, patch.availability && patch.availability.note].concat(patch.skills || []), 1)
   const profile = Object.assign({}, context.user.profile || {}, patch)
-  if (profile.ratingPlatform !== '未填写' && !profile.ratingValue) {
+  if (profile.ratingPlatform === '未填写') profile.ratingValue = ''
+  const previous = context.user.profile || {}
+  if (profile.ratingValue !== previous.ratingValue || profile.ratingPlatform !== previous.ratingPlatform) profile.ratingUpdatedAt = context.serverDate()
+  if (profile.ratingPlatform && profile.ratingPlatform !== '未填写' && !profile.ratingValue) {
     const { ApiError } = require('./errors')
     throw new ApiError('INVALID_ARGUMENT', '选择积分平台后请填写积分')
   }

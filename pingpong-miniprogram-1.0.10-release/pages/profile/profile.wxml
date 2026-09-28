@@ -63,7 +63,7 @@
     <view wx:if="{{!profile.complete}}" class="complete-card">
       <view class="complete-copy-wrap">
         <view class="complete-title">完善运动档案</view>
-        <view class="complete-copy">填写球龄和技术，让约球信息更完整</view>
+        <view class="complete-copy">选填积分、打法和能力，帮助球友找到合适的搭档</view>
       </view>
       <button class="complete-action" bindtap="openEdit" hover-class="profile-primary-press" hover-stay-time="80">去填写</button>
     </view>
@@ -96,8 +96,12 @@
         <view wx:else class="not-set">暂未填写</view>
       </view>
 
-      <view class="data-note">资料由本人填写，仅作约球参考，不影响加入球局</view>
+      <view class="data-note">资料由本人填写，将在球友栏目公开展示；仅作约球参考，不影响加入球局</view>
     </view>
+
+    <playing-profile summary="{{profile.playingSummary}}" />
+    <navigator class="feedback-entry" url="/pages/availability-edit/availability-edit"><view class="feedback-entry-copy"><text class="feedback-title">我的约球状态 · {{profile.availability.available ? '可约球' : '暂不约球'}}</text><text class="feedback-subtitle">{{profile.availability.available ? profile.availability.date + ' ' + profile.availability.startTime + '—' + profile.availability.endTime + ' · ' + profile.availability.venueName : '写下状态，设置约球时间与球馆'}}</text></view><text>›</text></navigator>
+    <navigator class="feedback-entry" url="/pages/player-directory/player-directory">找球友 · 按等级和地区筛选 ›</navigator>
 
     <view class="message-center" aria-label="球局消息">
       <view class="message-entry-row" role="button" bindtap="openMessages" hover-class="profile-row-press" hover-stay-time="80">
@@ -287,6 +291,10 @@
       <text class="row-chevron" aria-hidden="true">›</text>
     </view>
   </block>
+  <button class="feedback-entry" open-type="feedback" aria-label="问题与建议反馈" hover-class="profile-row-press">
+    <view class="feedback-entry-copy"><text class="feedback-title">问题与建议</text><text class="feedback-subtitle">遇到问题，或有让搭拍子更好用的想法</text></view>
+    <text class="row-chevron" aria-hidden="true">›</text>
+  </button>
 </view>
 <view wx:if="{{editVisible}}" class="sheet-mask" catchtap="closeEdit">
   <view class="sheet edit-sheet" aria-role="dialog" aria-label="编辑个人资料" catchtap="noop">
@@ -294,12 +302,15 @@
     <view class="edit-sheet-head">
       <view>
         <view class="sheet-title">编辑资料</view>
-        <view class="sheet-copy">只填你愿意展示的信息，球龄、技术和积分都是选填。</view>
+        <view class="sheet-copy">积分看水平，特点看打法，能力看会什么。除昵称外均可跳过。</view>
       </view>
       <button class="sheet-close {{saving ? 'is-disabled' : ''}}" bindtap="closeEdit" disabled="{{saving}}" aria-label="关闭编辑" hover-class="profile-soft-press" hover-stay-time="80">×</button>
     </view>
 
-    <view class="edit-group">
+    <view class="profile-editor-tabs" role="tablist" aria-label="资料填写分类">
+      <button wx:for="{{editSections}}" wx:key="id" class="profile-editor-tab {{editSection === item.id ? 'active' : ''}}" data-section="{{item.id}}" bindtap="switchEditSection" disabled="{{saving}}" role="tab" aria-selected="{{editSection === item.id}}">{{item.label}}</button>
+    </view>
+    <view wx:if="{{editSection === 'basics'}}" class="edit-group">
       <view class="edit-group-title">基本资料</view>
       <view class="edit-field">
         <text class="edit-label">昵称</text>
@@ -307,19 +318,26 @@
       </view>
       <view class="edit-field">
         <text class="edit-label">所在地区</text>
-        <input class="edit-input {{saving ? 'is-disabled' : ''}}" aria-label="所在地区" value="{{editProfile.district}}" maxlength="20" placeholder="例如：西湖区" disabled="{{saving}}" bindinput="changeDistrict" />
+        <picker range="{{districtOptions}}" value="{{editDistrictIndex}}" disabled="{{saving}}" bindchange="selectDistrict" aria-label="所在行政区"><view class="edit-select"><text>{{districtOptions[editDistrictIndex]}}</text><text>⌄</text></view></picker>
       </view>
     </view>
 
-    <view class="edit-group">
-      <view class="edit-group-title">打球信息</view>
+    <view wx:if="{{editSection === 'basics'}}" class="edit-group">
+      <view class="edit-group-title">打球信息 <text class="optional">选填</text></view>
       <view class="edit-field">
         <text class="edit-label">球龄</text>
         <picker mode="selector" aria-label="球龄" range="{{ballAgeOptions}}" value="{{editBallAgeIndex}}" disabled="{{saving}}" bindchange="changeEditBallAge">
           <view class="edit-select {{saving ? 'is-disabled' : ''}}"><text>{{ballAgeOptions[editBallAgeIndex]}}</text><text class="row-chevron" aria-hidden="true">›</text></view>
         </picker>
       </view>
-      <view class="edit-field">
+      <view wx:for="{{equipmentFields}}" wx:key="key" class="edit-field">
+        <text class="edit-label">{{item.label}}</text>
+        <picker range="{{item.options}}" value="{{item.index}}" data-field="{{item.key}}" bindchange="changeEquipment" disabled="{{saving}}" aria-label="{{item.label}}">
+          <view class="edit-select"><text>{{item.options[item.index]}}</text><text>⌄</text></view>
+        </picker>
+      </view>
+      <button class="editor-help-button" bindtap="toggleLegacySkills">{{legacySkillsExpanded ? '收起' : '查看'}}原有技术备注 · {{editProfile.skills.length}} 项</button>
+      <view wx:if="{{legacySkillsExpanded}}" class="edit-field">
         <text class="edit-label">擅长技术 <text class="optional">最多 6 项</text></text>
         <view wx:if="{{editProfile.skills.length}}" class="edit-skills">
           <button wx:for="{{editProfile.skills}}" wx:key="*this" class="skill-chip {{saving ? 'is-disabled' : ''}}" aria-label="移除擅长技术：{{item}}" data-value="{{item}}" bindtap="removeSkill" disabled="{{saving}}" hover-class="profile-soft-press" hover-stay-time="80">{{item}} <text class="skill-remove" aria-hidden="true">×</text></button>
@@ -331,7 +349,7 @@
       </view>
     </view>
 
-    <view class="edit-group">
+    <view wx:if="{{editSection === 'rating'}}" class="edit-group">
       <view class="edit-group-title">参考积分 <text class="optional">选填</text></view>
       <view class="edit-field first-edit-field">
         <text class="edit-label">积分平台</text>
@@ -339,6 +357,43 @@
           <view class="edit-select {{saving ? 'is-disabled' : ''}}"><text>{{ratingPlatforms[ratingPlatformIndex]}}</text><text class="row-chevron" aria-hidden="true">›</text></view>
         </picker>
         <input wx:if="{{editProfile.ratingPlatform !== '未填写'}}" class="rating-input {{saving ? 'is-disabled' : ''}}" type="number" aria-label="第三方积分" value="{{editProfile.ratingValue}}" maxlength="4" placeholder="请输入积分" disabled="{{saving}}" bindinput="changeRatingValue" />
+      </view>
+    </view>
+
+    <view wx:if="{{editSection === 'rating'}}" class="level-preview">
+      <text class="level-preview-caption">我的参考等级</text>
+      <view class="level-preview-value">{{editLevel.text}}</view>
+      <view class="editor-note">{{editLevel.note}}</view>
+      <view class="editor-note">积分由本人填写，未核验。技能数量不加积分，单项不会也不降级。</view>
+      <button class="editor-help-button" bindtap="toggleLevelGuide">{{showLevelGuide ? '收起分级说明' : '查看分级说明'}}</button>
+      <view wx:if="{{showLevelGuide}}">
+        <view wx:for="{{levelBands}}" wx:key="code" class="level-guide-row"><text>{{item.code}} · {{item.label}}</text><text>{{item.range}}</text></view>
+        <view class="editor-note">E 至 A 段每 100 分细分为 3、2、1 档；中文名称为本产品约球参考标签。</view>
+      </view>
+    </view>
+
+    <view wx:if="{{editSection === 'traits'}}" class="edit-group">
+      <view class="edit-group-title">你通常怎么打球？</view>
+      <view class="editor-note">选择最符合自己的特点，可再次点击取消。特点不计分。</view>
+      <view wx:for="{{traitGroups}}" wx:for-item="group" wx:key="key" class="trait-group">
+        <view class="edit-label">{{group.label}} <text class="optional">{{group.count}} / {{group.limit}}</text></view>
+        <view class="trait-choices">
+          <button wx:for="{{group.choices}}" wx:key="label" class="trait-choice {{item.selected ? 'selected' : ''}}" data-field="{{group.key}}" data-value="{{item.label}}" bindtap="toggleTrait" disabled="{{saving}}" aria-pressed="{{item.selected}}">{{item.label}}{{item.selected ? ' ✓' : ''}}</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{editSection === 'abilities'}}" class="edit-group">
+      <view class="edit-group-title">具体会什么？ <text class="optional">已自评 {{assessedCount}} 项</text></view>
+      <view class="editor-note">只评估了解的项目。“未评估”不代表不会，也无需填满。信息来源：本人自评。</view>
+      <picker range="{{abilityGroupLabels}}" value="{{abilityGroupIndex}}" bindchange="changeAbilityGroup" disabled="{{saving}}" aria-label="选择能力类别">
+        <view class="ability-category"><text>{{abilityGroupLabels[abilityGroupIndex]}}</text><text>切换类别 ⌄</text></view>
+      </picker>
+      <view wx:for="{{abilityRows}}" wx:key="id" class="ability-edit-row">
+        <picker range="{{abilityStates}}" value="{{item.state}}" data-id="{{item.id}}" bindchange="changeAbility" disabled="{{saving}}" aria-label="{{item.label}}掌握程度">
+          <view class="ability-value-row"><text>{{item.label}}</text><text class="ability-state state-{{item.state}}">{{abilityStates[item.state]}} ⌄</text></view>
+        </picker>
+        <view class="editor-note">{{item.hint}}</view>
       </view>
     </view>
 

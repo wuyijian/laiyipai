@@ -179,3 +179,27 @@
 .ui-screen .admin-review-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .ui-screen .admin-review-title { color: var(--profile-ink); font-size: 27rpx; font-weight: 650; }
 .ui-screen .admin-review-subtitle { margin-top: 5rpx; color: var(--profile-muted); font-size: 22rpx; }
+
+.ui-screen .profile-editor-tabs { display: flex; gap: 8rpx; margin: 26rpx 0 10rpx; padding: 8rpx; background: #f3f5f2; border-radius: 16rpx; }
+.ui-screen .profile-editor-tab { flex: 1; min-width: 0; min-height: 72rpx; padding: 12rpx 4rpx; display: flex; justify-content: center; align-items: center; font-size: 24rpx; color: #69756d; border-radius: 12rpx; }
+.ui-screen .profile-editor-tab.active { color: #0f5c45; background: white; font-weight: 600; }
+.ui-screen .editor-note { margin-top: 12rpx; font-size: 23rpx; line-height: 1.65; color: #758178; }
+.ui-screen .editor-help-button { margin-top: 18rpx; padding: 12rpx 0; min-height: 64rpx; color: #0f5c45; font-size: 24rpx; text-align: left; }
+.ui-screen .level-preview { padding: 26rpx; margin-top: 20rpx; border-radius: 18rpx; background: #f0f6f1; }
+.ui-screen .level-preview-caption { font-size: 24rpx; color: #6a786e; }
+.ui-screen .level-preview-value { font-size: 40rpx; font-weight: 700; color: #174c32; margin-top: 12rpx; }
+.ui-screen .level-guide-row { display: flex; justify-content: space-between; gap: 20rpx; padding: 16rpx 0; border-bottom: 1rpx solid #dfe8e0; font-size: 24rpx; }
+.ui-screen .trait-group { margin-top: 28rpx; }
+.ui-screen .trait-choices { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 16rpx; }
+.ui-screen .trait-choice { margin: 0; min-height: 72rpx; padding: 16rpx 20rpx; border: 1rpx solid #e1e6df; border-radius: 14rpx; font-size: 25rpx; color: #5a6b60; }
+.ui-screen .trait-choice.selected { background: #e9f3ec; border-color: #8cb59a; color: #145935; }
+.ui-screen .ability-category { margin-top: 24rpx; padding: 22rpx; background: #eff5f0; border-radius: 14rpx; color: #245e42; display: flex; justify-content: space-between; font-size: 26rpx; }
+.ui-screen .ability-edit-row { padding: 22rpx 0; border-bottom: 1rpx solid #eef0ec; }
+.ui-screen .ability-value-row { display: flex; justify-content: space-between; align-items: center; min-height: 60rpx; gap: 20rpx; font-size: 27rpx; }
+.ui-screen .ability-state { color: #0f5c45; font-size: 25rpx; }
+.ui-screen .ability-state.state-0 { color: #88918a; }
+
+.ui-screen .feedback-entry { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 24rpx; padding: 26rpx 4rpx; text-align: left; border-top: 1rpx solid var(--line); }
+.ui-screen .feedback-entry-copy { display: flex; flex-direction: column; gap: 8rpx; }
+.ui-screen .feedback-title { font-size: 28rpx; font-weight: 600; }
+.ui-screen .feedback-subtitle { font-size: 23rpx; color: var(--text-secondary); line-height: 1.6; }
