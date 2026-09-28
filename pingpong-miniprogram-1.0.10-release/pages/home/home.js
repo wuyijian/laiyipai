@@ -11,6 +11,7 @@ const tabBar = require('../../utils/tab-bar')
 const DISTRICTS = ['全杭州', '西湖区', '拱墅区', '上城区', '滨江区', '余杭区', '萧山区']
 const BALL_AGES = ['不限球龄', '新手友好', '球龄 1 年以内', '球龄 2—5 年', '球龄 5 年以上']
 const MEDIA_BATCH_SIZE = 20
+const VENUE_CACHE_TTL_MS = 30000
 const MATCH_PAGE_SIZE = 50
 const COACH_PAGE_SIZE = 30
 const RECOVERABLE_ERRORS = new Set(['NETWORK_ERROR', 'REQUEST_TIMEOUT', 'SERVICE_UNAVAILABLE'])
@@ -279,7 +280,13 @@ Page({
       const district = districtIndex ? DISTRICTS[districtIndex] : ''
       const venuePayload = { city: '杭州', page: 1, pageSize: 30 }
       if (district) venuePayload.district = district
-      const reuseVenues = append && !this.data.venuesLoading && !this.data.venueLoadFailed
+      const venueCacheKey = `杭州|${district}`
+      const venueCacheFresh = this.venueCatalogCacheReady === true
+        && this.venueCatalogCacheKey === venueCacheKey
+        && Date.now() - Number(this.venueCatalogCacheAt || 0) < VENUE_CACHE_TTL_MS
+      const reuseVenues = !options.fresh && !this.data.venuesLoading && !this.data.venueLoadFailed && (
+        append || venueCacheFresh
+      )
       if (!reuseVenues) this.setData({ venuesLoading: true, venueLoadFailed: false })
       const venuePromise = (reuseVenues
         ? Promise.resolve({ items: this.data.venues, reused: true })
@@ -288,6 +295,9 @@ Page({
           if (requestSequence !== this.contentRequestSequence || reuseVenues) return result
           if (result.loadFailed) this.setData({ venuesLoading: false, venueLoadFailed: true })
           else {
+            this.venueCatalogCacheReady = true
+            this.venueCatalogCacheKey = venueCacheKey
+            this.venueCatalogCacheAt = Date.now()
             const previous = Object.fromEntries(this.data.venues.map(item => [item.id, item]))
             this.setData({ venuesLoading: false, venues: (result.items || []).map(raw => {
               const venue = present.venue(raw)
@@ -302,7 +312,13 @@ Page({
           }
           return result
         })
-      const favoritePromise = loggedIn && mode === 'matches' && !reuseVenues
+      // The venue catalog may be reused briefly, but a signed-in user's
+      // favorite state is still refreshed on every non-append visit so a
+      // change made from another page is not hidden by the catalog TTL.
+      const needsFavoriteStatus = loggedIn && mode === 'matches' && (
+        !append || (this.data.venues || []).some(item => item.favoriteKnown !== true)
+      )
+      const favoritePromise = needsFavoriteStatus
         ? venuePromise.then((result) => {
           const venueIds = (result.items || []).map((item) => item.id).filter(Boolean)
           return venueIds.length ? api.favorites.status({ venueIds }) : { markedIds: [] }

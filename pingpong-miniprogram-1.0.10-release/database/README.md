@@ -4,9 +4,9 @@
 
 1.0.10 只使用生产环境 `laiyipai-d2gks4fmq84ce6b44`。在该环境核对以下集合；仓库没有独立测试库，不得把自动化测试数据写入生产库：
 
-`users`、`venues`、`venue_submissions`、`matches`、`match_members`、`player_friends`、`player_updates`、`player_update_comments`、`coaches`、`coach_applications`、`coach_slots`、`coach_bookings`、`venue_favorites`、`match_messages`、`message_inboxes`、`user_videos`、`user_media`、`upload_tickets`、`user_blocks`、`reports`、`account_deletion_jobs`、`rate_limits`、`audit_logs`。
+`users`、`venues`、`venue_submissions`、`venue_reviews`、`matches`、`match_members`、`player_friends`、`player_updates`、`player_update_comments`、`coaches`、`coach_applications`、`coach_slots`、`coach_bookings`、`venue_favorites`、`match_messages`、`message_inboxes`、`user_videos`、`user_media`、`upload_tickets`、`user_blocks`、`reports`、`account_deletion_jobs`、`rate_limits`、`audit_logs`。
 
-其中 `user_media` 与 `upload_tickets` 用于头像流程；`player_updates`、`player_update_comments`、`user_videos` 仅保留历史数据与注销清理，不表示当前版本仍开放动态、公开回复或视频上传。
+其中 `user_media` 与 `upload_tickets` 用于头像流程；`venue_reviews` 保存球友对已上架球馆的 1—5 分评分、允许标签和自定义反馈；`player_updates`、`player_update_comments`、`user_videos` 仅保留历史数据与注销清理，不表示当前版本仍开放动态、公开回复或视频上传。
 
 所有集合均切换到“自定义安全规则”，逐个粘贴 `security-rules/database-deny-client.json`；规则为 `read:false/write:false`。客户端不得直接查库或写库；公开球馆数据同样经 `api` 云函数返回，避免绕开封禁、字段脱敏和限流。
 
@@ -21,6 +21,8 @@
 上线前必须等待全部索引状态变为“可用”。当前 CloudBase 数据库不依赖 TTL 索引：`upload_tickets.expires_asc` 与 `rate_limits.expires_asc` 都是可在控制台创建的 `expiresAt` 单字段升序普通索引，过期记录由每小时触发的 `accountCleanup` 分批删除。不要在控制台把它们配置为 TTL。
 
 球友关系使用 `player_friends.user_updated` 展示我的球友，并用 `player_friends.friend_updated` 在账号注销时清除反向关系；两个索引都必须先于新版 `api` 上线。球友录入功能使用唯一组合索引 `venues.city_name_key` 与普通索引 `venues.city_name` 查重，并为 `venue_submissions` 建立 `user_updated`、`status_submitted`、`target_status_submitted`、`reviewer_updated` 组合索引。注销清理还依赖 `coaches.user_updated` 与 `coach_applications.reviewer_updated` 定位教练账号和历史审核员；唯一生产环境必须等待这些索引可用。历史审核队列继续依赖相应索引；不能为联调放开客户端直接读写。
+
+球馆反馈使用 `venue_reviews.venue_status_updated` 读取公开评价，并用 `venue_reviews.user_venue` 保证每个用户在同一球馆只有一条可更新反馈；聚合评分字段与评价写入同一事务，生产环境必须先等待这两个索引可用。
 
 公开动态与回复已下线：`player_updates` 和 `player_update_comments` 不再由业务 API 读取、发布或回复；旧客户端调用返回 `FEATURE_REMOVED`。历史记录不因下线而删除，仍由账号注销任务清理。客户端不得直连这两个集合。
 

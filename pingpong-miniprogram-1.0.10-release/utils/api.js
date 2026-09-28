@@ -28,6 +28,10 @@ module.exports = {
     list: action('venuePhotos.list'),
     remove: action('venuePhotos.remove')
   },
+  venueReviews: {
+    list: action('venueReviews.list'),
+    upsert: action('venueReviews.upsert')
+  },
   matches: {
     list: action('matches.list'),
     get: action('matches.get'),

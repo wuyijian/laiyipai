@@ -1,5 +1,5 @@
 const matchOptions = require('./match-options')
-const { VENUE_ACTIVITY_TAGS } = require('./constants')
+const { VENUE_ACTIVITY_TAGS, VENUE_REVIEW_TAGS } = require('./constants')
 
 function venueActivityTags(document) {
   const source = Array.isArray(document.activityTags) ? document.activityTags : document.tags
@@ -42,6 +42,9 @@ function venue(document, distanceMeters) {
   // Older admin-certified community rows predate adminVerified and carry
   // the date/source required by the previous admin endpoint.
   const legacyVerified = document.source !== 'community' || Boolean(document.verificationDate && Array.isArray(document.sourceUrls) && document.sourceUrls.length)
+  const ratingTagCounts = Object.fromEntries(VENUE_REVIEW_TAGS.map((tag) => [tag, Math.max(0, Number(document.ratingTagCounts && document.ratingTagCounts[tag] || 0))]))
+  const ratingCount = Math.max(0, Number(document.ratingCount || 0))
+  const ratingAverage = Math.min(5, Math.max(0, Number(document.ratingAverage || 0)))
   const result = {
     id: document._id,
     name: document.name,
@@ -64,6 +67,9 @@ function venue(document, distanceMeters) {
       (document.adminVerified === true || (document.adminVerified !== false && legacyVerified)),
     verificationDate: nameOnly ? '' : document.verificationDate || '',
     partnerVerified: !nameOnly && document.partnerVerified === true,
+    ratingCount,
+    ratingAverage,
+    ratingTagCounts,
     updatedAt: document.updatedAt
   }
   if (Number.isFinite(distanceMeters)) result.distanceMeters = Math.round(distanceMeters)
@@ -181,4 +187,19 @@ function message(document, actorId) {
   }
 }
 
-module.exports = { userProfile, playerSnapshot, player: participant, venue, match, coach, booking, message }
+function venueReview(document, actorId) {
+  const snapshot = document.authorSnapshot || {}
+  const rating = Math.min(5, Math.max(1, Number(document.rating || 0)))
+  return {
+    id: document._id,
+    rating,
+    tags: Array.isArray(document.tags) ? document.tags : [],
+    customText: document.customText || '',
+    author: { playerId: snapshot.playerId || '', displayName: snapshot.displayName || '球友' },
+    mine: Boolean(actorId && document.userId === actorId),
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt
+  }
+}
+
+module.exports = { userProfile, playerSnapshot, player: participant, venue, match, coach, booking, message, venueReview }

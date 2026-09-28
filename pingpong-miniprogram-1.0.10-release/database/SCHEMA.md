@@ -13,6 +13,7 @@
 - `coaches/{coachId}`、`coach_slots/{slotId}`、`coach_bookings/{bookingId}`：教练、可售时段和用户预约。教练核验记录只供运营使用；时段库存与预约在同一事务内变化。
 - `coach_applications/{hash(OPENID)}`：用户的教练认证申请，记录真实姓名、手机号、执教年限、擅长方向、执教球馆名称、介绍和资历说明，以及状态、对象版本和绑定审核意图的请求留痕。手机号和审核信息仅本人与运营可见；审核通过后事务生成关联 `userId` 的教练档案，但保持 `active:false` 直到运营补齐时段。审核可关联任何已上架的球馆目录记录；`listingMode:name_only` 只表达授课地点，不表达场馆资料核验或合作关系。
 - `venue_favorites/{hash(userId,venueId)}`：用户收藏。
+- `venue_reviews/{hash(userId,venueId)}`：球友对已上架球馆的评分与反馈。每个用户每个球馆只有一条可更新记录，包含 1—5 分、平台预设标签和通过内容安全检查的自定义文字；球馆文档同步维护 `ratingCount/ratingTotal/ratingAverage/ratingTagCounts` 聚合字段，公开响应不返回 OPENID。
 - `match_messages/{messageId}`：球局群聊；服务端验证成员状态后才允许读写。
 - `message_inboxes/{hash(matchId,userId)}`：球局消息未读指针；仅保存接收用户、球局、最新消息 ID 和未读数。站内弹窗读取时再次校验成员资格、球局有效期和屏蔽关系，进入对话后按最新消息 ID 原子清零。
 - `user_videos`、`user_media`：云存储文件的审核状态。头像记录包含 `moderationTraceId/moderationRequestId/moderationAttempt/moderationRequestedAt/moderationDeadlineAt`，真实状态可为 `reviewing/passed/rejected/failed/replaced/deleted`；`timed_out` 是 API 根据审核期限计算的恢复态，不直接写入数据库。`user_videos` 是不再前台展示的历史兼容数据，仅供删除、运营处置和注销清理；`user_media` 仍服务头像及历史场地照片。两类内容都不再接收视频或场馆照片新增上传；场地照片为 `purpose:venue_photo`，配额记录为 `purpose:venue_photo_quota`，详情见 `docs/VENUE_PHOTOS.md`。

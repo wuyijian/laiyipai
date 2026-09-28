@@ -79,6 +79,10 @@
     "venue_favorites": [
       { "name": "user_created", "fields": [{ "field": "userId", "order": "asc" }, { "field": "createdAt", "order": "desc" }] }
     ],
+    "venue_reviews": [
+      { "name": "venue_status_updated", "fields": [{ "field": "venueId", "order": "asc" }, { "field": "status", "order": "asc" }, { "field": "updatedAt", "order": "desc" }] },
+      { "name": "user_venue", "unique": true, "fields": [{ "field": "userId", "order": "asc" }, { "field": "venueId", "order": "asc" }] }
+    ],
     "match_messages": [
       { "name": "match_deleted_created", "fields": [{ "field": "matchId", "order": "asc" }, { "field": "deleted", "order": "asc" }, { "field": "createdAt", "order": "desc" }] },
       { "name": "sender", "fields": [{ "field": "senderId", "order": "asc" }] }

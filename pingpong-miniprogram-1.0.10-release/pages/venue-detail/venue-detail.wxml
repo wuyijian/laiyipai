@@ -49,6 +49,42 @@
 
       <view class="venue-notice">{{venue.verified ? '名称和地址已由管理员核对，认证不代表已预订球台，请向球馆确认场地。' : venue.userContributed ? '球友补充，尚未经管理员认证。地址及场地情况请在到馆前确认。' : '尚未经管理员认证，具体地址和球台请在到馆前确认。'}}</view>
 
+      <view class="venue-reviews">
+        <view class="review-heading">
+          <view><view class="review-title">球友评分</view><view class="review-caption">去过的人，留下真实体验</view></view>
+          <button class="review-write" bindtap="openReviewEditor">{{myReview ? '编辑评价' : '写评价'}}</button>
+        </view>
+        <view wx:if="{{reviewLoading}}" class="review-loading">正在读取球友反馈…</view>
+        <view wx:elif="{{reviewUnavailable}}" class="review-loading">评分暂时无法加载，可稍后重试</view>
+        <block wx:else>
+          <view class="review-summary" wx:if="{{reviewSummary.count}}">
+            <view class="review-score"><text>{{reviewSummary.averageText}}</text><text> / 5</text><text class="review-count">{{reviewSummary.count}} 人评分</text></view>
+            <view class="review-tags"><text wx:for="{{reviewSummary.tags}}" wx:key="tag" class="review-tag">{{item.tag}} {{item.count}}</text></view>
+          </view>
+          <view wx:else class="review-empty">还没有球友评分，去过这里就来写下第一条</view>
+          <view wx:if="{{reviews.length}}" class="review-list">
+            <view wx:for="{{reviews}}" wx:key="id" class="review-item">
+              <view class="review-item-top"><text class="review-author">{{item.author.displayName}}</text><text class="review-stars">{{item.ratingText}}</text></view>
+              <view wx:if="{{item.tags.length}}" class="review-tags"><text wx:for="{{item.tags}}" wx:key="*this" class="review-tag muted">{{item}}</text></view>
+              <text wx:if="{{item.customText}}" class="review-text">{{item.customText}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+
+      <view wx:if="{{reviewEditorVisible}}" class="review-editor-mask">
+        <view class="review-editor">
+          <view class="review-editor-head"><text>评价球馆</text><button bindtap="closeReviewEditor">关闭</button></view>
+          <view class="review-editor-label">整体体验</view>
+          <view class="review-rating-picker"><button wx:for="{{reviewRatings}}" wx:key="*this" data-rating="{{item}}" bindtap="selectReviewRating" class="review-rating {{item <= reviewDraft.rating ? 'selected' : ''}}">★</button></view>
+          <view class="review-editor-label">印象标签（可多选）</view>
+          <view class="review-tag-picker"><button wx:for="{{reviewTagOptions}}" wx:key="label" data-tag="{{item.label}}" bindtap="toggleReviewTag" class="review-tag-option {{item.selected ? 'selected' : ''}}">{{item.label}}</button></view>
+          <textarea class="review-textarea" maxlength="200" value="{{reviewDraft.customText}}" placeholder="补充一点真实体验（选填）" bindinput="onReviewText" />
+          <view wx:if="{{reviewError}}" class="review-error">{{reviewError}}</view>
+          <button class="review-submit" bindtap="submitReview" disabled="{{reviewSaving}}">{{reviewSaving ? '保存中…' : '保存评价'}}</button>
+        </view>
+      </view>
+
       <view class="venue-photos">
         <view class="photos-heading">
           <view><view class="photos-title">场地照片 <text wx:if="{{venue.imageUrls.length}}">{{venue.imageUrls.length}}</text></view><view class="photos-caption">球台、空间、环境，一眼了解球馆</view></view>

@@ -4,6 +4,21 @@ const presenters = require('./presenters')
 const { getDocument } = require('./database')
 const { assert } = require('./errors')
 
+const COACH_LIST_FIELDS = {
+  _id: true, name: true, avatarFileId: true, city: true, district: true,
+  venueIds: true, specialty: true, introduction: true, experienceYears: true,
+  qualification: true, rating: true, completedSessions: true,
+  verificationStatus: true, verificationDate: true
+}
+const COACH_SLOT_FIELDS = {
+  _id: true, coachId: true, venueId: true, startAt: true, endAt: true,
+  price: true, bookedCount: true, capacity: true, version: true
+}
+
+function selectFields(query, fields) {
+  return query && typeof query.field === 'function' ? query.field(fields) : query
+}
+
 async function list(context, payload) {
   const paging = validate.pagination(payload)
   const condition = {
@@ -13,22 +28,25 @@ async function list(context, payload) {
   }
   if (payload.district) condition.district = validate.text(payload.district, '地区', { max: 20 })
   if (payload.venueId) condition.venueIds = validate.id(payload.venueId, '球馆 ID')
-  const result = await context.db.collection(COLLECTIONS.coaches)
+  const coachQuery = context.db.collection(COLLECTIONS.coaches)
     .where(condition)
     .orderBy('featuredRank', 'asc')
     .skip((paging.page - 1) * paging.pageSize)
     .limit(paging.pageSize)
-    .get()
+  const result = await selectFields(coachQuery, COACH_LIST_FIELDS).get()
   const coachIds = result.data.map((item) => item._id)
   let slots = []
   if (coachIds.length) {
     const groups = []
     for (let index = 0; index < coachIds.length; index += 20) groups.push(coachIds.slice(index, index + 20))
-    const slotResults = await Promise.all(groups.map((group) => context.db.collection(COLLECTIONS.coachSlots).where({
-      coachId: context.command.in(group),
-      status: 'open',
-      startAt: context.command.gte(new Date())
-    }).orderBy('startAt', 'asc').limit(100).get()))
+    const slotResults = await Promise.all(groups.map((group) => {
+      const slotQuery = context.db.collection(COLLECTIONS.coachSlots).where({
+        coachId: context.command.in(group),
+        status: 'open',
+        startAt: context.command.gte(new Date())
+      }).orderBy('startAt', 'asc').limit(100)
+      return selectFields(slotQuery, COACH_SLOT_FIELDS).get()
+    }))
     slots = slotResults.flatMap((item) => item.data)
   }
   const items = result.data.map((item) => Object.assign(presenters.coach(item), {

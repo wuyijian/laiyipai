@@ -85,3 +85,38 @@
 .ui-screen .photo-mine-status.passed { color: var(--brand); }
 .ui-screen .photo-mine-status.rejected { color: #a64435; }
 .ui-screen .photo-mine-delete { flex: none; width: auto; min-width: 88rpx; min-height: 72rpx; margin: 0; display: flex; align-items: center; justify-content: center; font-size: 23rpx; line-height: 1.4; color: var(--text-secondary); }
+
+.ui-screen .venue-reviews { margin-top: 32rpx; padding-top: 30rpx; border-top: 1rpx solid var(--line); }
+.ui-screen .review-heading { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; }
+.ui-screen .review-title { font-size: 30rpx; font-weight: 650; }
+.ui-screen .review-caption, .ui-screen .review-loading { margin-top: 7rpx; color: var(--text-secondary); font-size: 22rpx; line-height: 1.5; }
+.ui-screen .review-write { flex: none; width: auto; min-width: 144rpx; min-height: 68rpx; margin: 0; padding: 0 22rpx; border: 1rpx solid var(--brand); border-radius: 999rpx; color: var(--brand); background: #fff; font-size: 23rpx; }
+.ui-screen .review-summary { margin-top: 22rpx; padding: 22rpx; border-radius: 16rpx; background: var(--surface-muted); }
+.ui-screen .review-score { display: flex; align-items: baseline; gap: 6rpx; color: var(--text-secondary); font-size: 22rpx; }
+.ui-screen .review-score > text:first-child { color: var(--text); font-size: 48rpx; font-weight: 700; line-height: 1; }
+.ui-screen .review-count { margin-left: 10rpx; color: var(--text-tertiary); }
+.ui-screen .review-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 14rpx; }
+.ui-screen .review-tag { min-height: 42rpx; padding: 0 14rpx; border-radius: 999rpx; background: var(--brand-soft); color: var(--brand); font-size: 21rpx; line-height: 42rpx; }
+.ui-screen .review-tag.muted { background: #fff; color: var(--text-secondary); }
+.ui-screen .review-empty { margin-top: 20rpx; padding: 22rpx; border-radius: 14rpx; background: var(--surface-muted); color: var(--text-secondary); font-size: 23rpx; line-height: 1.5; }
+.ui-screen .review-list { margin-top: 16rpx; }
+.ui-screen .review-item { padding: 20rpx 0; border-bottom: 1rpx solid var(--line); }
+.ui-screen .review-item-top { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
+.ui-screen .review-author { color: var(--text); font-size: 24rpx; font-weight: 600; }
+.ui-screen .review-stars { color: #da8b24; font-size: 22rpx; letter-spacing: 2rpx; }
+.ui-screen .review-text { display: block; margin-top: 12rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.6; }
+.ui-screen .review-editor-mask { position: fixed; z-index: 80; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-end; background: rgba(18, 24, 21, .42); }
+.ui-screen .review-editor { width: 100%; box-sizing: border-box; padding: 26rpx 32rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 24rpx 24rpx 0 0; background: #fff; }
+.ui-screen .review-editor-head { display: flex; align-items: center; justify-content: space-between; font-size: 32rpx; font-weight: 650; }
+.ui-screen .review-editor-head button { width: auto; min-height: 58rpx; margin: 0; padding: 0 4rpx; color: var(--text-secondary); font-size: 23rpx; }
+.ui-screen .review-editor-label { margin-top: 24rpx; color: var(--text-secondary); font-size: 23rpx; }
+.ui-screen .review-rating-picker { display: flex; gap: 16rpx; margin-top: 12rpx; }
+.ui-screen .review-rating { width: 64rpx; min-height: 64rpx; margin: 0; padding: 0; color: #d7d9db; font-size: 42rpx; line-height: 64rpx; background: transparent; }
+.ui-screen .review-rating.selected { color: #da8b24; }
+.ui-screen .review-tag-picker { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 12rpx; }
+.ui-screen .review-tag-option { width: auto; min-height: 58rpx; margin: 0; padding: 0 20rpx; border: 1rpx solid var(--line); border-radius: 999rpx; color: var(--text-secondary); background: #fff; font-size: 22rpx; }
+.ui-screen .review-tag-option.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.ui-screen .review-textarea { width: 100%; box-sizing: border-box; min-height: 128rpx; margin-top: 20rpx; padding: 18rpx; border: 1rpx solid var(--line); border-radius: 14rpx; color: var(--text); background: var(--surface-muted); font-size: 23rpx; line-height: 1.5; }
+.ui-screen .review-error { margin-top: 12rpx; color: #a64435; font-size: 22rpx; }
+.ui-screen .review-submit { width: 100%; min-height: 82rpx; margin: 22rpx 0 0; border-radius: 14rpx; color: #fff; background: var(--brand); font-size: 26rpx; font-weight: 650; }
+.ui-screen .review-submit[disabled] { opacity: .55; }

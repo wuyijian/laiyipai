@@ -5,11 +5,17 @@ const errors = require('../../utils/error')
 const share = require('../../utils/share')
 const mapHelper = require('../../utils/map')
 const diagnostics = require('../../utils/diagnostics')
+const venueReview = require('../../utils/venue-review')
 
 function updatedText(value) {
   const date = present.jsDate(value)
   if (!date) return '近期'
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function reviewTagOptions(selected = []) {
+  const active = new Set(selected)
+  return venueReview.TAGS.map(label => ({ label, selected: active.has(label) }))
 }
 
 Page({
@@ -38,7 +44,18 @@ Page({
     photosState: 'idle',
     photoItems: [],
     photoDeletingId: '',
-    ownPhotosVisible: false
+    ownPhotosVisible: false,
+    reviewTagOptions: reviewTagOptions(),
+    reviewRatings: [1, 2, 3, 4, 5],
+    reviewSummary: { count: 0, average: 0, averageText: '—', tags: [] },
+    reviews: [],
+    myReview: null,
+    reviewLoading: false,
+    reviewUnavailable: false,
+    reviewEditorVisible: false,
+    reviewSaving: false,
+    reviewError: '',
+    reviewDraft: { rating: 0, tags: [], customText: '' }
   },
 
   onLoad(options) {
@@ -86,10 +103,15 @@ Page({
           loggedIn,
           matchesLoaded: false, coachesLoaded: false,
           matchesUnavailable: false, coachesUnavailable: false,
-          mediaLoading: Boolean(venue.coverFileIds.length), mediaFailed: false
+          mediaLoading: Boolean(venue.coverFileIds.length), mediaFailed: false,
+          reviews: [], myReview: null, reviewSummary: { count: 0, average: 0, averageText: '—', tags: [] },
+          reviewLoading: true, reviewUnavailable: false, reviewEditorVisible: false, reviewError: ''
         })
         share.enable()
         diagnostics.record({ action: 'page.venue.ready', durationMs: Date.now() - startedAt })
+        // Ratings are secondary content: render the venue and its match list
+        // first, then hydrate community feedback without delaying first paint.
+        this.loadVenueReviews(readOptions)
         // Venue information and publishing are usable before optional reads.
         if (loggedIn && this.data.ownPhotosVisible) this.loadPhotos()
         await Promise.all([
@@ -189,6 +211,92 @@ Page({
       }
     })()
     try { await this.photosLoading } finally { this.photosLoading = null }
+  },
+
+  async loadVenueReviews(options = { publicRead: !this.data.loggedIn }) {
+    if (!this.data.id || !api.venueReviews || !api.venueReviews.list) return
+    const version = this.venueLoadVersion
+    this.setData({ reviewLoading: true, reviewUnavailable: false })
+    try {
+      const result = await api.venueReviews.list({ venueId: this.data.id, page: 1, pageSize: 20 }, options)
+      if (this.destroyed || version !== this.venueLoadVersion) return
+      const rawSummary = result.summary || { count: 0, average: 0, tags: [] }
+      const count = Number(rawSummary.count || 0)
+      const average = Number(rawSummary.average || 0)
+      this.setData({
+        reviews: (result.items || []).map(item => present.venueReview(item)),
+        myReview: result.mine ? present.venueReview(result.mine) : null,
+        reviewSummary: Object.assign({}, rawSummary, { count, average, averageText: count ? average.toFixed(1) : '—' }),
+        reviewLoading: false,
+        reviewUnavailable: false
+      })
+    } catch (_) {
+      if (!this.destroyed && version === this.venueLoadVersion) this.setData({ reviewLoading: false, reviewUnavailable: true })
+    }
+  },
+
+  async openReviewEditor() {
+    if (!this.data.loggedIn) {
+      try {
+        await getApp().ensureSession({ interactive: true })
+        this.setData({ loggedIn: true })
+        await this.loadVenueReviews({ publicRead: false })
+      } catch (error) {
+        if (error && error.code !== 'LOGIN_REQUIRED') errors.toast(error, '暂时无法登录，请稍后重试')
+        return
+      }
+    }
+    const mine = this.data.myReview
+    this.setData({
+      reviewEditorVisible: true,
+      reviewError: '',
+      reviewTagOptions: reviewTagOptions(mine ? (mine.tags || []) : []),
+      reviewDraft: { rating: mine ? mine.rating : 0, tags: mine ? (mine.tags || []).slice() : [], customText: mine ? mine.customText || '' : '' }
+    })
+  },
+
+  closeReviewEditor() {
+    if (!this.data.reviewSaving) this.setData({ reviewEditorVisible: false, reviewError: '' })
+  },
+
+  selectReviewRating(event) {
+    const rating = Number(event.currentTarget.dataset.rating)
+    if (rating >= 1 && rating <= 5) this.setData({ 'reviewDraft.rating': rating, reviewError: '' })
+  },
+
+  toggleReviewTag(event) {
+    const tag = event.currentTarget.dataset.tag
+    if (!venueReview.TAGS.includes(tag)) return
+    const tags = (this.data.reviewDraft.tags || []).slice()
+    const index = tags.indexOf(tag)
+    if (index >= 0) tags.splice(index, 1)
+    else if (tags.length < 5) tags.push(tag)
+    this.setData({ 'reviewDraft.tags': tags, reviewTagOptions: reviewTagOptions(tags) })
+  },
+
+  onReviewText(event) {
+    this.setData({ 'reviewDraft.customText': event.detail.value || '' })
+  },
+
+  async submitReview() {
+    if (this.data.reviewSaving) return
+    const draft = this.data.reviewDraft || {}
+    if (!draft.rating) return this.setData({ reviewError: '先给球馆打个分吧' })
+    if (!api.venueReviews || !api.venueReviews.upsert) return
+    this.setData({ reviewSaving: true, reviewError: '' })
+    try {
+      await api.venueReviews.upsert({
+        venueId: this.data.id,
+        rating: draft.rating,
+        tags: draft.tags || [],
+        customText: draft.customText || ''
+      }, { requestId: api.createRequestId(), retry: false })
+      this.setData({ reviewEditorVisible: false, reviewSaving: false })
+      await this.loadVenueReviews({ publicRead: false })
+      wx.showToast({ title: '评价已保存', icon: 'success' })
+    } catch (error) {
+      this.setData({ reviewSaving: false, reviewError: errors.message(error) || '保存失败，请重试' })
+    }
   },
 
   async toggleOwnPhotos() {

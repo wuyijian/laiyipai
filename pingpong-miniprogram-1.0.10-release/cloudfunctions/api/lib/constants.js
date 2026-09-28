@@ -12,6 +12,7 @@ const COLLECTIONS = Object.freeze({
   coachBookings: 'coach_bookings',
   coachApplications: 'coach_applications',
   venueFavorites: 'venue_favorites',
+  venueReviews: 'venue_reviews',
   messages: 'match_messages',
   messageInboxes: 'message_inboxes',
   userVideos: 'user_videos',
@@ -28,6 +29,7 @@ const MATCH_ACTIVE_STATUSES = ['recruiting', 'full', 'changed']
 const MEMBER_ACTIVE_STATUSES = ['host', 'joined']
 const RATING_PLATFORMS = ['未填写', '开球网', 'ChinaTT', '其他平台']
 const VENUE_ACTIVITY_TAGS = ['教学', '比赛', '训练', '切磋']
+const VENUE_REVIEW_TAGS = ['干净整洁', '高手多', '球台好', '灯光舒服', '空间宽敞', '收费合理', '预约方便', '人少好约']
 const HANGZHOU_DISTRICTS = ['全杭州', '滨江区', '萧山区', '上城区', '西湖区', '拱墅区', '余杭区', '临平区', '钱塘区', '富阳区', '临安区', '桐庐县', '淳安县', '建德市']
 
 module.exports = {
@@ -36,5 +38,6 @@ module.exports = {
   MEMBER_ACTIVE_STATUSES,
   RATING_PLATFORMS,
   VENUE_ACTIVITY_TAGS,
+  VENUE_REVIEW_TAGS,
   HANGZHOU_DISTRICTS
 }

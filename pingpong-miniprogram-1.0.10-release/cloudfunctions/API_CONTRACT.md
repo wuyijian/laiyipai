@@ -101,6 +101,15 @@ wx.cloud.callFunction({
 | `matches.reschedule` | `{matchId,date,startTime,endTime,expectedVersion}` | 仅发起人可改期，递增 `scheduleVersion` |
 | `matches.confirmSchedule` | `{matchId}` | 当前成员确认最新 `scheduleVersion` |
 
+### 球馆评分与反馈（1.0.11）
+
+球馆评分是详情页的轻量社区反馈，不改变球馆认证状态。公开读取无需登录；提交需要登录并经过文本安全检查。每个用户在同一球馆只有一条可更新记录，服务端在事务内同步维护球馆聚合分数和标签计数。
+
+| action | payload | data |
+| --- | --- | --- |
+| `venueReviews.list` | `{venueId,page?,pageSize?}` | `{summary:{count,average,tags},items,mine,page,pageSize,hasMore}`；仅返回已上架球馆的活跃评价，作者只展示脱敏球友编号和昵称 |
+| `venueReviews.upsert` | `{venueId,rating:1—5,tags?:string[],customText?:string}` | `{review,summary:{count,average}}`；预设标签最多 5 个，自定义反馈最多 200 字，重复提交会更新本人评价 |
+
 `matches.create/update/join/respondJoin/cancel/reschedule` 均由服务端校验身份和状态。发布、加入和教练预约还会校验当前用户协议版本并在业务记录中保存同意时间。直接加入、审批占位与取消释放名额使用数据库事务。
 
 `matches.update` 要求同一表单提交携带完整结构化字段。它同时使用 `expectedVersion` 和 `requestId`：版本过期返回 `VERSION_CONFLICT`；同一 `requestId` 重放相同意图返回 `idempotent:true`，改换意图则返回 `IDEMPOTENCY_CONFLICT`；值未变化返回 `noop:true`。客户端必须刷新后让用户重新确认，不能静默覆盖。

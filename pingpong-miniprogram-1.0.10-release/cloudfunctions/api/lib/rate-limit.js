@@ -19,6 +19,7 @@ function groupFor(action) {
   if (action === 'friendUpdates.publish') return 'publish'
   if (action === 'updateComments.send') return 'message'
   if (action === 'venuePhotos.register') return 'publish'
+  if (action === 'venueReviews.upsert') return 'publish'
   if (action === 'matches.create' || action === 'coachBookings.create' || action === 'coachApplications.submit' || action === 'videos.register' || action === 'profile.avatar.register' || action === 'profile.avatar.retry') return 'publish'
   if (action.startsWith('safety.') || action === 'account.delete') return 'safety'
   if (/\.(list|get|pending|status)$/.test(action) || action === 'appointments.list' || action === 'files.resolve') return 'read'

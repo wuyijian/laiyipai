@@ -177,6 +177,17 @@ function venue(raw = {}) {
   })
 }
 
+function venueReview(raw = {}) {
+  const rating = Math.min(5, Math.max(1, Number(raw.rating || 0)))
+  return Object.assign({}, raw, {
+    rating,
+    ratingText: `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`,
+    tags: textList(raw.tags),
+    customText: String(raw.customText || '').trim(),
+    author: Object.assign({}, raw.author || {}, { displayName: raw.author && raw.author.displayName || '球友' })
+  })
+}
+
 function slot(raw = {}) {
   const start = jsDate(raw.startAt)
   const date = start ? dateUtil.toDateString(start) : ''
@@ -284,4 +295,4 @@ function message(raw = {}) {
   })
 }
 
-module.exports = { jsDate, timeText, fullDateTime, money, player, match, venue, slot, coach, appointment, message }
+module.exports = { jsDate, timeText, fullDateTime, money, player, match, venue, venueReview, slot, coach, appointment, message }

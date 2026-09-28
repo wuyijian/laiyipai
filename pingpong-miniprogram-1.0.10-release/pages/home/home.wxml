@@ -163,6 +163,7 @@
                 <venue-avatar src="{{item.coverUrl}}" seed="{{item.id || item.name}}" size="72" label="{{item.name}}的球馆头像" />
                 <view class="venue-card-body">
                   <view class="venue-name">{{item.name}}</view>
+                  <view wx:if="{{item.ratingCount}}" class="venue-rating-mini">★ {{item.ratingAverage}} · {{item.ratingCount}} 条反馈</view>
                   <view wx:if="{{item.distanceText || item.locationText || item.hasLocation}}" class="venue-meta-row">
                     <view class="venue-meta">
                       <text wx:if="{{item.distanceText}}" class="venue-distance">{{item.distanceText}}</text><text wx:if="{{item.locationText}}">{{item.distanceText ? ' · ' : ''}}{{item.locationText}}</text>

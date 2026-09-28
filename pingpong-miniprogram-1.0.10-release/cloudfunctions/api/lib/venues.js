@@ -4,6 +4,20 @@ const validate = require('./validate')
 const presenters = require('./presenters')
 const { getDocument } = require('./database')
 
+const VENUE_LIST_FIELDS = {
+  _id: true, name: true, city: true, district: true, address: true, location: true,
+  coverFileIds: true, photoFileIds: true, phone: true, openingHours: true,
+  bookingTip: true, tags: true, activityTags: true, facilityTags: true,
+  listingMode: true, source: true, sourceUrls: true, verificationStatus: true,
+  adminVerified: true, partnerVerified: true, verificationDate: true,
+  featuredRank: true, updatedAt: true,
+  ratingCount: true, ratingTotal: true, ratingAverage: true, ratingTagCounts: true
+}
+
+function selectFields(query) {
+  return query && typeof query.field === 'function' ? query.field(VENUE_LIST_FIELDS) : query
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -42,13 +56,13 @@ async function list(context, payload) {
         Object.assign({}, publicCondition, { address: context.db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' }) })
       ])
     : publicCondition
-  const result = await context.db.collection(COLLECTIONS.venues)
+  const query = context.db.collection(COLLECTIONS.venues)
     .where(condition)
     .orderBy('featuredRank', 'asc')
     .orderBy('name', 'asc')
     .skip((paging.page - 1) * paging.pageSize)
     .limit(paging.pageSize + 1)
-    .get()
+  const result = await selectFields(query).get()
   return {
     items: result.data.slice(0, paging.pageSize).map((item) => presenters.venue(item)),
     page: paging.page,
@@ -71,7 +85,8 @@ async function nearby(context, payload) {
       maxDistance: radiusMeters
     })
   }
-  const result = await context.db.collection(COLLECTIONS.venues).where(condition).limit(pageSize).get()
+  const query = context.db.collection(COLLECTIONS.venues).where(condition).limit(pageSize)
+  const result = await selectFields(query).get()
   return {
     items: result.data.map((item) => presenters.venue(item, distanceMeters(latitude, longitude, item.location))),
     radiusMeters

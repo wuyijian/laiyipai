@@ -10,6 +10,22 @@ const matchOptions = require('./match-options')
 const terms = require('./terms')
 const friends = require('./friends')
 
+// Keep discovery reads small. These are the fields consumed by the list
+// presenter and visibility filters; detail reads still return the full record.
+const MATCH_LIST_FIELDS = {
+  _id: true, title: true, city: true, district: true, venueId: true, venueSnapshot: true,
+  date: true, startTime: true, endTime: true, startAt: true, endAt: true,
+  capacity: true, participantCount: true, waitlistCount: true, participants: true,
+  participantIds: true, hostId: true, hostSnapshot: true, expectedBallAge: true,
+  practiceIntent: true, skills: true, feePerPerson: true, courtStatus: true,
+  courtBookingNote: true, note: true, joinMode: true, status: true,
+  scheduleVersion: true, version: true, createdAt: true, updatedAt: true
+}
+
+function selectFields(query, fields) {
+  return query && typeof query.field === 'function' ? query.field(fields) : query
+}
+
 function requestedDistrict(payload) {
   if (payload.district === undefined) return undefined
   return validate.oneOf(payload.district, [''].concat(matchOptions.DISTRICTS), '行政区')
@@ -89,12 +105,12 @@ async function list(context, payload) {
   if (friendsOnly && !friendIds.size) {
     return { items: [], page: paging.page, pageSize: paging.pageSize, hasMore: false }
   }
-  const result = await context.db.collection(COLLECTIONS.matches)
+  const query = context.db.collection(COLLECTIONS.matches)
     .where(condition)
     .orderBy('startAt', 'asc')
     .skip((paging.page - 1) * paging.pageSize)
     .limit(paging.pageSize + 1)
-    .get()
+  const result = await selectFields(query, MATCH_LIST_FIELDS).get()
   const visible = result.data.filter((item) => {
     if (blocked.has(item.hostId)) return false
     if (!friendIds) return true

@@ -108,6 +108,7 @@
 .home-page .venue-activity-tags { display: flex; flex-wrap: wrap; gap: 4rpx 10rpx; margin-top: 7rpx; }
 .home-page .venue-activity-tag { font-size: 21rpx; color: var(--text-secondary); }
 .home-page .venue-verified { margin-top: 6rpx; font-size: 20rpx; color: var(--brand); }
+.home-page .venue-rating-mini { margin-top: 5rpx; color: #b36d1b; font-size: 21rpx; line-height: 1.4; }
 .home-page .venue-chevron { position: absolute; right: 24rpx; top: 24rpx; color: var(--text-tertiary); font-size: 30rpx; }
 .home-page .venue-card-actions { position: absolute; right: 18rpx; bottom: 7rpx; left: 110rpx; display: flex; min-height: 64rpx; align-items: center; justify-content: space-between; gap: 16rpx; }
 .home-page .venue-mark-button { display: flex; min-width: 112rpx; min-height: 64rpx; align-items: center; color: var(--brand); font-size: 22rpx; }

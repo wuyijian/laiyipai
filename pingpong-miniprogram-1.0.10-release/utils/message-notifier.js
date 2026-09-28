@@ -1,6 +1,7 @@
 const api = require('./api')
 
 const POLL_INTERVAL_MS = 6000
+const IDLE_POLL_INTERVAL_MS = 15000
 const RECOVERY_POLL_INTERVAL_MS = 800
 let running = false
 let polling = null
@@ -76,7 +77,11 @@ function schedule(delay = POLL_INTERVAL_MS) {
 }
 
 function recommendedPollDelay(result = {}, attempt = 1) {
-  if (result.recoveryPending !== true) return POLL_INTERVAL_MS
+  if (result.recoveryPending !== true) {
+    // Keep unread conversations responsive, but avoid waking the cloud
+    // function every six seconds when the inbox is known to be empty.
+    return Number(result.unreadCount) === 0 ? IDLE_POLL_INTERVAL_MS : POLL_INTERVAL_MS
+  }
   return Math.min(POLL_INTERVAL_MS, RECOVERY_POLL_INTERVAL_MS * (2 ** Math.max(0, Number(attempt || 1) - 1)))
 }
 
@@ -218,5 +223,5 @@ module.exports = {
   markRead,
   subscribe,
   getSnapshot: snapshot,
-  _private: { noticeText, showNotice, updateBadge, publishInbox, recommendedPollDelay, POLL_INTERVAL_MS, RECOVERY_POLL_INTERVAL_MS }
+  _private: { noticeText, showNotice, updateBadge, publishInbox, recommendedPollDelay, POLL_INTERVAL_MS, IDLE_POLL_INTERVAL_MS, RECOVERY_POLL_INTERVAL_MS }
 }

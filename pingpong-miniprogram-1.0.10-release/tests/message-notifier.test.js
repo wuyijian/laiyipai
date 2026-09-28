@@ -52,6 +52,7 @@ async function run() {
   assert.strictEqual(notifier._private.recommendedPollDelay({ recoveryPending: true }), 800, '清理失效指针后应短间隔继续推进')
   assert.strictEqual(notifier._private.recommendedPollDelay({ recoveryPending: true }, 6), 6000, '连续恢复失败必须退避，避免请求放大')
   assert.strictEqual(notifier._private.recommendedPollDelay({ items: Array(10).fill({}), hasMore: true, recoveryPending: false }), 6000, '只是预览分页时保持正常轮询，避免请求放大')
+  assert.strictEqual(notifier._private.recommendedPollDelay({ unreadCount: 0, items: [], recoveryPending: false }), 15000, '已确认无未读时降低空闲轮询频率')
 
   const snapshots = []
   const unsubscribe = notifier.subscribe((state) => snapshots.push(state))

@@ -120,6 +120,7 @@ const requiredIndexNames = {
   coach_bookings: ['user_updated'],
   coach_applications: ['status_submitted', 'user_updated', 'reviewer_updated'],
   venue_favorites: ['user_created'],
+  venue_reviews: ['venue_status_updated', 'user_venue'],
   match_messages: ['match_deleted_created'],
   message_inboxes: ['user_unread_updated'],
   user_videos: ['user_deleted_created', 'moderation_trace_status', 'public_file', 'owner_file', 'public_owner_created', 'review_queue'],

@@ -7,6 +7,7 @@ const rateLimit = require('./lib/rate-limit')
 const venues = require('./lib/venues')
 const venueEntry = require('./lib/venue-entry')
 const venuePhotos = require('./lib/venue-photos')
+const venueReviews = require('./lib/venue-reviews')
 const matches = require('./lib/matches')
 const coaches = require('./lib/coaches')
 const coachBookings = require('./lib/coach-bookings')
@@ -50,6 +51,8 @@ const routes = {
   'venuePhotos.list': venuePhotos.list,
   'venuePhotos.register': venuePhotos.register,
   'venuePhotos.remove': venuePhotos.remove,
+  'venueReviews.list': venueReviews.list,
+  'venueReviews.upsert': venueReviews.upsert,
   'admin.venuePhotos.pending': venuePhotos.pending,
   'admin.venuePhotos.review': venuePhotos.review,
   'admin.venuePhotos.remove': venuePhotos.removeAsAdmin,

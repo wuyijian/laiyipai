@@ -4,6 +4,7 @@ const PUBLIC_READ_ACTIONS = Object.freeze([
   'venues.list',
   'venues.nearby',
   'venues.get',
+  'venueReviews.list',
   'matches.list',
   'matches.get',
   'coaches.list',

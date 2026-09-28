@@ -253,6 +253,30 @@ async function cleanVenueSubmissionReviewer(userId, reference, submission) {
   })
 }
 
+async function cleanVenueReview(userId, review) {
+  await db.runTransaction(async (transaction) => {
+    const reviewRef = transaction.collection('venue_reviews').doc(review._id)
+    const current = await get(reviewRef)
+    if (!current || current.userId !== userId) return
+    const venueRef = transaction.collection('venues').doc(current.venueId)
+    const venue = await get(venueRef)
+    if (venue) {
+      const tagCounts = Object.assign({}, venue.ratingTagCounts || {})
+      ;(current.tags || []).forEach((tag) => { if (Object.prototype.hasOwnProperty.call(tagCounts, tag)) tagCounts[tag] = Math.max(0, Number(tagCounts[tag] || 0) - 1) })
+      const count = Math.max(0, Number(venue.ratingCount || 0) - 1)
+      const total = Math.max(0, Number(venue.ratingTotal || 0) - Number(current.rating || 0))
+      await venueRef.update({ data: {
+        ratingCount: count,
+        ratingTotal: total,
+        ratingAverage: count ? Math.round((total / count) * 10) / 10 : 0,
+        ratingTagCounts: tagCounts,
+        updatedAt: db.serverDate()
+      } })
+    }
+    await reviewRef.remove()
+  })
+}
+
 async function cleanJob(job) {
   const userId = String(job && (job.userId || job.openid) || '')
   if (!userId) throw new Error('ACCOUNT_CLEANUP_USER_ID_MISSING')
@@ -263,7 +287,7 @@ async function cleanJob(job) {
     await db.collection('account_deletion_jobs').doc(job._id).update({ data: patch })
     return
   }
-  const [members, bookings, coachApplications, reviewedCoachApplications, coaches, venueSubmissions, reviewedVenueSubmissions, videos, media, messages, messageInboxes, favorites, ownedFriendships, incomingFriendships, playerUpdates, authoredUpdateComments, ownedUpdateComments, outgoingBlocks, incomingBlocks] = await Promise.all([
+  const [members, bookings, coachApplications, reviewedCoachApplications, coaches, venueSubmissions, reviewedVenueSubmissions, venueReviews, videos, media, messages, messageInboxes, favorites, ownedFriendships, incomingFriendships, playerUpdates, authoredUpdateComments, ownedUpdateComments, outgoingBlocks, incomingBlocks] = await Promise.all([
     db.collection('match_members').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('coach_bookings').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('coach_applications').where({ userId }).limit(CLEANUP_BATCH).get(),
@@ -271,6 +295,7 @@ async function cleanJob(job) {
     db.collection('coaches').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('venue_submissions').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('venue_submissions').where({ reviewedBy: userId }).limit(CLEANUP_BATCH).get(),
+    db.collection('venue_reviews').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('user_videos').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('user_media').where({ userId }).limit(CLEANUP_BATCH).get(),
     db.collection('match_messages').where({ senderId: userId }).limit(CLEANUP_BATCH).get(),
@@ -291,6 +316,7 @@ async function cleanJob(job) {
   for (const coach of coaches.data) await cleanCoach(userId, reference, coach)
   for (const submission of venueSubmissions.data) await cleanVenueSubmission(userId, reference, submission)
   for (const submission of reviewedVenueSubmissions.data) await cleanVenueSubmissionReviewer(userId, reference, submission)
+  for (const review of venueReviews.data) await cleanVenueReview(userId, review)
   // Detach public venue photos before deleting their storage objects.
   for (const photo of media.data.filter(item => item.purpose === 'venue_photo' && item.venueId && item.fileId)) {
     await db.runTransaction(async transaction => {
@@ -335,7 +361,7 @@ async function cleanJob(job) {
     ...outgoingBlocks.data.map((item) => db.collection('user_blocks').doc(item._id).remove()),
     ...incomingBlocks.data.map((item) => db.collection('user_blocks').doc(item._id).remove())
   ])
-  const hasMore = [members, bookings, coachApplications, reviewedCoachApplications, coaches, venueSubmissions, reviewedVenueSubmissions, videos, media, messages, messageInboxes, favorites, ownedFriendships, incomingFriendships, playerUpdates, authoredUpdateComments, ownedUpdateComments, outgoingBlocks, incomingBlocks]
+  const hasMore = [members, bookings, coachApplications, reviewedCoachApplications, coaches, venueSubmissions, reviewedVenueSubmissions, venueReviews, videos, media, messages, messageInboxes, favorites, ownedFriendships, incomingFriendships, playerUpdates, authoredUpdateComments, ownedUpdateComments, outgoingBlocks, incomingBlocks]
     .some((result) => result.data.length === CLEANUP_BATCH)
   const jobPatch = {
     status: hasMore ? 'pending' : 'completed',
@@ -376,6 +402,7 @@ exports._private = {
   cleanCoach,
   cleanVenueSubmission,
   cleanVenueSubmissionReviewer,
+  cleanVenueReview,
   cleanupExpiredCollection,
   cleanupExpiredRecords,
   deletedReference,

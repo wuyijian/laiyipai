@@ -161,6 +161,14 @@ test('首页翻页不重复请求已加载的球馆、标记和封面', async ()
   assert.equal(venues, 1); assert.equal(favorites, 1)
   assert.equal(page.data.matchesPage, 2)
 })
+test('首页短时间重进复用球馆目录，但仍刷新用户标记状态', async () => {
+  const { page, api } = setup('home'); let venues = 0, favorites = 0
+  const list = api.venues.list; api.venues.list = async data => { venues++; return list(data) }
+  api.favorites.status = async () => { favorites++; return { markedIds: [] } }
+  await page.loadContent(); await page.loadContent()
+  assert.equal(venues, 1)
+  assert.equal(favorites, 2)
+})
 test('未取得标记状态时点击只查询，不猜测写入', async () => {
   const waiting = deferred(); let queries = 0, writes = 0
   const { page } = setup('home', { favorites: {
