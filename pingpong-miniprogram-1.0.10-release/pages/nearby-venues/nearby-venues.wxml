@@ -1,0 +1,60 @@
+<view class="ui-screen">
+<view class="page-shell nearby-page safe-bottom">
+  <view class="nearby-hero">
+    <view class="eyebrow">出门，打一场好球</view>
+    <view class="nearby-title">发现周围球馆</view>
+    <view class="nearby-copy">查找已收录且有地图位置的球馆，根据大致位置，按估算距离由近到远排列。</view>
+    <button class="locate-button" bindtap="locateNearby" loading="{{locating}}" disabled="{{locating}}">{{locating ? '正在获取位置' : state === 'idle' ? '获取大致位置并查找' : '重新定位'}}</button>
+    <view class="privacy-note">仅使用模糊位置查找周围球馆，不保存到个人资料。浏览球馆无需登录。</view>
+  </view>
+
+  <view class="nearby-toolbar">
+    <text>搜索范围</text>
+    <picker range="{{radiusLabels}}" value="{{radiusIndex}}" bindchange="changeRadius" disabled="{{locating}}" aria-label="选择搜索范围">
+      <view class="radius-control">{{radiusLabels[radiusIndex]}}内 ⌄</view>
+    </picker>
+  </view>
+
+  <view wx:if="{{state === 'idle'}}" class="status-panel">
+    <view class="status-title">看看哪里方便打球</view>
+    <view class="status-copy">点击上方按钮获取大致位置。暂不开启定位，也可以继续浏览杭州球馆。</view>
+  </view>
+  <view wx:elif="{{state === 'locating' || state === 'loading'}}" class="status-panel" aria-live="polite">
+    <view class="status-title">{{state === 'locating' ? '正在定位…' : '正在查找附近球馆…'}}</view>
+  </view>
+  <view wx:elif="{{state === 'error'}}" class="status-panel" role="alert">
+    <view class="status-title">暂时无法查找</view>
+    <view class="status-copy">{{errorMessage}}</view>
+    <button wx:if="{{permissionDenied}}" class="status-action" bindtap="openSettings">打开定位设置</button>
+    <button class="retry-button" bindtap="retry">重试查找</button>
+  </view>
+  <block wx:elif="{{state === 'ready'}}">
+    <view wx:if="{{!venues.length}}" class="status-panel">
+      <view class="status-title">{{radiusLabels[radiusIndex]}}内暂未找到已收录球馆</view>
+      <view class="status-copy">可能附近球馆尚未补全位置，试试扩大范围或浏览杭州球馆。</view>
+      <button wx:if="{{radiusIndex < 4}}" class="status-action" bindtap="expandRadius">扩大搜索范围</button>
+    </view>
+    <view wx:else>
+      <view class="nearby-count">找到 {{venues.length}} 家 · 估算距离由近到远</view>
+      <view wx:for="{{venues}}" wx:key="id" class="nearby-card">
+        <view class="venue-summary" data-id="{{item.id}}" bindtap="openVenue" role="button" aria-label="查看{{item.name}}详情">
+          <venue-avatar seed="{{item.id || item.name}}" size="88" label="{{item.name}}" />
+          <view class="venue-info">
+            <view class="venue-name">{{item.name}}</view>
+            <view class="venue-address">{{item.locationText || '查看球馆位置'}}</view>
+            <view wx:if="{{item.activityTagsText}}" class="venue-tags">{{item.activityTagsText}}</view>
+          </view>
+          <text class="venue-distance">{{item.distanceText}}</text>
+        </view>
+        <view class="venue-actions">
+          <button data-id="{{item.id}}" bindtap="openVenue">查看详情</button>
+          <button class="navigation-button" data-id="{{item.id}}" bindtap="openMap" aria-label="导航到{{item.name}}">导航到这里 ↗</button>
+        </view>
+      </view>
+      <view wx:if="{{limitReached}}" class="privacy-note">当前最多展示最近 50 家球馆，可缩小搜索范围。</view>
+      <view class="privacy-note">距离和搜索范围均基于模糊位置估算，可能有偏差；实际路程请以地图导航为准。</view>
+    </view>
+  </block>
+  <button class="browse-button" bindtap="browseVenues">浏览杭州球馆 ›</button>
+</view>
+</view>

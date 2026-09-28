@@ -35,7 +35,7 @@ function page(name) {
 const tests = []
 function test(name, run) { tests.push({name, run}) }
 test('所有页面均使用统一样式容器，底部导航使用无图片依赖的 CSS 图标', () => {
-  assert.equal(app.pages.length, 19)
+  assert.equal(app.pages.length, 20)
   assert(app.pages.includes('pages/update-detail/update-detail'), '旧分享链接保留下线提示页，不再提供动态内容')
   for (const route of app.pages) {
     const content = fs.readFileSync(path.join(root, `${route}.wxml`), 'utf8')

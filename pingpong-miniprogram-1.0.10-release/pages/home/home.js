@@ -667,6 +667,10 @@ Page({
     return true
   },
 
+  openNearbyVenues() {
+    wx.navigateTo({ url: '/pages/nearby-venues/nearby-venues' })
+  },
+
   openVenueCreate() {
     wx.navigateTo({ url: '/pages/venue-create/venue-create' })
   },

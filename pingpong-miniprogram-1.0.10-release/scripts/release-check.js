@@ -207,14 +207,17 @@ if (!/termsVersion\s*:\s*['"]\d{4}-\d{2}-\d{2}['"]/.test(cloudConfigSource)) {
   fail('utils/cloud-config.js 必须声明可审计的用户协议版本')
 }
 if (app.__usePrivacyCheck__ !== true) fail('app.json 必须开启 __usePrivacyCheck__')
+if (app.permission?.['scope.userLocation'] || app.requiredPrivateInfos?.includes('getLocation')) {
+  fail('附近球馆仅使用模糊定位，不得声明精确位置权限')
+}
 if (app.permission && app.permission['scope.record']) {
   fail('产品不提供录音功能，app.json 不得申请 scope.record')
 }
-if (app.permission && app.permission['scope.userLocation']) {
-  fail('产品不获取用户地理位置，app.json 不得申请 scope.userLocation')
+if (!app.permission || !app.permission['scope.userFuzzyLocation']?.desc) {
+  fail('附近球馆必须声明定位权限用途')
 }
-if (Array.isArray(app.requiredPrivateInfos) && app.requiredPrivateInfos.includes('getLocation')) {
-  fail('产品不获取用户地理位置，app.json 不得声明 getLocation')
+if (!app.requiredPrivateInfos?.includes('getFuzzyLocation')) {
+  fail('附近球馆必须声明 getFuzzyLocation 私有接口')
 }
 if (Object.prototype.hasOwnProperty.call(app, 'plugins')) {
   fail('当前产品不依赖小程序插件，app.json 不得声明 plugins')
@@ -529,7 +532,8 @@ const bannedCopy = ['正式版将', '功能正在完善', '本机自动保存']
 sourceFiles.forEach((file) => {
   const source = read(file)
   if (/wx\.cloud\.database\s*\(/.test(source)) fail(`客户端禁止直连数据库：${file}`)
-  if (/wx\.getLocation\s*\(/.test(source)) fail(`客户端不得获取用户地理位置：${file}`)
+  if (/wx\.getLocation\s*\(/.test(source)) fail(`附近球馆不得获取精确位置：${file}`)
+  if (/wx\.getFuzzyLocation\s*\(/.test(source) && file !== 'utils/location.js') fail(`定位只能通过统一的授权入口获取：${file}`)
   if (/\brequirePlugin\s*\(/.test(source)) {
     fail(`客户端不得依赖小程序语音插件：${file}`)
   }
