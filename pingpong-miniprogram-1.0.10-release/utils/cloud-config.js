@@ -8,7 +8,7 @@ const config = {
   apiVersion: 2,
   privacyPolicyVersion: '2026-09-13',
   termsVersion: '2026-09-13',
-  appVersion: '1.0.10',
+  appVersion: '1.0.11',
 
   resolveCloudEnvId() {
     if (this.cloudEnvId) return this.cloudEnvId

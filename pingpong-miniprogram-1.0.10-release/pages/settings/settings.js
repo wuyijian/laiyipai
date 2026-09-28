@@ -6,7 +6,7 @@ const errors = require('../../utils/error')
 
 Page({
   data: {
-    version: '1.0.10',
+    version: '1.0.11',
     wechatLoggedIn: false,
     termsEffectiveDate: '2026-09-13',
     termsVisible: false,
@@ -20,7 +20,7 @@ Page({
   },
 
   onLoad(options) {
-    this.setData({ version: cloudConfig.appVersion || '1.0.10' })
+    this.setData({ version: cloudConfig.appVersion || '1.0.11' })
     if (options && options.section === 'terms') this.setData({ termsVisible: true })
   },
 

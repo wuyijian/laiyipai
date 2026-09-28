@@ -56,7 +56,7 @@ wx.cloud.callFunction({
 - `profile.update` 新增选填 `playingProfile`（持拍手、握拍、胶皮、打法/优势/习惯标签、能力自评字典）及 `availability`。嵌套字段整体替换，省略则保留旧值。`playingProfile:{}` 清空自评；能力 0 表示未评估。
 - `availability:{available:false,note?:string}` 关闭可约并清除时段；开启为 `{available:true,date,startTime,endTime,venueId,note?}`。同日北京时间，结束须晚于当前及开始时刻；开始不得超过未来 30 天；说明最多 100 字并接受文本安全检查。服务端校验公开球馆并保存名称快照，计算数字毫秒 endAt，忽略伪造快照。
 - `profile.get/update/bootstrap` 和 `players.get` 增加 playingProfile、ratingStatus 固定 self_reported、ratingUpdatedAt、availability；不暴露 OPENID。到期状态返回 `{available:false}`，无旧时段或地点。
-- 新增 users 的 status_public_id、status_district_public_id 索引。部署顺序：索引生效 → api → 客户端。详见 docs/PLAYER_DIRECTORY_AND_LEVELS.md。
+- 沿用 users.public_id_status，新增 users.status_district_public_id、users.nearby_enabled_expiry 索引。部署顺序：索引生效 → api 和 accountCleanup → 客户端。详见 docs/PLAYER_DIRECTORY_AND_LEVELS.md。
 
 #### 三栏目与附近球友补充
 

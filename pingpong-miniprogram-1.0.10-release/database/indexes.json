@@ -3,7 +3,6 @@
   "collections": {
     "users": [
       { "name": "nearby_enabled_expiry", "fields": [{ "field": "profile.nearbyDiscovery.enabled", "order": "asc" }, { "field": "profile.nearbyDiscovery.expiresAt", "order": "asc" }] },
-      { "name": "status_public_id", "fields": [{ "field": "status", "order": "asc" }, { "field": "publicId", "order": "asc" }] },
       { "name": "status_district_public_id", "fields": [{ "field": "status", "order": "asc" }, { "field": "profile.district", "order": "asc" }, { "field": "publicId", "order": "asc" }] },
       { "name": "public_id_unique", "unique": true, "fields": [{ "field": "publicId", "order": "asc" }] },
       { "name": "public_id_status", "fields": [{ "field": "publicId", "order": "asc" }, { "field": "status", "order": "asc" }] },

@@ -1,6 +1,6 @@
 {
   "name": "laiyipai-miniprogram",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "private": true,
   "description": "搭拍子原生微信小程序发布候选工程",
   "scripts": {

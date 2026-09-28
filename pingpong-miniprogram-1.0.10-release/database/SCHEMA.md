@@ -8,7 +8,7 @@
 
 `users.profile.availability` 为 `{available,note?}` 或 `{available:true,date,startTime,endTime,venueId,venueName,district,note,endAt}`。endAt 为服务端按北京时间计算的毫秒数，venueName/district 来自公开球馆。到期后读取时只呈现不可约，无需定时写库。旧客户端不传则保留；关闭时整体替换并删除旧安排；注销随 profile 清除。
 
-球友目录只查询 active 用户，使用 status_public_id / status_district_public_id 索引按 publicId 游标分页，派生等级及状态筛选，双向屏蔽逐批校验。数据库权限不变，客户端不可直接查询 users。
+球友目录只查询 active 用户，使用 public_id_status / status_district_public_id 索引按 publicId 游标分页，派生等级及状态筛选，双向屏蔽逐批校验。数据库权限不变，客户端不可直接查询 users。
 
 附近展示可选保存于 users.profile.nearbyDiscovery：enabled、point（0.01 度栅格的 gcj02 latitude/longitude）、expiresAt（服务端数字毫秒，24 小时）。仅本人明确开启时保存，公开接口不返回 point；期限结束停止匹配。关闭写 point:null，注销随 profile 删除。accountCleanup 按 nearby_enabled_expiry 索引每次最多处理 100 条，在事务内重新核对期限后清除过期位置，避免误清理刚续期的数据。
 

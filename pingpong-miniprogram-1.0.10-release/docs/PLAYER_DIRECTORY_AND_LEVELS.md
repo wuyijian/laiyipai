@@ -33,7 +33,7 @@ players.list 使用 publicId 升序游标，单页最多 20 条；每次最多�
 
 ## 部署与验收
 
-1. 按 database/indexes.json 手动创建 users.status_public_id 与 users.status_district_public_id 两个索引，等待生效。
+1. 沿用 users.public_id_status，按 database/indexes.json 创建 users.status_district_public_id 与 users.nearby_enabled_expiry 两个索引，等待生效。
 2. 部署 api 云函数后再上传客户端。新客户端检测状态保存结果，旧后端不会被误报为已保存。
 3. 运营更新隐私说明，明确球友公开目录、技术自评与主动发布的时段/球馆，并按实际变更同步隐私版本。附近功能仅在主动操作时请求模糊定位。
 4. 运行 npm test、npm run test:cloud、npm run check:structure。

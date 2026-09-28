@@ -81,7 +81,7 @@ requiredFiles.forEach((relativePath) => {
 
 const databaseIndexes = json('database/indexes.json')
 const requiredIndexNames = {
-  users: ['status_public_id', 'status_district_public_id', 'nearby_enabled_expiry'],
+  users: ['public_id_status', 'status_district_public_id', 'nearby_enabled_expiry'],
   venues: [
     'city_name_key',
     'city_name',
