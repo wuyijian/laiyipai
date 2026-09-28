@@ -17,6 +17,7 @@ module.exports = {
   venues: {
     create: action('venues.create'),
     list: action('venues.list'),
+    nearby: action('venues.nearby'),
     get: action('venues.get'),
     submissions: {
       list: action('venues.submissions.list'),

@@ -11,6 +11,7 @@
       </view>
     </picker>
     <view class="home-top-actions">
+      <button class="home-refresh" bindtap="openNearbyVenues" aria-label="发现附近球馆">附近球馆</button>
       <button class="home-refresh" bindtap="refreshHome" disabled="{{manualRefreshing}}" aria-label="刷新当前列表" hover-class="tap-feedback">
         <view class="refresh-icon {{manualRefreshing ? 'is-refreshing' : ''}}"></view>
         <text>{{manualRefreshing ? '刷新中' : '刷新'}}</text>

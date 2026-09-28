@@ -1,0 +1,21 @@
+.nearby-page { padding-top: 28rpx; }
+.nearby-hero { background: #edf5ef; border-radius: 28rpx; padding: 36rpx 30rpx; }
+.eyebrow { color: #52725f; font-size: 24rpx; }
+.nearby-title { margin-top: 14rpx; font-size: 44rpx; font-weight: 700; color: #173c2d; }
+.nearby-copy { margin-top: 18rpx; font-size: 27rpx; line-height: 1.7; color: #52655b; }
+.ui-screen .nearby-page .locate-button { min-height: 88rpx; display: flex; align-items: center; justify-content: center; margin-top: 30rpx; background: #0f5c45; color: white; border-radius: 18rpx; font-size: 29rpx; }
+.privacy-note { margin-top: 20rpx; font-size: 23rpx; line-height: 1.7; color: #78837c; }
+.nearby-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 30rpx 0; font-size: 28rpx; }
+.radius-control { padding: 16rpx 22rpx; background: #f1f4f1; border-radius: 14rpx; color: #0f5c45; }
+.nearby-count { font-size: 24rpx; color: #78837c; margin-bottom: 20rpx; }
+.nearby-card { padding: 28rpx; margin-bottom: 20rpx; border: 1rpx solid #e6ebe7; border-radius: 24rpx; background: white; }
+.venue-summary { display: flex; align-items: flex-start; gap: 20rpx; }
+.venue-info { flex: 1; min-width: 0; }
+.venue-name { font-weight: 600; font-size: 30rpx; overflow-wrap: break-word; }
+.venue-address { margin-top: 12rpx; font-size: 24rpx; color: #78837c; line-height: 1.6; }
+.venue-tags { margin-top: 10rpx; font-size: 23rpx; color: #52725f; }
+.venue-distance { flex-shrink: 0; font-size: 25rpx; font-weight: 600; color: #0f5c45; }
+.venue-actions { margin-top: 24rpx; padding-top: 20rpx; border-top: 1rpx solid #edf0ed; display: flex; gap: 16rpx; }
+.ui-screen .nearby-page .venue-actions button { flex: 1; margin: 0; font-size: 25rpx; line-height: 2.6; border-radius: 12rpx; background: #f5f6f4; }
+.venue-actions .navigation-button { background: #edf5ef; color: #0f5c45; }
+.ui-screen .nearby-page .browse-button, .ui-screen .nearby-page .retry-button { min-height: 80rpx; display: flex; align-items: center; justify-content: center; margin-top: 24rpx; background: transparent; color: #0f5c45; font-size: 27rpx; }
