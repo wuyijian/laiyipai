@@ -368,8 +368,8 @@
       <view class="editor-note">优先按开球网积分匹配；没有积分时根据能力自评估算。自评不生成或修改积分。</view>
       <button class="editor-help-button" bindtap="toggleLevelGuide">{{showLevelGuide ? '收起分级说明' : '查看分级说明'}}</button>
       <view wx:if="{{showLevelGuide}}">
-        <view wx:for="{{levelBands}}" wx:key="code" class="level-guide-row"><text>{{item.code}} · {{item.label}}</text><text>{{item.range}}</text></view>
-        <view class="editor-note">E 至 A 段每 100 分细分为 3、2、1 档；中文名称为本产品约球参考标签。</view>
+        <view wx:for="{{levelBands}}" wx:key="code" class="level-guide-row"><text>{{item.label}}</text><text>{{item.range}}</text></view>
+        <view class="editor-note">白银至星耀每 100 分晋升一档，依次为Ⅲ、Ⅱ、Ⅰ；段位名称为本产品约球参考标签。</view>
       </view>
     </view>
 
@@ -389,7 +389,7 @@
       <view class="editor-note">正手、反手、发球、接发、步法、衔接与实战，每类至少自评两项即可估算。不要求会全部技术，“未评估”不代表不会。</view>
       <view class="assessment-checklist"><text wx:for="{{assessmentDomains}}" wx:key="label" class="{{item.missing ? '' : 'complete'}}">{{item.label}} {{item.missing ? item.count + '/2' : '✓'}}</text></view>
       <view class="editor-note">{{editLevel.note}}</view>
-      <view class="editor-note">试行规则取每类熟练度最高的两项综合判断：学习中为启蒙，定点会用为入门，变化与实战能力逐步进阶；短板限制高段位，自评最高到 B。正式积分优先。</view>
+      <view class="editor-note">试行规则取每类熟练度最高的两项综合判断：学习中对应青铜，定点会用对应白银，变化与实战能力逐步进阶；短板限制高段位，自评最高到钻石。开球网积分优先。</view>
       <picker range="{{abilityGroupLabels}}" value="{{abilityGroupIndex}}" bindchange="changeAbilityGroup" disabled="{{saving}}" aria-label="选择能力类别">
         <view class="ability-category"><text>{{abilityGroupLabels[abilityGroupIndex]}}</text><text>切换类别 ⌄</text></view>
       </picker>

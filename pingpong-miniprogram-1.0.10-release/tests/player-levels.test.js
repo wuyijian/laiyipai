@@ -8,6 +8,9 @@ assert.strictEqual(fs.readFileSync(path.join(root, 'utils/player-levels.js'), 'u
 for (const [score, code] of [[1,'F'],[899,'F'],[900,'E3'],[1199,'E1'],[1200,'D3'],[1499,'D1'],[1500,'C3'],[1599,'C3'],[1600,'C2'],[1628,'C2'],[1699,'C2'],[1700,'C1'],[1799,'C1'],[1800,'B3'],[2099,'B1'],[2100,'A3'],[2399,'A1'],[2400,'S+'],[9999,'S+']]) {
   assert.strictEqual(levels.level('开球网', score).code, code)
 }
+for (const [score, text] of [[899, '青铜'], [900, '白银Ⅲ'], [1199, '白银Ⅰ'], [1200, '黄金Ⅲ'], [1499, '黄金Ⅰ'], [1500, '铂金Ⅲ'], [1628, '铂金Ⅱ'], [1799, '铂金Ⅰ'], [1800, '钻石Ⅲ'], [2099, '钻石Ⅰ'], [2100, '星耀Ⅲ'], [2399, '星耀Ⅰ'], [2400, '王者']]) {
+  assert.strictEqual(levels.level('开球网', score).text, text)
+}
 for (const value of ['', 0, -1, 10000, null, 1600.1, 'abc']) assert.strictEqual(levels.level('开球网', value).code, '')
 assert.strictEqual(levels.level('ChinaTT', '1628').code, '')
 assert.strictEqual(levels.level('未填写', '1628').code, '')
@@ -20,6 +23,7 @@ for (const [state, code] of [[1, 'F'], [2, 'E'], [3, 'C'], [4, 'B']]) {
   const result = levels.summary({ playingProfile })
   assert.strictEqual(result.level.code, code)
   assert.strictEqual(result.level.sourceLabel, '自评参考段位')
+  assert.strictEqual(result.level.text, { F: '青铜', E: '白银', C: '铂金', B: '钻石' }[code], 'self assessment uses the broad named rank without inventing a subdivision')
   assert.strictEqual(result.ratingText, '积分未填写', 'self assessment never invents points')
   assert.strictEqual(levels.resolve({ playingProfile, ratingPlatform: '开球网', ratingValue: '1628' }).code, 'C2')
   assert.strictEqual(levels.summary({ playingProfile, ratingPlatform: 'ChinaTT', ratingValue: '2000' }).ratingText, 'ChinaTT 2000 分', 'other platform points coexist unchanged')
@@ -77,7 +81,7 @@ async function run() {
   assert.strictEqual(legacyDistrict.data.districtOptions[legacyDistrict.data.editDistrictIndex], '旧地区备注')
   assert.strictEqual(p.data.editLevel.text, '待定级')
   p.changeRatingPlatform(event('1')); p.changeRatingValue(event('1628'))
-  assert.strictEqual(p.data.editLevel.text, 'C2 · 进阶')
+  assert.strictEqual(p.data.editLevel.text, '铂金Ⅱ')
   p.changeEquipment(event('2', { field: 'handedness' }))
   p.toggleTrait(event('', { field: 'styles', value: '正手主导' }))
   p.toggleTrait(event('', { field: 'styles', value: '控制型' }))

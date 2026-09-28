@@ -4,7 +4,7 @@ const levels = require('./player-levels')
 const location = require('./location')
 const RADII = [5000, 10000, 20000, 50000]
 const DISTRICTS = ['行政区', '滨江区', '萧山区', '上城区', '西湖区', '拱墅区', '余杭区', '临平区', '钱塘区', '富阳区', '临安区', '桐庐县', '淳安县', '建德市']
-const GRADES = [{ value: '', label: '等级' }, { value: 'pending', label: '待定级' }].concat(levels.LEVEL_BANDS.map(item => ({ value: item.code, label: item.code + ' · ' + item.label })))
+const GRADES = [{ value: '', label: '等级' }, { value: 'pending', label: '待定级' }].concat(levels.LEVEL_BANDS.map(item => ({ value: item.code, label: item.label })))
 function expire(items, now = Date.now()) {
   return items.map(item => item.availability && item.availability.available && item.availability.endAt <= now
     ? Object.assign({}, item, { availability: { available: false } }) : item)
@@ -86,7 +86,9 @@ const definition = {
         grade: GRADES[this.data.gradeIndex].value, availability: this.data.availableOnly ? 'available' : '',
         ...(this.data.nearbyActive && this.position ? { nearby: Object.assign({}, this.position, { radiusMeters: RADII[this.data.radiusIndex] }) } : {}) }, options)
       if (!this.active || run !== this.run) return
-      const incoming = expire(result.items || [])
+      const incoming = expire(result.items || []).map(item => Object.assign({}, item, {
+        level: Object.assign({}, item.level, { text: levels.display(item.level && item.level.code) })
+      }))
       const items = append ? this.data.items.concat(incoming) : incoming
       this.setData({ state: 'ready', items: Array.from(new Map(items.map(item => [item.playerId, item])).values()),
         cursor: result.cursor || '', hasMore: result.hasMore === true, loadingMore: false })

@@ -62,6 +62,7 @@ wx.cloud.callFunction({
 
 - 首页在“找球局 / 找球友 / 找教练”中切换。球友独立页和首页共用组件；筛选显示“等级 / 行政区 / 可约 / 附近”，可约仅为可取消的单项筛选。
 - 积分和段位并存。players.list 增加 ratingPlatform、ratingValue、ratingStatus、ratingText；level.source 为 rating_self_reported / ability_self_assessment / insufficient。无有效开球网积分时按六类能力估算参考段位，信息不足仍待定级，自评不生成积分。
+- level.code 和 grade 筛选参数沿用 F/E/D/C/B/A/S+；level.label / level.text 改为青铜/白银/黄金/铂金/钻石/星耀/王者。text 包含有积分依据的小段（例 code:C2、label:铂金、text:铂金Ⅱ），自评只给大段。客户端按 code 映射展示名，兼容旧服务端文案，不改积分或筛选结果。
 - players.list 可带 nearby:{latitude,longitude,radiusMeters?}。坐标为 gcj02，半径仅支持 5000/10000/20000/50000 米，默认 20000；按仍有效且主动开启附近展示的账号筛选，排除本人及双向屏蔽。响应新增 distanceText，仅给约整数公里，不返回坐标、位置期限或其他私有信息。仍按 publicId 游标，不保证距离排序。
 - profile.update 可带 nearbyDiscovery:{enabled:true,latitude,longitude}，服务端降低到 0.01 度栅格并生成 24 小时期限；enabled:false 写 point:null / expiresAt:0 清除位置。省略字段则保留。profile/bootstrap 返回附近展示状态及期限，不返回位置。
 - 到期后立即不再匹配。accountCleanup 额外分批清理过期位置，并在事务中核对期限防止覆盖续期；新增 users.nearby_enabled_expiry 索引。须更新 api、accountCleanup、接口权限及微信隐私指引后再发布。

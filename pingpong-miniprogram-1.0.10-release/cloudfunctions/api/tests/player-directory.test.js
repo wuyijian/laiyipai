@@ -53,6 +53,7 @@ async function run() {
   const ctx = context(users)
   const all = await players.list(ctx, {})
   assert.strictEqual(all.items.length, 5)
+  assert.deepStrictEqual(all.items.map(item => item.level.text), ['铂金Ⅱ', '星耀Ⅰ', '待定级', '青铜', '王者'])
   const serialized = JSON.stringify(all)
   assert(!serialized.includes('private_') && !serialized.includes('openid'), 'private identity never exposed')
   assert.deepStrictEqual((await players.list(ctx, { grade: 'C' })).items.map(row => row.playerId), ['player_0001'])

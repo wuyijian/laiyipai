@@ -16,7 +16,7 @@
       <view class="card-header">
         <player-avatar src="{{item.avatarUrl}}" seed="{{item.playerId}}" size="72" label="{{item.displayName}}的头像" />
         <view class="card-person">
-          <view class="card-name-row"><text class="card-name">{{item.displayName}}</text><text class="card-rank">{{item.level.code || '待定级'}}{{item.level.source === 'ability_self_assessment' ? ' · 自评' : ''}}</text></view>
+          <view class="card-name-row"><text class="card-name">{{item.displayName}}</text><text class="card-rank">{{item.level.text || '待定级'}}{{item.level.source === 'ability_self_assessment' ? ' · 自评' : ''}}</text></view>
           <view class="card-meta">{{item.district || '地区未填写'}}{{item.distanceText ? ' · ' + item.distanceText : ''}} · {{item.ratingText || '积分未填写'}}</view>
         </view>
         <text class="availability-badge {{item.availability.available ? 'available' : ''}}">{{item.availability.available ? '可约球' : '暂不约球'}}</text>

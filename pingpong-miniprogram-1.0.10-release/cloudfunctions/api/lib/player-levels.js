@@ -22,14 +22,22 @@ const TRAITS = [
   { key: 'habits', label: '使用习惯', limit: 3, options: ['喜欢侧身', '近台快打', '主动抢攻', '善打追身', '擅长变线'] }
 ]
 const LEVEL_BANDS = [
-  { min: 0, code: 'F', label: '启蒙', range: '900 以下' },
-  { min: 900, code: 'E', label: '入门', range: '900—1199' },
-  { min: 1200, code: 'D', label: '基础', range: '1200—1499' },
-  { min: 1500, code: 'C', label: '进阶', range: '1500—1799' },
-  { min: 1800, code: 'B', label: '熟练', range: '1800—2099' },
-  { min: 2100, code: 'A', label: '高阶', range: '2100—2399' },
-  { min: 2400, code: 'S+', label: '高水平', range: '2400 及以上' }
+  { min: 0, code: 'F', label: '青铜', range: '900 以下' },
+  { min: 900, code: 'E', label: '白银', range: '900—1199' },
+  { min: 1200, code: 'D', label: '黄金', range: '1200—1499' },
+  { min: 1500, code: 'C', label: '铂金', range: '1500—1799' },
+  { min: 1800, code: 'B', label: '钻石', range: '1800—2099' },
+  { min: 2100, code: 'A', label: '星耀', range: '2100—2399' },
+  { min: 2400, code: 'S+', label: '王者', range: '2400 及以上' }
 ]
+// Keep stable letter codes for API filters; use named ranks in the UI.
+function display(code) {
+  const band = LEVEL_BANDS.find(item => code === item.code ||
+    (!['F', 'S+'].includes(item.code) && [1, 2, 3].some(sub => code === item.code + sub)))
+  if (!band) return '待定级'
+  const sub = code.slice(band.code.length)
+  return band.label + ({ 1: 'Ⅰ', 2: 'Ⅱ', 3: 'Ⅲ' }[sub] || '')
+}
 // A transparent product heuristic, not a conversion to competition points.
 // Two alternatives per domain avoid requiring every specialist technique.
 const ASSESSMENT_DOMAINS = [
@@ -55,7 +63,7 @@ function level(platform, value) {
   const band = LEVEL_BANDS.slice().reverse().find(item => score >= item.min)
   const sub = band.code === 'F' || band.code === 'S+' ? '' : String(3 - Math.floor((score - band.min) / 100))
   const code = band.code + sub
-  return { code, label: band.label, text: `${code} · ${band.label}`, note: '依据本人填写的开球网积分推导，尚未核验' }
+  return { code, label: band.label, text: display(code), note: '依据本人填写的开球网积分推导，尚未核验' }
 }
 function normalize(value = {}) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -93,9 +101,9 @@ function resolve(profile = {}) {
     note: '暂无可换算的开球网积分。能力自评还需：' + assessed.missing.map(item => item.label + ' ' + item.missing + ' 项').join('、')
   })
   const band = LEVEL_BANDS.find(item => item.code === assessed.code)
-  return { code: band.code, label: band.label, text: band.code + ' · ' + band.label,
+  return { code: band.code, label: band.label, text: display(band.code),
     source: 'ability_self_assessment', sourceLabel: '自评参考段位',
-    note: '基于六类能力自评自动估算，未核验，不折算积分。试行规则最高估至 B；A、S+ 需用开球网积分区分。' }
+    note: '基于六类能力自评自动估算，未核验，不折算积分。试行规则最高估至钻石；星耀、王者需用开球网积分区分。' }
 }
 function summary(profile = {}) {
   const value = normalize(profile.playingProfile)
@@ -111,4 +119,4 @@ function summary(profile = {}) {
     source: '本人自评'
   }
 }
-module.exports = { ABILITY_STATES, ABILITY_HINTS, ABILITY_GROUPS, EQUIPMENT, TRAITS, LEVEL_BANDS, ASSESSMENT_DOMAINS, ASSESSMENT_RULES, level, normalize, assessment, resolve, summary }
+module.exports = { ABILITY_STATES, ABILITY_HINTS, ABILITY_GROUPS, EQUIPMENT, TRAITS, LEVEL_BANDS, ASSESSMENT_DOMAINS, ASSESSMENT_RULES, display, level, normalize, assessment, resolve, summary }

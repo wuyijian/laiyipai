@@ -32,14 +32,17 @@ async function run() {
   }
   const directory = page('player-directory', api)
   const p = directory.value
+  assert.deepStrictEqual(p.data.grades.map(item => item.label), ['等级', '待定级', '青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者'])
   const first = p.load(false)
   const second = p.changeFilter({ currentTarget: { dataset: { key: 'gradeIndex' } }, detail: { value: '5' } })
   assert.strictEqual(payloads[1].grade, 'C')
-  pending[1].resolve({ items: [{ playerId: 'new', avatarFileId: 'file', availability: { available: false } }], cursor: 'new', hasMore: true })
+  pending[1].resolve({ items: [{ playerId: 'new', avatarFileId: 'file', level: { code: 'C2', text: 'C2 · 进阶', source: 'rating_self_reported' }, availability: { available: false } }], cursor: 'new', hasMore: true })
   await second
   pending[0].resolve({ items: [{ playerId: 'old' }], cursor: 'old', hasMore: false })
   await first
   assert.strictEqual(p.data.items[0].playerId, 'new', 'stale filter response discarded')
+  assert.strictEqual(p.data.items[0].level.text, '铂金Ⅱ', 'legacy API labels receive the current display name')
+  assert.strictEqual(p.data.items[0].level.source, 'rating_self_reported')
   failure = true
   await p.loadMore()
   assert.strictEqual(p.data.items.length, 1)
